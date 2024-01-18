@@ -33,15 +33,18 @@ classifiers = [
 requires-python = ">=3.9"
 dependencies = [
     "bashlex",
+    "gitpython",
 ]
 
 [project.optional-dependencies]
-dev = [
+test = [
+    "freezegun",
     "pytest",
 ]
 
 [project.scripts]
 verify-conda-yes = "rapids_pre_commit_hooks.shell.verify_conda_yes:main"
+verify-copyright = "rapids_pre_commit_hooks.copyright:main"
 
 [tool.setuptools]
 packages = { "find" = { where = ["src"] } }
