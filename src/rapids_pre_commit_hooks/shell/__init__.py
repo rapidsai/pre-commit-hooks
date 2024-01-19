@@ -14,7 +14,7 @@
 
 import bashlex
 
-from ..lint import LintMain
+from ..lint import ExecutionContext, LintMain
 
 
 class LintVisitor(bashlex.ast.nodevisitor):
@@ -26,9 +26,9 @@ class LintVisitor(bashlex.ast.nodevisitor):
         return self.linter.add_warning(pos, msg)
 
 
-class ShellMain(LintMain):
-    def __init__(self):
-        super().__init__()
+class ShellExecutionContext(ExecutionContext):
+    def __init__(self, args):
+        super().__init__(args)
         self.visitors = []
         self.add_check(self.check_shell)
 
@@ -42,3 +42,7 @@ class ShellMain(LintMain):
             visitor = cls(linter, args)
             for part in parts:
                 visitor.visit(part)
+
+
+class ShellMain(LintMain):
+    context_class = ShellExecutionContext

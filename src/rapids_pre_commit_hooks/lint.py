@@ -194,11 +194,9 @@ class Linter:
         self.lines.append((line_begin, line_end))
 
 
-class LintMain(contextlib.AbstractContextManager):
-    def __init__(self):
-        self.argparser = argparse.ArgumentParser()
-        self.argparser.add_argument("--fix", action="store_true")
-        self.argparser.add_argument("file", nargs="+")
+class ExecutionContext(contextlib.AbstractContextManager):
+    def __init__(self, args):
+        self.args = args
         self.checks = []
 
     def add_check(self, check):
@@ -210,18 +208,16 @@ class LintMain(contextlib.AbstractContextManager):
 
         warnings = False
 
-        args = self.argparser.parse_args()
-
-        for file in args.file:
+        for file in self.args.files:
             with open(file) as f:
                 content = f.read()
 
             linter = Linter(file, content)
             for check in self.checks:
-                check(linter, args)
+                check(linter, self.args)
 
-            linter.print_warnings(args.fix)
-            if args.fix:
+            linter.print_warnings(self.args.fix)
+            if self.args.fix:
                 fix = linter.fix()
                 if fix != content:
                     with open(file, "w") as f:
@@ -232,3 +228,15 @@ class LintMain(contextlib.AbstractContextManager):
 
         if warnings:
             exit(1)
+
+
+class LintMain:
+    context_class = ExecutionContext
+
+    def __init__(self):
+        self.argparser = argparse.ArgumentParser()
+        self.argparser.add_argument("--fix", action="store_true")
+        self.argparser.add_argument("files", nargs="+", metavar="file")
+
+    def execute(self):
+        return self.context_class(self.argparser.parse_args())
