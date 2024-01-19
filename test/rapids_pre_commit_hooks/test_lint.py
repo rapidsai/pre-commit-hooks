@@ -127,20 +127,20 @@ class TestLinter:
 
 class TestLintMain:
     @pytest.fixture
-    def tmpfile(self):
-        f = tempfile.NamedTemporaryFile("w+")
-        f.write("Hello world!")
-        f.flush()
-        f.seek(0)
-        return f
+    def hello_world_file(self):
+        with tempfile.NamedTemporaryFile("w+") as f:
+            f.write("Hello world!")
+            f.flush()
+            f.seek(0)
+            yield f
 
     @pytest.fixture
-    def tmpfile2(self):
-        f = tempfile.NamedTemporaryFile("w+")
-        f.write("Hello!")
-        f.flush()
-        f.seek(0)
-        return f
+    def hello_file(self):
+        with tempfile.NamedTemporaryFile("w+") as f:
+            f.write("Hello!")
+            f.flush()
+            f.seek(0)
+            yield f
 
     def the_check(self, linter, args):
         assert args.check_test
@@ -148,56 +148,51 @@ class TestLintMain:
             (0, 5), "Good bye"
         )
         if linter.content[5] != "!":
-            linter.add_warning((5, 5), "use punctuation").add_replacement(
-                (5, 5), ","
-            )
+            linter.add_warning((5, 5), "use punctuation").add_replacement((5, 5), ",")
 
-    def test_no_warnings_no_fix(self, tmpfile, capsys):
-        with tmpfile:
-            with MockArgv("check-test", "--check-test", tmpfile.name):
-                with LintMain() as m:
-                    m.argparser.add_argument("--check-test", action="store_true")
-            assert tmpfile.read() == "Hello world!"
+    def test_no_warnings_no_fix(self, hello_world_file, capsys):
+        with MockArgv("check-test", "--check-test", hello_world_file.name):
+            with LintMain() as m:
+                m.argparser.add_argument("--check-test", action="store_true")
+        assert hello_world_file.read() == "Hello world!"
         captured = capsys.readouterr()
         assert captured.out == ""
 
-    def test_no_warnings_fix(self, tmpfile, capsys):
-        with tmpfile:
-            with MockArgv("check-test", "--check-test", "--fix", tmpfile.name):
-                with LintMain() as m:
-                    m.argparser.add_argument("--check-test", action="store_true")
-            assert tmpfile.read() == "Hello world!"
+    def test_no_warnings_fix(self, hello_world_file, capsys):
+        with MockArgv("check-test", "--check-test", "--fix", hello_world_file.name):
+            with LintMain() as m:
+                m.argparser.add_argument("--check-test", action="store_true")
+        assert hello_world_file.read() == "Hello world!"
         captured = capsys.readouterr()
         assert captured.out == ""
 
-    def test_warnings_no_fix(self, tmpfile, capsys):
-        with tmpfile:
-            with MockArgv("check-test", "--check-test", tmpfile.name), pytest.raises(
-                SystemExit, match=r"^1$"
-            ):
-                with LintMain() as m:
-                    m.argparser.add_argument("--check-test", action="store_true")
-                    m.add_check(self.the_check)
-            assert tmpfile.read() == "Hello world!"
+    def test_warnings_no_fix(self, hello_world_file, capsys):
+        with MockArgv(
+            "check-test", "--check-test", hello_world_file.name
+        ), pytest.raises(SystemExit, match=r"^1$"):
+            with LintMain() as m:
+                m.argparser.add_argument("--check-test", action="store_true")
+                m.add_check(self.the_check)
+        assert hello_world_file.read() == "Hello world!"
         captured = capsys.readouterr()
         assert (
             captured.out
-            == f"""In file {tmpfile.name}:1:
+            == f"""In file {hello_world_file.name}:1:
 Hello world!
 ~~~~~
 warning: say good bye instead
 
-In file {tmpfile.name}:1:
+In file {hello_world_file.name}:1:
 Hello world!
 ~~~~~Good bye
 note: suggested fix
 
-In file {tmpfile.name}:1:
+In file {hello_world_file.name}:1:
 Hello world!
      ^
 warning: use punctuation
 
-In file {tmpfile.name}:1:
+In file {hello_world_file.name}:1:
 Hello world!
      ^,
 note: suggested fix
@@ -205,34 +200,33 @@ note: suggested fix
 """
         )
 
-    def test_warnings_fix(self, tmpfile, capsys):
-        with tmpfile:
-            with MockArgv(
-                "check-test", "--check-test", "--fix", tmpfile.name
-            ), pytest.raises(SystemExit, match=r"^1$"):
-                with LintMain() as m:
-                    m.argparser.add_argument("--check-test", action="store_true")
-                    m.add_check(self.the_check)
-            assert tmpfile.read() == "Good bye, world!"
+    def test_warnings_fix(self, hello_world_file, capsys):
+        with MockArgv(
+            "check-test", "--check-test", "--fix", hello_world_file.name
+        ), pytest.raises(SystemExit, match=r"^1$"):
+            with LintMain() as m:
+                m.argparser.add_argument("--check-test", action="store_true")
+                m.add_check(self.the_check)
+        assert hello_world_file.read() == "Good bye, world!"
         captured = capsys.readouterr()
         assert (
             captured.out
-            == f"""In file {tmpfile.name}:1:
+            == f"""In file {hello_world_file.name}:1:
 Hello world!
 ~~~~~
 warning: say good bye instead
 
-In file {tmpfile.name}:1:
+In file {hello_world_file.name}:1:
 Hello world!
 ~~~~~Good bye
 note: suggested fix applied
 
-In file {tmpfile.name}:1:
+In file {hello_world_file.name}:1:
 Hello world!
      ^
 warning: use punctuation
 
-In file {tmpfile.name}:1:
+In file {hello_world_file.name}:1:
 Hello world!
      ^,
 note: suggested fix applied
@@ -240,45 +234,48 @@ note: suggested fix applied
 """
         )
 
-    def test_multiple_files(self, tmpfile, tmpfile2, capsys):
-        with tmpfile, tmpfile2:
-            with MockArgv(
-                "check-test", "--check-test", "--fix", tmpfile.name, tmpfile2.name
-            ), pytest.raises(SystemExit, match=r"^1$"):
-                with LintMain() as m:
-                    m.argparser.add_argument("--check-test", action="store_true")
-                    m.add_check(self.the_check)
-            assert tmpfile.read() == "Good bye, world!"
-            assert tmpfile2.read() == "Good bye!"
+    def test_multiple_files(self, hello_world_file, hello_file, capsys):
+        with MockArgv(
+            "check-test",
+            "--check-test",
+            "--fix",
+            hello_world_file.name,
+            hello_file.name,
+        ), pytest.raises(SystemExit, match=r"^1$"):
+            with LintMain() as m:
+                m.argparser.add_argument("--check-test", action="store_true")
+                m.add_check(self.the_check)
+        assert hello_world_file.read() == "Good bye, world!"
+        assert hello_file.read() == "Good bye!"
         captured = capsys.readouterr()
         assert (
             captured.out
-            == f"""In file {tmpfile.name}:1:
+            == f"""In file {hello_world_file.name}:1:
 Hello world!
 ~~~~~
 warning: say good bye instead
 
-In file {tmpfile.name}:1:
+In file {hello_world_file.name}:1:
 Hello world!
 ~~~~~Good bye
 note: suggested fix applied
 
-In file {tmpfile.name}:1:
+In file {hello_world_file.name}:1:
 Hello world!
      ^
 warning: use punctuation
 
-In file {tmpfile.name}:1:
+In file {hello_world_file.name}:1:
 Hello world!
      ^,
 note: suggested fix applied
 
-In file {tmpfile2.name}:1:
+In file {hello_file.name}:1:
 Hello!
 ~~~~~
 warning: say good bye instead
 
-In file {tmpfile2.name}:1:
+In file {hello_file.name}:1:
 Hello!
 ~~~~~Good bye
 note: suggested fix applied
