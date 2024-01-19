@@ -152,16 +152,20 @@ class TestLintMain:
 
     def test_no_warnings_no_fix(self, hello_world_file, capsys):
         with MockArgv("check-test", "--check-test", hello_world_file.name):
-            with LintMain() as m:
-                m.argparser.add_argument("--check-test", action="store_true")
+            m = LintMain()
+            m.argparser.add_argument("--check-test", action="store_true")
+            with m.execute():
+                pass
         assert hello_world_file.read() == "Hello world!"
         captured = capsys.readouterr()
         assert captured.out == ""
 
     def test_no_warnings_fix(self, hello_world_file, capsys):
         with MockArgv("check-test", "--check-test", "--fix", hello_world_file.name):
-            with LintMain() as m:
-                m.argparser.add_argument("--check-test", action="store_true")
+            m = LintMain()
+            m.argparser.add_argument("--check-test", action="store_true")
+            with m.execute():
+                pass
         assert hello_world_file.read() == "Hello world!"
         captured = capsys.readouterr()
         assert captured.out == ""
@@ -170,9 +174,10 @@ class TestLintMain:
         with MockArgv(
             "check-test", "--check-test", hello_world_file.name
         ), pytest.raises(SystemExit, match=r"^1$"):
-            with LintMain() as m:
-                m.argparser.add_argument("--check-test", action="store_true")
-                m.add_check(self.the_check)
+            m = LintMain()
+            m.argparser.add_argument("--check-test", action="store_true")
+            with m.execute() as ctx:
+                ctx.add_check(self.the_check)
         assert hello_world_file.read() == "Hello world!"
         captured = capsys.readouterr()
         assert (
@@ -204,9 +209,10 @@ note: suggested fix
         with MockArgv(
             "check-test", "--check-test", "--fix", hello_world_file.name
         ), pytest.raises(SystemExit, match=r"^1$"):
-            with LintMain() as m:
-                m.argparser.add_argument("--check-test", action="store_true")
-                m.add_check(self.the_check)
+            m = LintMain()
+            m.argparser.add_argument("--check-test", action="store_true")
+            with m.execute() as ctx:
+                ctx.add_check(self.the_check)
         assert hello_world_file.read() == "Good bye, world!"
         captured = capsys.readouterr()
         assert (
@@ -242,9 +248,10 @@ note: suggested fix applied
             hello_world_file.name,
             hello_file.name,
         ), pytest.raises(SystemExit, match=r"^1$"):
-            with LintMain() as m:
-                m.argparser.add_argument("--check-test", action="store_true")
-                m.add_check(self.the_check)
+            m = LintMain()
+            m.argparser.add_argument("--check-test", action="store_true")
+            with m.execute() as ctx:
+                ctx.add_check(self.the_check)
         assert hello_world_file.read() == "Good bye, world!"
         assert hello_file.read() == "Good bye!"
         captured = capsys.readouterr()
