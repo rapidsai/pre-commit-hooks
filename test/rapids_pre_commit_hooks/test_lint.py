@@ -12,25 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import contextlib
-import sys
 import tempfile
+from unittest.mock import patch
 
 import pytest
 
 from rapids_pre_commit_hooks.lint import Linter, LintMain, OverlappingReplacementsError
-
-
-class MockArgv(contextlib.AbstractContextManager):
-    def __init__(self, *argv):
-        self.argv = argv
-
-    def __enter__(self):
-        self.old_argv = sys.argv
-        sys.argv = list(self.argv)
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        sys.argv = self.old_argv
 
 
 class TestLinter:
@@ -151,7 +138,7 @@ class TestLintMain:
             linter.add_warning((5, 5), "use punctuation").add_replacement((5, 5), ",")
 
     def test_no_warnings_no_fix(self, hello_world_file, capsys):
-        with MockArgv("check-test", "--check-test", hello_world_file.name):
+        with patch("sys.argv", ["check-test", "--check-test", hello_world_file.name]):
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
             with m.execute():
@@ -161,7 +148,9 @@ class TestLintMain:
         assert captured.out == ""
 
     def test_no_warnings_fix(self, hello_world_file, capsys):
-        with MockArgv("check-test", "--check-test", "--fix", hello_world_file.name):
+        with patch(
+            "sys.argv", ["check-test", "--check-test", "--fix", hello_world_file.name]
+        ):
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
             with m.execute():
@@ -171,8 +160,8 @@ class TestLintMain:
         assert captured.out == ""
 
     def test_warnings_no_fix(self, hello_world_file, capsys):
-        with MockArgv(
-            "check-test", "--check-test", hello_world_file.name
+        with patch(
+            "sys.argv", ["check-test", "--check-test", hello_world_file.name]
         ), pytest.raises(SystemExit, match=r"^1$"):
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
@@ -206,8 +195,8 @@ note: suggested fix
         )
 
     def test_warnings_fix(self, hello_world_file, capsys):
-        with MockArgv(
-            "check-test", "--check-test", "--fix", hello_world_file.name
+        with patch(
+            "sys.argv", ["check-test", "--check-test", "--fix", hello_world_file.name]
         ), pytest.raises(SystemExit, match=r"^1$"):
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
@@ -241,12 +230,15 @@ note: suggested fix applied
         )
 
     def test_multiple_files(self, hello_world_file, hello_file, capsys):
-        with MockArgv(
-            "check-test",
-            "--check-test",
-            "--fix",
-            hello_world_file.name,
-            hello_file.name,
+        with patch(
+            "sys.argv",
+            [
+                "check-test",
+                "--check-test",
+                "--fix",
+                hello_world_file.name,
+                hello_file.name,
+            ],
         ), pytest.raises(SystemExit, match=r"^1$"):
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
