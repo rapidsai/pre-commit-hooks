@@ -159,7 +159,8 @@ def get_target_branch(repo):
     # Appropriate branch not found
     warnings.warn(
         "Could not determine target branch. Try setting the TARGET_BRANCH or "
-        "RAPIDS_BASE_BRANCH environment variable.",
+        "RAPIDS_BASE_BRANCH environment variable, or setting the rapidsai.baseBranch "
+        "configuration option.",
         NoTargetBranchWarning,
     )
     return None

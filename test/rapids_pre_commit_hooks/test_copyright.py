@@ -181,7 +181,8 @@ def test_get_target_branch(git_repo):
     with pytest.warns(
         copyright.NoTargetBranchWarning,
         match=r"^Could not determine target branch[.] Try setting the TARGET_BRANCH or "
-        r"RAPIDS_BASE_BRANCH environment variable[.]$",
+        r"RAPIDS_BASE_BRANCH environment variable, or setting the rapidsai.baseBranch "
+        r"configuration option[.]$",
     ):
         assert copyright.get_target_branch(git_repo) is None
 
