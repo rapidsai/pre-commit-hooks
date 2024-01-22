@@ -102,13 +102,17 @@ def get_target_branch(repo):
 
     The target branch is determined in the following order:
 
-    * If any of the ``$GITHUB_BASE_REF``, ``$TARGET_BRANCH``, or ``$RAPIDS_BASE_BRANCH``
-      environment variables, in that order, are defined and point to a valid branch,
-      that branch is used.
+    * If the ``$GITHUB_BASE_REF`` environment variable is defined and points to a valid
+      branch, that branch is used. This allows GitHub Actions to easily use this tool.
+    * If either of the ``$TARGET_BRANCH`` or ``$RAPIDS_BASE_BRANCH`` environment
+      variables, in that order, are defined and point to a valid branch, that branch is
+      used. This allows users to locally set a base branch on a one-time basis.
     * If the configuration option ``rapidsai.baseBranch`` points to a valid branch, that
-      branch is used.
+      branch is used. This allows users to locally set a base branch on a long-term
+      basis.
     * If a ``branch-<major>.<minor>`` branch exists, that branch is used. If more than
-      one such branch exists, the one with the latest version is used.
+      one such branch exists, the one with the latest version is used. This supports the
+      expected default.
     * Otherwise, None is returned and a warning is issued.
     """
     # Try environment
