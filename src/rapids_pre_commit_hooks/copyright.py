@@ -77,24 +77,23 @@ def apply_copyright_check(linter, old_content):
                         warning_pos,
                         "copyright is not out of date and should not be updated",
                     ).add_replacement(new_match.span(), old_match.group())
+        elif new_copyright_matches:
+            for match in new_copyright_matches:
+                if (
+                    int(match.group("last_year") or match.group("first_year"))
+                    < current_year
+                ):
+                    linter.add_warning(
+                        match.span("years"), "copyright is out of date"
+                    ).add_replacement(
+                        match.span(),
+                        COPYRIGHT_REPLACEMENT.format(
+                            first_year=match.group("first_year"),
+                            last_year=current_year,
+                        ),
+                    )
         else:
-            if new_copyright_matches:
-                for match in new_copyright_matches:
-                    if (
-                        int(match.group("last_year") or match.group("first_year"))
-                        < current_year
-                    ):
-                        linter.add_warning(
-                            match.span("years"), "copyright is out of date"
-                        ).add_replacement(
-                            match.span(),
-                            COPYRIGHT_REPLACEMENT.format(
-                                first_year=match.group("first_year"),
-                                last_year=current_year,
-                            ),
-                        )
-            else:
-                linter.add_warning((0, 0), "no copyright notice found")
+            linter.add_warning((0, 0), "no copyright notice found")
 
 
 def get_target_branch(repo):

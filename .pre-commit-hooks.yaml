@@ -28,7 +28,7 @@
         [.](cmake|cpp|cu|cuh|h|hpp|sh|pxd|py|pyx)$|
         CMakeLists[.]txt$|
         CMakeLists_standalone[.]txt$|
-        setup[.]cfg$|
+        meta[.]yaml$|
         pyproject[.]toml$|
-        meta[.]yaml$
+        setup[.]cfg$
   args: [--fix]
