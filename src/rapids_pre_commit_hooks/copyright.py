@@ -183,14 +183,12 @@ def get_target_branch_upstream_commit(repo):
         except IndexError:
             return None
 
-    candidate_upstreams = sorted(
-        (upstream for remote in repo.remotes if (upstream := try_get_ref(remote))),
-        key=lambda upstream: upstream.commit.committed_datetime,
-        reverse=True,
-    )
     try:
-        return candidate_upstreams[0].commit
-    except IndexError:
+        return max(
+            (upstream for remote in repo.remotes if (upstream := try_get_ref(remote))),
+            key=lambda upstream: upstream.commit.committed_datetime,
+        ).commit
+    except ValueError:
         pass
 
     return target_branch.commit
