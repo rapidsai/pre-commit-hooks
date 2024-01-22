@@ -210,7 +210,11 @@ def check_copyright():
         except KeyError:
             return
 
-        old_content = changed_file.data_stream.read().decode("utf-8")
+        old_content = (
+            changed_file.data_stream.read().decode("utf-8")
+            if changed_file is not None
+            else None
+        )
         apply_copyright_check(linter, old_content)
 
     return the_check

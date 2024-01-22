@@ -683,6 +683,8 @@ File {num} modified
     git_repo.index.move(["file2.txt", "file5.txt"])
     git_repo.index.commit("Rename file2.txt to file5.txt")
 
+    write_file("file6.txt", file_contents(6))
+
     def mock_repo_cwd():
         return patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir))
 
@@ -724,6 +726,11 @@ File {num} modified
         copyright_checker(linter, None)
         apply_copyright_check.assert_called_once_with(linter, file_contents(4))
 
+    linter = Linter("file6.txt", file_contents(6))
+    with mock_apply_copyright_check() as apply_copyright_check:
+        copyright_checker(linter, None)
+        apply_copyright_check.assert_called_once_with(linter, None)
+
     #############################
     # branch-2 is target branch
     #############################
@@ -750,3 +757,8 @@ File {num} modified
     with mock_apply_copyright_check() as apply_copyright_check:
         copyright_checker(linter, None)
         apply_copyright_check.assert_called_once_with(linter, file_contents(4))
+
+    linter = Linter("file6.txt", file_contents(6))
+    with mock_apply_copyright_check() as apply_copyright_check:
+        copyright_checker(linter, None)
+        apply_copyright_check.assert_called_once_with(linter, None)
