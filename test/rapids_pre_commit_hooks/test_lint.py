@@ -13,11 +13,16 @@
 # limitations under the License.
 
 import tempfile
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
-from rapids_pre_commit_hooks.lint import Linter, LintMain, OverlappingReplacementsError
+from rapids_pre_commit_hooks.lint import (
+    BinaryFileWarning,
+    Linter,
+    LintMain,
+    OverlappingReplacementsError,
+)
 
 
 class TestLinter:
@@ -125,6 +130,14 @@ class TestLintMain:
     def hello_file(self):
         with tempfile.NamedTemporaryFile("w+") as f:
             f.write("Hello!")
+            f.flush()
+            f.seek(0)
+            yield f
+
+    @pytest.fixture
+    def binary_file(self):
+        with tempfile.NamedTemporaryFile("wb+") as f:
+            f.write(b"\xDE\xAD\xBE\xEF")
             f.flush()
             f.seek(0)
             yield f
@@ -281,3 +294,23 @@ note: suggested fix applied
 
 """
         )
+
+    def test_binary_file(self, binary_file, capsys):
+        mock_linter = Mock(wraps=Linter)
+        with patch(
+            "sys.argv",
+            [
+                "check-test",
+                "--check-test",
+                "--fix",
+                binary_file.name,
+            ],
+        ), patch("rapids_pre_commit_hooks.lint.Linter", mock_linter), pytest.warns(
+            BinaryFileWarning,
+            match=r"^Refusing to run text linter on binary file .*\.$",
+        ):
+            m = LintMain()
+            m.argparser.add_argument("--check-test", action="store_true")
+            with m.execute() as ctx:
+                ctx.add_check(self.the_check)
+        mock_linter.assert_not_called()

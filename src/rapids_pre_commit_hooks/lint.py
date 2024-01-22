@@ -17,9 +17,14 @@ import bisect
 import contextlib
 import functools
 import itertools
+import warnings
 
 
 class OverlappingReplacementsError(RuntimeError):
+    pass
+
+
+class BinaryFileWarning(Warning):
     pass
 
 
@@ -206,11 +211,18 @@ class ExecutionContext(contextlib.AbstractContextManager):
         if exc_type:
             return
 
-        warnings = False
+        has_warnings = False
 
         for file in self.args.files:
             with open(file) as f:
-                content = f.read()
+                try:
+                    content = f.read()
+                except UnicodeDecodeError:
+                    warnings.warn(
+                        f"Refusing to run text linter on binary file {file}.",
+                        BinaryFileWarning,
+                    )
+                    continue
 
             linter = Linter(file, content)
             for check in self.checks:
@@ -224,9 +236,9 @@ class ExecutionContext(contextlib.AbstractContextManager):
                         f.write(fix)
 
             if len(linter.warnings) > 0:
-                warnings = True
+                has_warnings = True
 
-        if warnings:
+        if has_warnings:
             exit(1)
 
 
