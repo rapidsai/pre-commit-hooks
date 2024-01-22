@@ -518,6 +518,9 @@ def test_get_changed_files(git_repo):
 
     with patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir)), mock_os_walk(
         git_repo.working_tree_dir
+    ), patch(
+        "rapids_pre_commit_hooks.copyright.get_target_branch_upstream_commit",
+        Mock(return_value=None),
     ):
         assert copyright.get_changed_files() == {
             "untouched.txt": None,
