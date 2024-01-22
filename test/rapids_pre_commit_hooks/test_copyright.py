@@ -444,6 +444,37 @@ def test_get_target_branch_upstream_commit(git_repo):
 
 
 def test_get_changed_files(git_repo):
+    def mock_os_walk(top):
+        return patch(
+            "os.walk",
+            Mock(
+                return_value=(
+                    (
+                        "."
+                        if (rel := os.path.relpath(dirpath, top)) == "."
+                        else os.path.join(".", rel),
+                        dirnames,
+                        filenames,
+                    )
+                    for dirpath, dirnames, filenames in os.walk(top)
+                )
+            ),
+        )
+
+    with tempfile.TemporaryDirectory() as non_git_dir, patch(
+        "os.getcwd", Mock(return_value=non_git_dir)
+    ), mock_os_walk(non_git_dir):
+        with open(os.path.join(non_git_dir, "top.txt"), "w") as f:
+            f.write("Top file\n")
+        os.mkdir(os.path.join(non_git_dir, "subdir1"))
+        os.mkdir(os.path.join(non_git_dir, "subdir1/subdir2"))
+        with open(os.path.join(non_git_dir, "subdir1", "subdir2", "sub.txt"), "w") as f:
+            f.write("Subdir file\n")
+        assert copyright.get_changed_files() == {
+            "top.txt": None,
+            "subdir1/subdir2/sub.txt": None,
+        }
+
     def fn(filename):
         return os.path.join(git_repo.working_tree_dir, filename)
 
@@ -463,6 +494,7 @@ def test_get_changed_files(git_repo):
     write_file("modified_and_renamed.txt", file_contents("modified and renamed"))
     write_file("modified.txt", file_contents("modified"))
     write_file("chmodded.txt", file_contents("chmodded"))
+    write_file("untracked.txt", file_contents("untracked"))
     git_repo.index.add(
         [
             "untouched.txt",
@@ -476,6 +508,23 @@ def test_get_changed_files(git_repo):
             "chmodded.txt",
         ]
     )
+
+    with patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir)), mock_os_walk(
+        git_repo.working_tree_dir
+    ):
+        assert copyright.get_changed_files() == {
+            "untouched.txt": None,
+            "copied.txt": None,
+            "modified_and_copied.txt": None,
+            "copied_and_modified.txt": None,
+            "deleted.txt": None,
+            "renamed.txt": None,
+            "modified_and_renamed.txt": None,
+            "modified.txt": None,
+            "chmodded.txt": None,
+            "untracked.txt": None,
+        }
+
     git_repo.index.commit("Initial commit")
 
     # Ensure that diff is done against merge base, not branch tip
@@ -525,7 +574,6 @@ def test_get_changed_files(git_repo):
             "chmodded.txt",
         ]
     )
-    write_file("untracked.txt", file_contents("untracked"))
     write_file("untouched.txt", file_contents("untouched"))
     os.unlink(fn("added_and_deleted.txt"))
 
@@ -554,7 +602,11 @@ def test_get_changed_files(git_repo):
         "renamed_2.txt": "renamed.txt",
     }
 
-    changed_files = copyright.get_changed_files(git_repo, target_branch.commit)
+    with patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir)), patch(
+        "rapids_pre_commit_hooks.copyright.get_target_branch_upstream_commit",
+        Mock(return_value=target_branch.commit),
+    ):
+        changed_files = copyright.get_changed_files()
     assert {
         path: old_blob.path if old_blob else None
         for path, old_blob in changed_files.items()

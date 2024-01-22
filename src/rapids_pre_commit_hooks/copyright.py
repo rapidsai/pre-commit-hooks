@@ -141,7 +141,10 @@ def get_target_branch(repo):
 def get_target_branch_upstream_commit(repo):
     target_branch = get_target_branch(repo)
     if target_branch is None:
-        return repo.head.commit
+        try:
+            return repo.head.commit
+        except ValueError:
+            return None
 
     target_branch_upstream = target_branch.tracking_branch()
     if target_branch_upstream:
@@ -166,8 +169,21 @@ def get_target_branch_upstream_commit(repo):
     return target_branch.commit
 
 
-def get_changed_files(repo, target_branch_upstream_commit):
-    changed_files = {}
+def get_changed_files():
+    try:
+        repo = git.Repo()
+    except git.InvalidGitRepositoryError:
+        return {
+            os.path.relpath(os.path.join(dirpath, filename), "."): None
+            for dirpath, dirnames, filenames in os.walk(".")
+            for filename in filenames
+        }
+
+    changed_files = {f: None for f in repo.untracked_files}
+    target_branch_upstream_commit = get_target_branch_upstream_commit(repo)
+    if target_branch_upstream_commit is None:
+        changed_files.update({blob.path: None for _, blob in repo.index.iter_blobs()})
+        return changed_files
 
     diffs = target_branch_upstream_commit.diff(
         other=None,
@@ -182,14 +198,11 @@ def get_changed_files(repo, target_branch_upstream_commit):
         elif diff.change_type != "D":
             changed_files[diff.b_path] = diff.a_blob
 
-    changed_files.update({f: None for f in repo.untracked_files})
     return changed_files
 
 
 def check_copyright():
-    repo = git.Repo()
-    target_branch_upstream_commit = get_target_branch_upstream_commit(repo)
-    changed_files = get_changed_files(repo, target_branch_upstream_commit)
+    changed_files = get_changed_files()
 
     def the_check(linter, args):
         try:
