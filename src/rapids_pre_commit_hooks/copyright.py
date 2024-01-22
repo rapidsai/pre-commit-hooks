@@ -102,11 +102,11 @@ def get_target_branch(repo):
 
     The target branch is determined in the following order:
 
-    * If the ``$GITHUB_BASE_REF`` environment variable is defined and points to a valid
-      branch, that branch is used. This allows GitHub Actions to easily use this tool.
     * If either of the ``$TARGET_BRANCH`` or ``$RAPIDS_BASE_BRANCH`` environment
       variables, in that order, are defined and point to a valid branch, that branch is
       used. This allows users to locally set a base branch on a one-time basis.
+    * If the ``$GITHUB_BASE_REF`` environment variable is defined and points to a valid
+      branch, that branch is used. This allows GitHub Actions to easily use this tool.
     * If the configuration option ``rapidsai.baseBranch`` points to a valid branch, that
       branch is used. This allows users to locally set a base branch on a long-term
       basis.
@@ -116,17 +116,17 @@ def get_target_branch(repo):
     * Otherwise, None is returned and a warning is issued.
     """
     # Try environment
-    if target_branch_name := os.getenv("GITHUB_BASE_REF"):
-        try:
-            return repo.heads[target_branch_name]
-        except IndexError:
-            pass
     if target_branch_name := os.getenv("TARGET_BRANCH"):
         try:
             return repo.heads[target_branch_name]
         except IndexError:
             pass
     if target_branch_name := os.getenv("RAPIDS_BASE_BRANCH"):
+        try:
+            return repo.heads[target_branch_name]
+        except IndexError:
+            pass
+    if target_branch_name := os.getenv("GITHUB_BASE_REF"):
         try:
             return repo.heads[target_branch_name]
         except IndexError:

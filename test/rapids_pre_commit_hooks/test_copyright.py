@@ -203,28 +203,29 @@ def test_get_target_branch(git_repo):
         w.set_value("rapidsai", "baseBranch", "branch-24.03")
     assert copyright.get_target_branch(git_repo) == branch_24_03
 
-    with patch.dict("os.environ", {"RAPIDS_BASE_BRANCH": "nonexistent"}):
+    with patch.dict("os.environ", {"GITHUB_BASE_REF": "nonexistent"}):
         assert copyright.get_target_branch(git_repo) == branch_24_03
 
-    with patch.dict("os.environ", {"RAPIDS_BASE_BRANCH": "master"}):
+    with patch.dict("os.environ", {"GITHUB_BASE_REF": "master"}):
         assert copyright.get_target_branch(git_repo) == master
 
     with patch.dict(
-        "os.environ", {"RAPIDS_BASE_BRANCH": "master", "TARGET_BRANCH": "nonexistent"}
+        "os.environ", {"GITHUB_BASE_REF": "master", "RAPIDS_BASE_BRANCH": "nonexistent"}
     ):
         assert copyright.get_target_branch(git_repo) == master
 
     with patch.dict(
-        "os.environ", {"RAPIDS_BASE_BRANCH": "master", "TARGET_BRANCH": "branch-24.02"}
+        "os.environ",
+        {"GITHUB_BASE_REF": "master", "RAPIDS_BASE_BRANCH": "branch-24.02"},
     ):
         assert copyright.get_target_branch(git_repo) == branch_24_02
 
     with patch.dict(
         "os.environ",
         {
-            "RAPIDS_BASE_BRANCH": "master",
-            "TARGET_BRANCH": "branch-24.02",
-            "GITHUB_BASE_REF": "nonexistent",
+            "GITHUB_BASE_REF": "master",
+            "RAPIDS_BASE_BRANCH": "branch-24.02",
+            "TARGET_BRANCH": "nonexistent",
         },
     ):
         assert copyright.get_target_branch(git_repo) == branch_24_02
@@ -232,9 +233,9 @@ def test_get_target_branch(git_repo):
     with patch.dict(
         "os.environ",
         {
-            "RAPIDS_BASE_BRANCH": "master",
-            "TARGET_BRANCH": "branch-24.02",
-            "GITHUB_BASE_REF": "branch-24.04",
+            "GITHUB_BASE_REF": "master",
+            "RAPIDS_BASE_BRANCH": "branch-24.02",
+            "TARGET_BRANCH": "branch-24.04",
         },
     ):
         assert copyright.get_target_branch(git_repo) == branch_24_04
