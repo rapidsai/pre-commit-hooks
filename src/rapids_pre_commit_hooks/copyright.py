@@ -16,6 +16,7 @@ import datetime
 import functools
 import os
 import re
+import warnings
 
 import git
 
@@ -26,6 +27,11 @@ COPYRIGHT_RE = re.compile(
     r" *NVIDIA C(?:ORPORATION|orporation)"
 )
 BRANCH_RE = re.compile(r"^branch-(?P<major>[0-9]+)\.(?P<minor>[0-9]+)$")
+COPYRIGHT_REPLACEMENT = "Copyright (c) {first_year}-{last_year}, NVIDIA CORPORATION"
+
+
+class NoTargetBranchWarning(Warning):
+    pass
 
 
 class ConflictingFilesError(RuntimeError):
@@ -82,29 +88,41 @@ def apply_copyright_check(linter, old_content):
                             match.span("years"), "copyright is out of date"
                         ).add_replacement(
                             match.span(),
-                            f"Copyright (c) {match.group('first_year')}-{current_year}"
-                            ", NVIDIA CORPORATION",
+                            COPYRIGHT_REPLACEMENT.format(
+                                first_year=match.group("first_year"),
+                                last_year=current_year,
+                            ),
                         )
             else:
                 linter.add_warning((0, 0), "no copyright notice found")
 
 
 def get_target_branch(repo):
+    """Determine which branch is the "target" branch.
+
+    The target branch is determined in the following order:
+
+    * If any of the ``$GITHUB_BASE_REF``, ``$TARGET_BRANCH``, or ``$RAPIDS_BASE_BRANCH``
+      environment variables, in that order, are defined and point to a valid branch,
+      that branch is used.
+    * If the configuration option ``rapidsai.baseBranch`` points to a valid branch, that
+      branch is used.
+    * If a ``branch-<major>.<minor>`` branch exists, that branch is used. If more than
+      one such branch exists, the one with the latest version is used.
+    * Otherwise, None is returned and a warning is issued.
+    """
     # Try environment
-    target_branch_name = os.getenv("GITHUB_BASE_REF")
-    if target_branch_name:
+    if target_branch_name := os.getenv("GITHUB_BASE_REF"):
         try:
             return repo.heads[target_branch_name]
         except IndexError:
             pass
-    target_branch_name = os.getenv("TARGET_BRANCH")
-    if target_branch_name:
+    if target_branch_name := os.getenv("TARGET_BRANCH"):
         try:
             return repo.heads[target_branch_name]
         except IndexError:
             pass
-    target_branch_name = os.getenv("RAPIDS_BASE_BRANCH")
-    if target_branch_name:
+    if target_branch_name := os.getenv("RAPIDS_BASE_BRANCH"):
         try:
             return repo.heads[target_branch_name]
         except IndexError:
@@ -135,6 +153,11 @@ def get_target_branch(repo):
         pass
 
     # Appropriate branch not found
+    warnings.warn(
+        "Could not determine target branch. Try setting the TARGET_BRANCH or "
+        "RAPIDS_BASE_BRANCH environment variable.",
+        NoTargetBranchWarning,
+    )
     return None
 
 
@@ -211,7 +234,7 @@ def check_copyright():
             return
 
         old_content = (
-            changed_file.data_stream.read().decode("utf-8")
+            changed_file.data_stream.read().decode()
             if changed_file is not None
             else None
         )

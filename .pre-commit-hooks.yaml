@@ -29,5 +29,6 @@
         CMakeLists[.]txt$|
         CMakeLists_standalone[.]txt$|
         setup[.]cfg$|
+        pyproject[.]toml$|
         meta[.]yaml$
   args: [--fix]

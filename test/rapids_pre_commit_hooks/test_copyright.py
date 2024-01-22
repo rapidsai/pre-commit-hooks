@@ -178,7 +178,12 @@ def test_get_target_branch(git_repo):
         f.write("File\n")
     git_repo.index.add(["file.txt"])
     git_repo.index.commit("Initial commit")
-    assert copyright.get_target_branch(git_repo) is None
+    with pytest.warns(
+        copyright.NoTargetBranchWarning,
+        match=r"^Could not determine target branch[.] Try setting the TARGET_BRANCH or "
+        r"RAPIDS_BASE_BRANCH environment variable[.]$",
+    ):
+        assert copyright.get_target_branch(git_repo) is None
 
     branch_24_02 = git_repo.create_head("branch-24.02")
     assert copyright.get_target_branch(git_repo) == branch_24_02
