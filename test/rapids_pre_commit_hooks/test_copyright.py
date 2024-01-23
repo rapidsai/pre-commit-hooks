@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
 import datetime
 import os.path
 import tempfile
@@ -645,6 +646,459 @@ def test_get_changed_files(git_repo):
             assert changed_files[new].data_stream.read() == old_contents
 
 
+def test_find_blob(git_repo):
+    with open(os.path.join(git_repo.working_tree_dir, "top.txt"), "w"):
+        pass
+    os.mkdir(os.path.join(git_repo.working_tree_dir, "sub1"))
+    os.mkdir(os.path.join(git_repo.working_tree_dir, "sub1", "sub2"))
+    with open(os.path.join(git_repo.working_tree_dir, "sub1", "sub2", "sub.txt"), "w"):
+        pass
+    git_repo.index.add(["top.txt", "sub1/sub2/sub.txt"])
+    git_repo.index.commit("Initial commit")
+
+    assert copyright.find_blob(git_repo.head.commit.tree, "top.txt").path == "top.txt"
+    assert (
+        copyright.find_blob(git_repo.head.commit.tree, "sub1/sub2/sub.txt").path
+        == "sub1/sub2/sub.txt"
+    )
+    assert copyright.find_blob(git_repo.head.commit.tree, "nonexistent.txt") is None
+
+
+def test_get_file_last_modified(git_repo):
+    def fn(filename):
+        return os.path.join(git_repo.working_tree_dir, filename)
+
+    def write_file(filename, contents):
+        with open(fn(filename), "w") as f:
+            f.write(contents)
+
+    def expected_return_value(commit, filename):
+        return (commit, copyright.find_blob(commit.tree, filename))
+
+    @contextlib.contextmanager
+    def no_match_copyright():
+        with patch(
+            "rapids_pre_commit_hooks.copyright.match_copyright", Mock()
+        ) as match_copyright, patch(
+            "rapids_pre_commit_hooks.copyright.strip_copyright", Mock()
+        ) as strip_copyright:
+            yield
+            match_copyright.assert_not_called()
+            strip_copyright.assert_not_called()
+
+    write_file("file1.txt", "File 1")
+    git_repo.index.add("file1.txt")
+    git_repo.index.commit("Initial commit")
+    with no_match_copyright():
+        assert copyright.get_file_last_modified(
+            git_repo.head.commit, "file1.txt"
+        ) == expected_return_value(git_repo.head.commit, "file1.txt")
+
+    write_file("file2.txt", "File 2")
+    git_repo.index.add("file2.txt")
+    git_repo.index.commit("Add file2.txt")
+    with no_match_copyright():
+        assert copyright.get_file_last_modified(
+            git_repo.head.commit, "file1.txt"
+        ) == expected_return_value(git_repo.head.commit.parents[0], "file1.txt")
+        assert copyright.get_file_last_modified(
+            git_repo.head.commit.parents[0], "file1.txt"
+        ) == expected_return_value(git_repo.head.commit.parents[0], "file1.txt")
+        assert copyright.get_file_last_modified(
+            git_repo.head.commit, "file2.txt"
+        ) == expected_return_value(git_repo.head.commit, "file2.txt")
+        assert copyright.get_file_last_modified(
+            git_repo.head.commit.parents[0], "file2.txt"
+        ) == (None, None)
+
+    git_repo.index.remove("file1.txt", working_tree=True)
+    write_file("file1_2.txt", "File 1")
+    write_file("file2_2.txt", "File 2")
+    git_repo.index.add(["file1_2.txt", "file2_2.txt"])
+    git_repo.index.commit("Rename and copy")
+    with no_match_copyright():
+        assert copyright.get_file_last_modified(
+            git_repo.head.commit, "file1_2.txt"
+        ) == expected_return_value(
+            git_repo.head.commit.parents[0].parents[0], "file1.txt"
+        )
+        assert copyright.get_file_last_modified(
+            git_repo.head.commit, "file2_2.txt"
+        ) == expected_return_value(git_repo.head.commit.parents[0], "file2.txt")
+
+    write_file(
+        "copyright.txt",
+        """
+Beginning of copyrighted file
+Copyright (c) 2023 NVIDIA CORPORATION
+End of copyrighted file
+""",
+    )
+    git_repo.index.add("copyright.txt")
+    git_repo.index.commit("Add copyrighted file")
+    write_file(
+        "copyright.txt",
+        """
+Beginning of copyrighted file
+Copyright (c) 2023-2024 NVIDIA CORPORATION
+End of copyrighted file
+""",
+    )
+    git_repo.index.add("copyright.txt")
+    git_repo.index.commit("Update copyright")
+    assert copyright.get_file_last_modified(
+        git_repo.head.commit, "copyright.txt"
+    ) == expected_return_value(git_repo.head.commit.parents[0], "copyright.txt")
+
+    write_file(
+        "copyright.txt",
+        """
+Beginning of copyrighted file
+Copyright (c) 2023-2024 NVIDIA CORPORATION
+New content
+End of copyrighted file
+""",
+    )
+    git_repo.index.add("copyright.txt")
+    git_repo.index.commit("New contents")
+    assert copyright.get_file_last_modified(
+        git_repo.head.commit, "copyright.txt"
+    ) == expected_return_value(git_repo.head.commit, "copyright.txt")
+
+    write_file(
+        "copyright.txt",
+        """
+Beginning of copyrighted file
+Copyright (c) 2023-2024 NVIDIA CORPORATION
+Updated content
+End of copyrighted file
+""",
+    )
+    git_repo.index.add("copyright.txt")
+    commit_1 = git_repo.index.commit(
+        "Update contents",
+        commit_date=datetime.datetime(2024, 1, 23, tzinfo=datetime.timezone.utc),
+    )
+    commit_2 = git_repo.index.commit(
+        "Update contents",
+        commit_date=datetime.datetime(2024, 1, 24, tzinfo=datetime.timezone.utc),
+        parent_commits=commit_1.parents,
+    )
+    git_repo.index.commit("Merge", parent_commits=[commit_1, commit_2])
+    assert copyright.get_file_last_modified(
+        git_repo.head.commit, "copyright.txt"
+    ) == expected_return_value(commit_2, "copyright.txt")
+
+    write_file(
+        "copyright.txt",
+        """
+Beginning of copyrighted file
+Copyright (c) 2023-2024 NVIDIA CORPORATION
+New updated content
+End of copyrighted file
+""",
+    )
+    git_repo.index.add("copyright.txt")
+    commit_1 = git_repo.index.commit(
+        "Update contents again",
+        commit_date=datetime.datetime(2024, 1, 24, tzinfo=datetime.timezone.utc),
+    )
+    commit_2 = git_repo.index.commit(
+        "Update contents again",
+        commit_date=datetime.datetime(2024, 1, 23, tzinfo=datetime.timezone.utc),
+        parent_commits=commit_1.parents,
+    )
+    git_repo.index.commit("Merge", parent_commits=[commit_1, commit_2])
+    assert copyright.get_file_last_modified(
+        git_repo.head.commit, "copyright.txt"
+    ) == expected_return_value(commit_1, "copyright.txt")
+
+    write_file(
+        "copyright.txt",
+        """
+Beginning of copyrighted file
+Copyright (c) 2023-2024 NVIDIA CORPORATION
+Old content
+End of copyrighted file
+""",
+    )
+    git_repo.index.add("copyright.txt")
+    git_repo.index.commit(
+        "Old content",
+        commit_date=datetime.datetime(2024, 1, 23, tzinfo=datetime.timezone.utc),
+    )
+    old_commit = git_repo.head.commit
+    write_file(
+        "copyright.txt",
+        """
+Beginning of copyrighted file
+Copyright (c) 2023-2024 NVIDIA CORPORATION
+New content
+End of copyrighted file
+""",
+    )
+    git_repo.index.add("copyright.txt")
+    new_commit = git_repo.index.commit(
+        "New content",
+        commit_date=datetime.datetime(2024, 1, 24, tzinfo=datetime.timezone.utc),
+    )
+    git_repo.index.commit(
+        "Merge",
+        commit_date=datetime.datetime(2024, 1, 25, tzinfo=datetime.timezone.utc),
+        parent_commits=[git_repo.head.commit, old_commit],
+    )
+    assert copyright.get_file_last_modified(
+        git_repo.head.commit, "copyright.txt"
+    ) == expected_return_value(new_commit, "copyright.txt")
+
+    write_file(
+        "copyright.txt",
+        """
+Beginning of copyrighted file
+Copyright (c) 2023-2024 NVIDIA CORPORATION
+Old content
+End of copyrighted file
+""",
+    )
+    git_repo.index.add("copyright.txt")
+    git_repo.index.commit(
+        "Old content",
+        commit_date=datetime.datetime(2024, 1, 23, tzinfo=datetime.timezone.utc),
+    )
+    old_commit = git_repo.head.commit
+    write_file(
+        "copyright.txt",
+        """
+Beginning of copyrighted file
+Copyright (c) 2023 NVIDIA CORPORATION
+New content
+End of copyrighted file
+""",
+    )
+    git_repo.index.add("copyright.txt")
+    new_commit = git_repo.index.commit(
+        "New content",
+        commit_date=datetime.datetime(2024, 1, 25, tzinfo=datetime.timezone.utc),
+    )
+    write_file(
+        "copyright.txt",
+        """
+Beginning of copyrighted file
+Copyright (c) 2023-2024 NVIDIA CORPORATION
+New content
+End of copyrighted file
+""",
+    )
+    git_repo.index.add("copyright.txt")
+    git_repo.index.commit(
+        "Merge",
+        commit_date=datetime.datetime(2024, 1, 24, tzinfo=datetime.timezone.utc),
+        parent_commits=[git_repo.head.commit, old_commit],
+    )
+    assert copyright.get_file_last_modified(
+        git_repo.head.commit, "copyright.txt"
+    ) == expected_return_value(new_commit, "copyright.txt")
+
+    write_file(
+        "copyright.txt",
+        """
+Beginning of copyrighted file
+Copyright (c) 2023 NVIDIA CORPORATION
+Copyrighted content
+End of copyrighted file
+""",
+    )
+    git_repo.index.add("copyright.txt")
+    git_repo.index.commit("Add copyrighted content")
+    write_file(
+        "copyright2.txt",
+        """
+Beginning of copyrighted file
+Copyright (c) 2023-2024 NVIDIA CORPORATION
+Copyrighted content
+End of copyrighted file
+""",
+    )
+    git_repo.index.add("copyright2.txt")
+    git_repo.index.commit("Copy copyrighted file")
+    assert copyright.get_file_last_modified(
+        git_repo.head.commit, "copyright2.txt"
+    ) == expected_return_value(git_repo.head.commit.parents[0], "copyright.txt")
+
+    git_repo.index.remove("copyright2.txt", working_tree=True)
+    write_file(
+        "copyright.txt",
+        f"""
+Beginning of copyrighted file
+Copyright (c) 2023 NVIDIA CORPORATION
+{'''Lots of content
+'''} * 100
+End of copyrighted file
+""",
+    )
+    git_repo.index.add("copyright.txt")
+    git_repo.index.commit("Add copyrighted content")
+    write_file(
+        "copyright2.txt",
+        f"""
+Beginning of copyrighted file
+Copyright (c) 2023 NVIDIA CORPORATION
+{'''Lots of content
+'''} * 100
+More content
+End of copyrighted file
+""",
+    )
+    git_repo.index.add("copyright2.txt")
+    git_repo.index.commit("Copy and modify copyrighted file")
+    assert copyright.get_file_last_modified(
+        git_repo.head.commit, "copyright2.txt"
+    ) == expected_return_value(git_repo.head.commit, "copyright2.txt")
+
+
+def test_apply_batch_copyright_check(git_repo):
+    def fn(filename):
+        return os.path.join(git_repo.working_tree_dir, filename)
+
+    def write_file(filename, content):
+        with open(fn(filename), "w") as f:
+            f.write(content)
+
+    CONTENT = """
+Beginning of copyrighted file
+Copyright (c) 2023 NVIDIA CORPORATION
+End of copyrighted file
+"""
+    write_file("file.txt", CONTENT)
+    git_repo.index.add("file.txt")
+    git_repo.index.commit(
+        "Initial commit",
+        commit_date=datetime.datetime(2023, 2, 1, tzinfo=datetime.timezone.utc),
+    )
+
+    linter = Linter("file.txt", CONTENT)
+    copyright.apply_batch_copyright_check(git_repo, linter)
+    assert linter.warnings == []
+
+    linter = Linter("file.txt", CONTENT + "Oops")
+    with pytest.warns(
+        copyright.ConflictingFilesWarning,
+        match=r'^File "file[.]txt" differs from Git history. Not running batch '
+        r"copyright update[.]$",
+    ):
+        copyright.apply_batch_copyright_check(git_repo, linter)
+    assert linter.warnings == []
+
+    linter = Linter("file2.txt", CONTENT + "Oops")
+    with pytest.warns(
+        copyright.ConflictingFilesWarning,
+        match=r'^File "file2[.]txt" not in Git history. Not running batch copyright '
+        r"update[.]$",
+    ):
+        copyright.apply_batch_copyright_check(git_repo, linter)
+    assert linter.warnings == []
+
+    CONTENT = """
+Beginning of copyrighted file
+Copyright (c) 2023 NVIDIA CORPORATION
+New content
+End of copyrighted file
+"""
+    write_file("file.txt", CONTENT)
+    git_repo.index.add("file.txt")
+    git_repo.index.commit(
+        "Add content",
+        commit_date=datetime.datetime(2024, 2, 1, tzinfo=datetime.timezone.utc),
+    )
+
+    expected_linter = Linter("file.txt", CONTENT)
+    expected_linter.add_warning((45, 49), "copyright is out of date").add_replacement(
+        (31, 68), "Copyright (c) 2023-2024, NVIDIA CORPORATION"
+    )
+
+    linter = Linter("file.txt", CONTENT)
+    copyright.apply_batch_copyright_check(git_repo, linter)
+    assert linter.warnings == expected_linter.warnings
+
+    CONTENT = """
+Beginning of copyrighted file
+Copyright (c) 2023-2024 NVIDIA CORPORATION
+New content
+End of copyrighted file
+"""
+    write_file("file.txt", CONTENT)
+    git_repo.index.add("file.txt")
+    git_repo.index.commit(
+        "Add content",
+        commit_date=datetime.datetime(2024, 2, 2, tzinfo=datetime.timezone.utc),
+    )
+
+    linter = Linter("file.txt", CONTENT)
+    copyright.apply_batch_copyright_check(git_repo, linter)
+    assert linter.warnings == []
+
+    CONTENT = """
+Beginning of copyrighted file
+Copyright (c) 2023-2024 NVIDIA CORPORATION
+Newer content
+End of copyrighted file
+"""
+    write_file("file.txt", CONTENT)
+    git_repo.index.add("file.txt")
+    git_repo.index.commit(
+        "Update copyright and content",
+        commit_date=datetime.datetime(2024, 2, 3, tzinfo=datetime.timezone.utc),
+    )
+
+    linter = Linter("file.txt", CONTENT)
+    copyright.apply_batch_copyright_check(git_repo, linter)
+    assert linter.warnings == []
+
+    CONTENT = """
+Beginning of copyrighted file
+Copyright (c) 2023-2025 NVIDIA CORPORATION
+Newer content
+End of copyrighted file
+"""
+    write_file("file.txt", CONTENT)
+    git_repo.index.add("file.txt")
+    git_repo.index.commit(
+        "Update copyright again",
+        commit_date=datetime.datetime(2025, 2, 1, tzinfo=datetime.timezone.utc),
+    )
+
+    expected_linter = Linter("file.txt", CONTENT)
+    expected_linter.add_warning(
+        (45, 54), "copyright is not out of date and should not be updated"
+    ).add_replacement((31, 73), "Copyright (c) 2023-2024 NVIDIA CORPORATION")
+
+    linter = Linter("file.txt", CONTENT)
+    copyright.apply_batch_copyright_check(git_repo, linter)
+    assert linter.warnings == expected_linter.warnings
+
+    CONTENT = """
+Beginning of copyrighted file
+Copyright (c) 2023-2025 NVIDIA CORPORATION
+Even newer content
+End of copyrighted file
+"""
+    write_file("file.txt", CONTENT)
+    git_repo.index.add("file.txt")
+    git_repo.index.commit(
+        "Update copyright again",
+        commit_date=datetime.datetime(2026, 2, 1, tzinfo=datetime.timezone.utc),
+    )
+
+    expected_linter = Linter("file.txt", CONTENT)
+    expected_linter.add_warning((45, 54), "copyright is out of date").add_replacement(
+        (31, 73), "Copyright (c) 2023-2026, NVIDIA CORPORATION"
+    )
+
+    linter = Linter("file.txt", CONTENT)
+    copyright.apply_batch_copyright_check(git_repo, linter)
+    assert linter.warnings == expected_linter.warnings
+
+
 @freeze_time("2024-01-18")
 def test_check_copyright(git_repo):
     def fn(filename):
@@ -716,37 +1170,60 @@ File {num} modified
     def mock_apply_copyright_check():
         return patch("rapids_pre_commit_hooks.copyright.apply_copyright_check", Mock())
 
+    @contextlib.contextmanager
+    def no_apply_batch_copyright_check():
+        with patch(
+            "rapids_pre_commit_hooks.copyright.apply_batch_copyright_check", Mock()
+        ) as apply_batch_copyright_check:
+            yield
+            apply_batch_copyright_check.assert_not_called()
+
     #############################
     # branch-1 is target branch
     #############################
 
-    mock_args = Mock(target_branch="branch-1")
+    mock_args = Mock(target_branch="branch-1", batch=False)
 
     with mock_repo_cwd(), mock_target_branch_upstream_commit("branch-1"):
         copyright_checker = copyright.check_copyright(mock_args)
 
     linter = Linter("file1.txt", file_contents_modified(1))
-    with mock_apply_copyright_check() as apply_copyright_check:
+    # fmt: off
+    with mock_apply_copyright_check() as apply_copyright_check, \
+            no_apply_batch_copyright_check():
+        # fmt: on
         copyright_checker(linter, mock_args)
         apply_copyright_check.assert_not_called()
 
     linter = Linter("file5.txt", file_contents(2))
-    with mock_apply_copyright_check() as apply_copyright_check:
+    # fmt: off
+    with mock_apply_copyright_check() as apply_copyright_check, \
+            no_apply_batch_copyright_check():
+        # fmt: on
         copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(linter, file_contents(2))
 
     linter = Linter("file3.txt", file_contents_modified(3))
-    with mock_apply_copyright_check() as apply_copyright_check:
+    # fmt: off
+    with mock_apply_copyright_check() as apply_copyright_check, \
+            no_apply_batch_copyright_check():
+        # fmt: on
         copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(linter, file_contents(3))
 
     linter = Linter("file4.txt", file_contents_modified(4))
-    with mock_apply_copyright_check() as apply_copyright_check:
+    # fmt: off
+    with mock_apply_copyright_check() as apply_copyright_check, \
+            no_apply_batch_copyright_check():
+        # fmt: on
         copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(linter, file_contents(4))
 
     linter = Linter("file6.txt", file_contents(6))
-    with mock_apply_copyright_check() as apply_copyright_check:
+    # fmt: off
+    with mock_apply_copyright_check() as apply_copyright_check, \
+            no_apply_batch_copyright_check():
+        # fmt: on
         copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(linter, None)
 
@@ -754,32 +1231,62 @@ File {num} modified
     # branch-2 is target branch
     #############################
 
-    mock_args = Mock(target_branch="branch-2")
+    mock_args = Mock(target_branch="branch-2", batch=False)
 
     with mock_repo_cwd(), mock_target_branch_upstream_commit("branch-2"):
         copyright_checker = copyright.check_copyright(mock_args)
 
     linter = Linter("file1.txt", file_contents_modified(1))
-    with mock_apply_copyright_check() as apply_copyright_check:
+    # fmt: off
+    with mock_apply_copyright_check() as apply_copyright_check, \
+            no_apply_batch_copyright_check():
+        # fmt: on
         copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(linter, file_contents(1))
 
     linter = Linter("file5.txt", file_contents(2))
-    with mock_apply_copyright_check() as apply_copyright_check:
+    # fmt: off
+    with mock_apply_copyright_check() as apply_copyright_check, \
+            no_apply_batch_copyright_check():
+        # fmt: on
         copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(linter, file_contents(2))
 
     linter = Linter("file3.txt", file_contents_modified(3))
-    with mock_apply_copyright_check() as apply_copyright_check:
+    # fmt: off
+    with mock_apply_copyright_check() as apply_copyright_check, \
+            no_apply_batch_copyright_check():
+        # fmt: on
         copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(linter, file_contents(3))
 
     linter = Linter("file4.txt", file_contents_modified(4))
-    with mock_apply_copyright_check() as apply_copyright_check:
+    # fmt: off
+    with mock_apply_copyright_check() as apply_copyright_check, \
+            no_apply_batch_copyright_check():
+        # fmt: on
         copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(linter, file_contents(4))
 
     linter = Linter("file6.txt", file_contents(6))
-    with mock_apply_copyright_check() as apply_copyright_check:
+    # fmt: off
+    with mock_apply_copyright_check() as apply_copyright_check, \
+            no_apply_batch_copyright_check():
+        # fmt: on
         copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(linter, None)
+
+
+def test_check_copyright_batch():
+    git_repo = Mock()
+    with patch("git.Repo", Mock(return_value=git_repo)), patch(
+        "rapids_pre_commit_hooks.copyright.apply_copyright_check", Mock()
+    ) as apply_copyright_check, patch(
+        "rapids_pre_commit_hooks.copyright.apply_batch_copyright_check", Mock()
+    ) as apply_batch_copyright_check:
+        mock_args = Mock(batch=True)
+        copyright_checker = copyright.check_copyright(mock_args)
+        linter = Mock()
+        copyright_checker(linter, mock_args)
+        apply_batch_copyright_check.assert_called_once_with(git_repo, linter)
+        apply_copyright_check.assert_not_called()

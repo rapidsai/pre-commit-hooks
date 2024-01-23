@@ -38,6 +38,10 @@ class NoTargetBranchWarning(RuntimeWarning):
     pass
 
 
+class ConflictingFilesWarning(RuntimeWarning):
+    pass
+
+
 class ConflictingFilesError(RuntimeError):
     pass
 
@@ -248,7 +252,138 @@ def get_changed_files(target_branch_arg):
     return changed_files
 
 
+def find_blob(tree, filename):
+    try:
+        return next(
+            blob
+            for blob in tree.traverse()
+            if blob.type == "blob" and blob.path == filename
+        )
+    except StopIteration:
+        return None
+
+
+def get_file_last_modified(commit, filename):
+    blob = find_blob(commit.tree, filename)
+    if not blob:
+        return (None, None)
+
+    queue = [(commit, blob)]
+    last_modified = None
+    checked = set()
+
+    while queue:
+        commit, blob = queue.pop(0)
+        if (commit.hexsha, blob.path) in checked:
+            continue
+        checked.add((commit.hexsha, blob.path))
+        all_modified = True
+
+        for parent_commit in commit.parents:
+
+            def compare_files(old_blob):
+                nonlocal all_modified
+
+                if old_blob.hexsha == blob.hexsha:
+                    # Same file contents
+                    all_modified = False
+                    queue.append((parent_commit, old_blob))
+                else:
+                    # Different file contents, but non-copyright-header content might be
+                    # the same
+                    old_content, new_content = (
+                        old_blob.data_stream.read().decode(),
+                        blob.data_stream.read().decode(),
+                    )
+                    old_copyright_matches, new_copyright_matches = match_copyright(
+                        old_content
+                    ), match_copyright(new_content)
+
+                    if strip_copyright(
+                        old_content, old_copyright_matches
+                    ) == strip_copyright(new_content, new_copyright_matches):
+                        all_modified = False
+                        queue.append((parent_commit, old_blob))
+
+            if parent_blob := find_blob(parent_commit.tree, blob.path):
+                compare_files(parent_blob)
+            else:
+                diffs = parent_commit.diff(
+                    other=commit,
+                    find_copies=True,
+                    find_copies_harder=True,
+                    find_renames=True,
+                )
+                diff = next(diff for diff in diffs if diff.b_path == blob.path)
+                if diff.change_type != "A":
+                    compare_files(diff.a_blob)
+
+        if all_modified:
+            if (
+                not last_modified
+                or commit.committed_datetime > last_modified[0].committed_datetime
+            ):
+                last_modified = (commit, blob)
+
+    assert last_modified
+    return last_modified
+
+
+def apply_batch_copyright_check(repo, linter):
+    current_blob = find_blob(repo.head.commit.tree, linter.filename)
+    if not current_blob:
+        warnings.warn(
+            f'File "{linter.filename}" not in Git history. Not running batch copyright '
+            "update.",
+            ConflictingFilesWarning,
+        )
+        return
+    if current_blob.data_stream.read().decode() != linter.content:
+        warnings.warn(
+            f'File "{linter.filename}" differs from Git history. Not running batch '
+            "copyright update.",
+            ConflictingFilesWarning,
+        )
+        return
+
+    commit, old_blob = get_file_last_modified(repo.head.commit, linter.filename)
+    year = commit.committed_datetime.year
+    old_content = old_blob.data_stream.read().decode()
+
+    old_copyright_matches, new_copyright_matches = match_copyright(
+        old_content
+    ), match_copyright(linter.content)
+    assert strip_copyright(old_content, old_copyright_matches) == strip_copyright(
+        linter.content, new_copyright_matches
+    )
+    if new_copyright_matches:
+        for old_match, new_match in zip(
+            old_copyright_matches, new_copyright_matches, strict=True
+        ):
+            if (
+                int(new_match.group("last_year") or new_match.group("first_year"))
+                < year
+            ):
+                apply_copyright_update(linter, new_match, year)
+            elif (
+                old_match.group() != new_match.group()
+                and int(old_match.group("last_year") or old_match.group("first_year"))
+                >= year
+            ):
+                apply_copyright_revert(linter, old_match, new_match)
+    else:
+        linter.add_warning((0, 0), "no copyright notice found")
+
+
 def check_copyright(args):
+    if args.batch:
+        repo = git.Repo()
+
+        def the_check(linter, args):
+            apply_batch_copyright_check(repo, linter)
+
+        return the_check
+
     changed_files = get_changed_files(args.target_branch)
 
     def the_check(linter, args):
@@ -279,6 +414,11 @@ def main():
         "--target-branch",
         metavar="<target branch>",
         help="target branch to check modified files against",
+    )
+    m.argparser.add_argument(
+        "--batch",
+        action="store_true",
+        help="batch update files based on last modification commit",
     )
     with m.execute() as ctx:
         ctx.add_check(check_copyright(ctx.args))
