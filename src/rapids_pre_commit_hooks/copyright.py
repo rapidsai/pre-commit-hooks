@@ -58,33 +58,25 @@ def strip_copyright(content, copyright_matches):
     return lines
 
 
-def apply_copyright_revert(linter, old_copyright_matches, new_copyright_matches):
-    for old_match, new_match in zip(
-        old_copyright_matches, new_copyright_matches, strict=True
-    ):
-        if old_match.group() != new_match.group():
-            if old_match.group("years") == new_match.group("years"):
-                warning_pos = new_match.span()
-            else:
-                warning_pos = new_match.span("years")
-            linter.add_warning(
-                warning_pos,
-                "copyright is not out of date and should not be updated",
-            ).add_replacement(new_match.span(), old_match.group())
+def apply_copyright_revert(linter, old_match, new_match):
+    if old_match.group("years") == new_match.group("years"):
+        warning_pos = new_match.span()
+    else:
+        warning_pos = new_match.span("years")
+    linter.add_warning(
+        warning_pos,
+        "copyright is not out of date and should not be updated",
+    ).add_replacement(new_match.span(), old_match.group())
 
 
-def apply_copyright_update(linter, copyright_matches, year):
-    for match in copyright_matches:
-        if int(match.group("last_year") or match.group("first_year")) < year:
-            linter.add_warning(
-                match.span("years"), "copyright is out of date"
-            ).add_replacement(
-                match.span(),
-                COPYRIGHT_REPLACEMENT.format(
-                    first_year=match.group("first_year"),
-                    last_year=year,
-                ),
-            )
+def apply_copyright_update(linter, match, year):
+    linter.add_warning(match.span("years"), "copyright is out of date").add_replacement(
+        match.span(),
+        COPYRIGHT_REPLACEMENT.format(
+            first_year=match.group("first_year"),
+            last_year=year,
+        ),
+    )
 
 
 def apply_copyright_check(linter, old_content):
@@ -98,9 +90,18 @@ def apply_copyright_check(linter, old_content):
         if old_content is not None and strip_copyright(
             old_content, old_copyright_matches
         ) == strip_copyright(linter.content, new_copyright_matches):
-            apply_copyright_revert(linter, old_copyright_matches, new_copyright_matches)
+            for old_match, new_match in zip(
+                old_copyright_matches, new_copyright_matches, strict=True
+            ):
+                if old_match.group() != new_match.group():
+                    apply_copyright_revert(linter, old_match, new_match)
         elif new_copyright_matches:
-            apply_copyright_update(linter, new_copyright_matches, current_year)
+            for match in new_copyright_matches:
+                if (
+                    int(match.group("last_year") or match.group("first_year"))
+                    < current_year
+                ):
+                    apply_copyright_update(linter, match, current_year)
         else:
             linter.add_warning((0, 0), "no copyright notice found")
 
