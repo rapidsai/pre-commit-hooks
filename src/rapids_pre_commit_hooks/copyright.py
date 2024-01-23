@@ -30,11 +30,11 @@ BRANCH_RE = re.compile(r"^branch-(?P<major>[0-9]+)\.(?P<minor>[0-9]+)$")
 COPYRIGHT_REPLACEMENT = "Copyright (c) {first_year}-{last_year}, NVIDIA CORPORATION"
 
 
-class NoSuchBranchWarning(Warning):
+class NoSuchBranchWarning(RuntimeWarning):
     pass
 
 
-class NoTargetBranchWarning(Warning):
+class NoTargetBranchWarning(RuntimeWarning):
     pass
 
 
