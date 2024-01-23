@@ -59,7 +59,9 @@ def strip_copyright(content, copyright_matches):
 
 
 def apply_copyright_revert(linter, old_copyright_matches, new_copyright_matches):
-    for old_match, new_match in zip(old_copyright_matches, new_copyright_matches):
+    for old_match, new_match in zip(
+        old_copyright_matches, new_copyright_matches, strict=True
+    ):
         if old_match.group() != new_match.group():
             if old_match.group("years") == new_match.group("years"):
                 warning_pos = new_match.span()
