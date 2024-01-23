@@ -253,12 +253,21 @@ def get_changed_files(target_branch_arg):
 
 
 def find_blob(tree, filename):
+    d1, d2 = os.path.split(filename)
+    split = [d2]
+    while d1:
+        d1, d2 = os.path.split(d1)
+        split.insert(0, d2)
+
+    while len(split) > 1:
+        component = split.pop(0)
+        try:
+            tree = next(t for t in tree.trees if t.name == component)
+        except StopIteration:
+            return None
+
     try:
-        return next(
-            blob
-            for blob in tree.traverse()
-            if blob.type == "blob" and blob.path == filename
-        )
+        return next(blob for blob in tree.blobs if blob.name == split[0])
     except StopIteration:
         return None
 
