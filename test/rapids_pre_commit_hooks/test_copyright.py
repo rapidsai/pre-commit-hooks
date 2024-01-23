@@ -983,7 +983,7 @@ End of copyrighted file
     linter = Linter("file.txt", CONTENT + "Oops")
     with pytest.warns(
         copyright.ConflictingFilesWarning,
-        match=r'^File "file[.]txt" differs from Git history. Not running batch '
+        match=r'^File "file[.]txt" differs from Git history[.] Not running batch '
         r"copyright update[.]$",
     ):
         copyright.apply_batch_copyright_check(git_repo, linter)
@@ -992,7 +992,7 @@ End of copyrighted file
     linter = Linter("file2.txt", CONTENT + "Oops")
     with pytest.warns(
         copyright.ConflictingFilesWarning,
-        match=r'^File "file2[.]txt" not in Git history. Not running batch copyright '
+        match=r'^File "file2[.]txt" not in Git history[.] Not running batch copyright '
         r"update[.]$",
     ):
         copyright.apply_batch_copyright_check(git_repo, linter)
