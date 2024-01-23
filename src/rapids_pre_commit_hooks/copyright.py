@@ -157,18 +157,16 @@ def get_target_branch(repo, target_branch_arg=None):
             pass
 
     # Try newest branch-xx.yy
-    branches = sorted(
-        (
-            (branch, (match.group("major"), match.group("minor")))
-            for branch in repo.heads
-            if (match := BRANCH_RE.search(branch.name))
-        ),
-        key=lambda i: i[1],
-        reverse=True,
-    )
     try:
-        return branches[0][0]
-    except IndexError:
+        return max(
+            (
+                (branch, (match.group("major"), match.group("minor")))
+                for branch in repo.heads
+                if (match := BRANCH_RE.search(branch.name))
+            ),
+            key=lambda i: i[1],
+        )[0]
+    except ValueError:
         pass
 
     # Appropriate branch not found
