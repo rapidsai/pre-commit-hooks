@@ -240,6 +240,12 @@ def test_get_target_branch(git_repo):
         },
     ):
         assert copyright.get_target_branch(git_repo) == branch_24_04
+        with pytest.warns(
+            copyright.NoSuchBranchWarning,
+            match=r'^--target-branch: branch name "nonexistent" does not exist\.$',
+        ):
+            assert copyright.get_target_branch(git_repo, "nonexistent") == branch_24_04
+        assert copyright.get_target_branch(git_repo, "master") == master
 
 
 def test_get_target_branch_upstream_commit(git_repo):
@@ -477,7 +483,7 @@ def test_get_changed_files(git_repo):
         os.mkdir(os.path.join(non_git_dir, "subdir1/subdir2"))
         with open(os.path.join(non_git_dir, "subdir1", "subdir2", "sub.txt"), "w") as f:
             f.write("Subdir file\n")
-        assert copyright.get_changed_files() == {
+        assert copyright.get_changed_files(Mock(target_branch=None)) == {
             "top.txt": None,
             "subdir1/subdir2/sub.txt": None,
         }
@@ -522,7 +528,7 @@ def test_get_changed_files(git_repo):
         "rapids_pre_commit_hooks.copyright.get_target_branch_upstream_commit",
         Mock(return_value=None),
     ):
-        assert copyright.get_changed_files() == {
+        assert copyright.get_changed_files(Mock(target_branch=None)) == {
             "untouched.txt": None,
             "copied.txt": None,
             "modified_and_copied.txt": None,
@@ -616,7 +622,7 @@ def test_get_changed_files(git_repo):
         "rapids_pre_commit_hooks.copyright.get_target_branch_upstream_commit",
         Mock(return_value=target_branch.commit),
     ):
-        changed_files = copyright.get_changed_files()
+        changed_files = copyright.get_changed_files(Mock(target_branch=None))
     assert {
         path: old_blob.path if old_blob else None
         for path, old_blob in changed_files.items()
@@ -698,9 +704,10 @@ File {num} modified
     def mock_repo_cwd():
         return patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir))
 
-    def mock_target_branch_upstream_commit(branch_name):
-        def func(repo):
-            return repo.heads[branch_name].commit
+    def mock_target_branch_upstream_commit(target_branch):
+        def func(repo, target_branch_arg):
+            assert target_branch == target_branch_arg
+            return repo.heads[target_branch].commit
 
         return patch(
             "rapids_pre_commit_hooks.copyright.get_target_branch_upstream_commit", func
@@ -713,62 +720,66 @@ File {num} modified
     # branch-1 is target branch
     #############################
 
+    mock_args = Mock(target_branch="branch-1")
+
     with mock_repo_cwd(), mock_target_branch_upstream_commit("branch-1"):
-        copyright_checker = copyright.check_copyright()
+        copyright_checker = copyright.check_copyright(mock_args)
 
     linter = Linter("file1.txt", file_contents_modified(1))
     with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, None)
+        copyright_checker(linter, mock_args)
         apply_copyright_check.assert_not_called()
 
     linter = Linter("file5.txt", file_contents(2))
     with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, None)
+        copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(linter, file_contents(2))
 
     linter = Linter("file3.txt", file_contents_modified(3))
     with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, None)
+        copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(linter, file_contents(3))
 
     linter = Linter("file4.txt", file_contents_modified(4))
     with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, None)
+        copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(linter, file_contents(4))
 
     linter = Linter("file6.txt", file_contents(6))
     with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, None)
+        copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(linter, None)
 
     #############################
     # branch-2 is target branch
     #############################
 
+    mock_args = Mock(target_branch="branch-2")
+
     with mock_repo_cwd(), mock_target_branch_upstream_commit("branch-2"):
-        copyright_checker = copyright.check_copyright()
+        copyright_checker = copyright.check_copyright(mock_args)
 
     linter = Linter("file1.txt", file_contents_modified(1))
     with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, None)
+        copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(linter, file_contents(1))
 
     linter = Linter("file5.txt", file_contents(2))
     with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, None)
+        copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(linter, file_contents(2))
 
     linter = Linter("file3.txt", file_contents_modified(3))
     with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, None)
+        copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(linter, file_contents(3))
 
     linter = Linter("file4.txt", file_contents_modified(4))
     with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, None)
+        copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(linter, file_contents(4))
 
     linter = Linter("file6.txt", file_contents(6))
     with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, None)
+        copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(linter, None)

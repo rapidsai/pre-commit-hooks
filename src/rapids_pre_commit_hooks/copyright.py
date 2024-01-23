@@ -30,6 +30,10 @@ BRANCH_RE = re.compile(r"^branch-(?P<major>[0-9]+)\.(?P<minor>[0-9]+)$")
 COPYRIGHT_REPLACEMENT = "Copyright (c) {first_year}-{last_year}, NVIDIA CORPORATION"
 
 
+class NoSuchBranchWarning(Warning):
+    pass
+
+
 class NoTargetBranchWarning(Warning):
     pass
 
@@ -96,11 +100,13 @@ def apply_copyright_check(linter, old_content):
             linter.add_warning((0, 0), "no copyright notice found")
 
 
-def get_target_branch(repo):
+def get_target_branch(repo, target_branch_arg=None):
     """Determine which branch is the "target" branch.
 
     The target branch is determined in the following order:
 
+    * If the ``--target-branch`` argument is passed, and points to a valid branch, that
+      branch is used. This allows users to set a base branch on the command line.
     * If either of the ``$TARGET_BRANCH`` or ``$RAPIDS_BASE_BRANCH`` environment
       variables, in that order, are defined and point to a valid branch, that branch is
       used. This allows users to locally set a base branch on a one-time basis.
@@ -114,6 +120,16 @@ def get_target_branch(repo):
       expected default.
     * Otherwise, None is returned and a warning is issued.
     """
+    # Try command line
+    if target_branch_arg:
+        try:
+            return repo.heads[target_branch_arg]
+        except IndexError:
+            warnings.warn(
+                f'--target-branch: branch name "{target_branch_arg}" does not exist.',
+                NoSuchBranchWarning,
+            )
+
     # Try environment
     if target_branch_name := os.getenv("TARGET_BRANCH"):
         try:
@@ -165,8 +181,8 @@ def get_target_branch(repo):
     return None
 
 
-def get_target_branch_upstream_commit(repo):
-    target_branch = get_target_branch(repo)
+def get_target_branch_upstream_commit(repo, target_branch_arg=None):
+    target_branch = get_target_branch(repo, target_branch_arg)
     if target_branch is None:
         try:
             return repo.head.commit
@@ -194,7 +210,7 @@ def get_target_branch_upstream_commit(repo):
     return target_branch.commit
 
 
-def get_changed_files():
+def get_changed_files(target_branch_arg):
     try:
         repo = git.Repo()
     except git.InvalidGitRepositoryError:
@@ -205,7 +221,9 @@ def get_changed_files():
         }
 
     changed_files = {f: None for f in repo.untracked_files}
-    target_branch_upstream_commit = get_target_branch_upstream_commit(repo)
+    target_branch_upstream_commit = get_target_branch_upstream_commit(
+        repo, target_branch_arg
+    )
     if target_branch_upstream_commit is None:
         changed_files.update({blob.path: None for _, blob in repo.index.iter_blobs()})
         return changed_files
@@ -226,8 +244,8 @@ def get_changed_files():
     return changed_files
 
 
-def check_copyright():
-    changed_files = get_changed_files()
+def check_copyright(args):
+    changed_files = get_changed_files(args.target_branch)
 
     def the_check(linter, args):
         try:
@@ -247,8 +265,19 @@ def check_copyright():
 
 def main():
     m = LintMain()
+    m.argparser.description = (
+        "Verify that all files have had their copyright notices updated. Each file "
+        "will be compared against the target branch (determined automatically or with "
+        "the --target-branch argument) to decide whether or not they need a copyright "
+        "update."
+    )
+    m.argparser.add_argument(
+        "--target-branch",
+        metavar="<target branch>",
+        help="target branch to check modified files against",
+    )
     with m.execute() as ctx:
-        ctx.add_check(check_copyright())
+        ctx.add_check(check_copyright(ctx.args))
 
 
 if __name__ == "__main__":
