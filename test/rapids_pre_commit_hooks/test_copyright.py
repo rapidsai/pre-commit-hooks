@@ -646,6 +646,25 @@ def test_get_changed_files(git_repo):
             assert changed_files[new].data_stream.read() == old_contents
 
 
+def test_normalize_git_filename():
+    assert copyright.normalize_git_filename("file.txt") == "file.txt"
+    assert copyright.normalize_git_filename("sub/file.txt") == "sub/file.txt"
+    assert copyright.normalize_git_filename("sub//file.txt") == "sub/file.txt"
+    assert copyright.normalize_git_filename("sub/../file.txt") == "file.txt"
+    assert copyright.normalize_git_filename("./file.txt") == "file.txt"
+    assert copyright.normalize_git_filename("../file.txt") is None
+    assert (
+        copyright.normalize_git_filename(os.path.join(os.getcwd(), "file.txt"))
+        == "file.txt"
+    )
+    assert (
+        copyright.normalize_git_filename(
+            os.path.join("..", os.path.basename(os.getcwd()), "file.txt")
+        )
+        == "file.txt"
+    )
+
+
 def test_find_blob(git_repo):
     with open(os.path.join(git_repo.working_tree_dir, "top.txt"), "w"):
         pass
@@ -662,6 +681,7 @@ def test_find_blob(git_repo):
         == "sub1/sub2/sub.txt"
     )
     assert copyright.find_blob(git_repo.head.commit.tree, "nonexistent.txt") is None
+    assert copyright.find_blob(git_repo.head.commit.tree, "nonexistent/sub.txt") is None
 
 
 def test_get_file_last_modified(git_repo):
@@ -1020,6 +1040,24 @@ End of copyrighted file
     copyright.apply_batch_copyright_check(git_repo, linter)
     assert linter.warnings == expected_linter.warnings
 
+    expected_linter = Linter("./file.txt", CONTENT)
+    expected_linter.add_warning((45, 49), "copyright is out of date").add_replacement(
+        (31, 68), "Copyright (c) 2023-2024, NVIDIA CORPORATION"
+    )
+
+    linter = Linter("./file.txt", CONTENT)
+    copyright.apply_batch_copyright_check(git_repo, linter)
+    assert linter.warnings == expected_linter.warnings
+
+    linter = Linter("../file.txt", CONTENT)
+    with pytest.warns(
+        copyright.ConflictingFilesWarning,
+        match=r'File "\.\./file.txt" is outside of current directory\. Not running '
+        r"linter on it\.$",
+    ):
+        copyright.apply_batch_copyright_check(git_repo, linter)
+    assert linter.warnings == []
+
     CONTENT = """
 Beginning of copyrighted file
 Copyright (c) 2023-2024 NVIDIA CORPORATION
@@ -1243,6 +1281,26 @@ File {num} modified
         # fmt: on
         copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(linter, file_contents(1))
+
+    linter = Linter("./file1.txt", file_contents_modified(1))
+    # fmt: off
+    with mock_apply_copyright_check() as apply_copyright_check, \
+            no_apply_batch_copyright_check():
+        # fmt: on
+        copyright_checker(linter, mock_args)
+        apply_copyright_check.assert_called_once_with(linter, file_contents(1))
+
+    linter = Linter("../file1.txt", file_contents_modified(1))
+    # fmt: off
+    with mock_apply_copyright_check() as apply_copyright_check, \
+            no_apply_batch_copyright_check():
+        # fmt: on
+        with pytest.warns(
+                copyright.ConflictingFilesWarning,
+                match=r'File "\.\./file1\.txt" is outside of current directory\. Not '
+                r'running linter on it\.$'):
+            copyright_checker(linter, mock_args)
+        apply_copyright_check.assert_not_called()
 
     linter = Linter("file5.txt", file_contents(2))
     # fmt: off

@@ -252,6 +252,13 @@ def get_changed_files(target_branch_arg):
     return changed_files
 
 
+def normalize_git_filename(filename):
+    relpath = os.path.relpath(filename)
+    if re.search(r"^\.\.(/|$)", relpath):
+        return None
+    return relpath
+
+
 def find_blob(tree, filename):
     d1, d2 = os.path.split(filename)
     split = [d2]
@@ -339,7 +346,15 @@ def get_file_last_modified(commit, filename):
 
 
 def apply_batch_copyright_check(repo, linter):
-    current_blob = find_blob(repo.head.commit.tree, linter.filename)
+    if not (git_filename := normalize_git_filename(linter.filename)):
+        warnings.warn(
+            f'File "{linter.filename}" is outside of current directory. Not running '
+            "linter on it.",
+            ConflictingFilesWarning,
+        )
+        return
+
+    current_blob = find_blob(repo.head.commit.tree, git_filename)
     if not current_blob:
         warnings.warn(
             f'File "{linter.filename}" not in Git history. Not running batch copyright '
@@ -355,7 +370,7 @@ def apply_batch_copyright_check(repo, linter):
         )
         return
 
-    commit, old_blob = get_file_last_modified(repo.head.commit, linter.filename)
+    commit, old_blob = get_file_last_modified(repo.head.commit, git_filename)
     year = commit.committed_datetime.year
     old_content = old_blob.data_stream.read().decode()
 
@@ -396,8 +411,16 @@ def check_copyright(args):
     changed_files = get_changed_files(args.target_branch)
 
     def the_check(linter, args):
+        if not (git_filename := normalize_git_filename(linter.filename)):
+            warnings.warn(
+                f'File "{linter.filename}" is outside of current directory. Not '
+                "running linter on it.",
+                ConflictingFilesWarning,
+            )
+            return
+
         try:
-            changed_file = changed_files[linter.filename]
+            changed_file = changed_files[git_filename]
         except KeyError:
             return
 
