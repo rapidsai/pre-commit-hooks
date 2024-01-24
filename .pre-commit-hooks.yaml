@@ -32,3 +32,17 @@
         pyproject[.]toml$|
         setup[.]cfg$
   args: [--fix]
+- id: verify-copyright-batch
+  name: copyright headers
+  description: make sure copyright headers are up to date in Git history
+  entry: verify-copyright
+  language: python
+  files: |
+    (?x)
+        [.](cmake|cpp|cu|cuh|h|hpp|sh|pxd|py|pyx)$|
+        CMakeLists[.]txt$|
+        CMakeLists_standalone[.]txt$|
+        meta[.]yaml$|
+        pyproject[.]toml$|
+        setup[.]cfg$
+  args: [--batch, --fix]
