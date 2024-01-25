@@ -64,7 +64,7 @@ class LintWarning:
         return (
             "LintWarning("
             + f"pos={self.pos}, "
-            + f"msg={self.msg}, "
+            + f"msg={repr(self.msg)}, "
             + f"replacements={self.replacements})"
         )
 
