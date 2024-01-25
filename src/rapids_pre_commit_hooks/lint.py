@@ -17,6 +17,7 @@ import bisect
 import contextlib
 import functools
 import itertools
+import re
 import warnings
 
 
@@ -70,6 +71,8 @@ class LintWarning:
 
 
 class Linter:
+    NEWLINE_RE = re.compile("[\r\n]")
+
     def __init__(self, filename, content):
         self.filename = filename
         self.content = content
@@ -117,12 +120,28 @@ class Linter:
 
             for replacement in warning.replacements:
                 line_index = self.line_for_pos(replacement.pos[0])
-                print(f"In file {self.filename}:{line_index + 1}:")
-                self.print_highlighted_code(replacement.pos, replacement.newtext)
-                if fix_applied:
-                    print("note: suggested fix applied")
+                newtext = replacement.newtext
+                if match := self.NEWLINE_RE.search(newtext):
+                    newtext = newtext[: match.start()] + "..."
+                    long = True
                 else:
-                    print("note: suggested fix")
+                    long = False
+
+                print(f"In file {self.filename}:{line_index + 1}:")
+                self.print_highlighted_code(replacement.pos, newtext)
+                if fix_applied:
+                    if long:
+                        print("note: suggested fix applied but is too long to display")
+                    else:
+                        print("note: suggested fix applied")
+                else:
+                    if long:
+                        print(
+                            "note: suggested fix is too long to display, use --fix to "
+                            "apply it"
+                        )
+                    else:
+                        print("note: suggested fix")
                 print()
 
     def print_highlighted_code(self, pos, replacement=""):
@@ -132,8 +151,10 @@ class Linter:
 
         if self.line_for_pos(pos[1]) == line_index:
             right = pos[1] - line_pos[0]
+            long = False
         else:
             right = line_pos[1] - line_pos[0]
+            long = True
         length = right - left
 
         print(self.content[line_pos[0] : line_pos[1]])
@@ -141,7 +162,7 @@ class Linter:
         if length == 0:
             print(f"^{replacement}")
         else:
-            print(f"{'~' * length}{replacement}")
+            print(f"{'~' * (length - 1)}{'|' if long else '~'}{replacement}")
 
     def line_for_pos(self, index):
         @functools.total_ordering

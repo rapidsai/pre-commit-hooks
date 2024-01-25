@@ -142,6 +142,14 @@ class TestLintMain:
             f.seek(0)
             yield f
 
+    @pytest.fixture
+    def long_file(self):
+        with tempfile.NamedTemporaryFile("w+") as f:
+            f.write("This is a long file\nIt has multiple lines\n")
+            f.flush()
+            f.seek(0)
+            yield f
+
     def the_check(self, linter, args):
         assert args.check_test
         linter.add_warning((0, 5), "say good bye instead").add_replacement(
@@ -149,6 +157,14 @@ class TestLintMain:
         )
         if linter.content[5] != "!":
             linter.add_warning((5, 5), "use punctuation").add_replacement((5, 5), ",")
+
+    def long_file_check(self, linter, args):
+        linter.add_warning((0, len(linter.content)), "this is a long file")
+
+    def long_fix_check(self, linter, args):
+        linter.add_warning((0, 19), "this is a long line").add_replacement(
+            (0, 19), "This is a long file\nIt's even longer now"
+        )
 
     def test_no_warnings_no_fix(self, hello_world_file, capsys):
         with patch("sys.argv", ["check-test", "--check-test", hello_world_file.name]):
@@ -295,7 +311,7 @@ note: suggested fix applied
 """
         )
 
-    def test_binary_file(self, binary_file, capsys):
+    def test_binary_file(self, binary_file):
         mock_linter = Mock(wraps=Linter)
         with patch(
             "sys.argv",
@@ -314,3 +330,83 @@ note: suggested fix applied
             with m.execute() as ctx:
                 ctx.add_check(self.the_check)
         mock_linter.assert_not_called()
+
+    def test_long_file(self, long_file, capsys):
+        with patch(
+            "sys.argv",
+            [
+                "check-test",
+                long_file.name,
+            ],
+        ), pytest.raises(SystemExit, match=r"^1$"):
+            m = LintMain()
+            with m.execute() as ctx:
+                ctx.add_check(self.long_file_check)
+                ctx.add_check(self.long_fix_check)
+        assert (
+            long_file.read()
+            == """This is a long file
+It has multiple lines
+"""
+        )
+        captured = capsys.readouterr()
+        assert (
+            captured.out
+            == f"""In file {long_file.name}:1:
+This is a long file
+~~~~~~~~~~~~~~~~~~~
+warning: this is a long line
+
+In file {long_file.name}:1:
+This is a long file
+~~~~~~~~~~~~~~~~~~~This is a long file...
+note: suggested fix is too long to display, use --fix to apply it
+
+In file {long_file.name}:1:
+This is a long file
+~~~~~~~~~~~~~~~~~~|
+warning: this is a long file
+
+"""
+        )
+
+    def test_long_file_fix(self, long_file, capsys):
+        with patch(
+            "sys.argv",
+            [
+                "check-test",
+                "--fix",
+                long_file.name,
+            ],
+        ), pytest.raises(SystemExit, match=r"^1$"):
+            m = LintMain()
+            with m.execute() as ctx:
+                ctx.add_check(self.long_file_check)
+                ctx.add_check(self.long_fix_check)
+        assert (
+            long_file.read()
+            == """This is a long file
+It's even longer now
+It has multiple lines
+"""
+        )
+        captured = capsys.readouterr()
+        assert (
+            captured.out
+            == f"""In file {long_file.name}:1:
+This is a long file
+~~~~~~~~~~~~~~~~~~~
+warning: this is a long line
+
+In file {long_file.name}:1:
+This is a long file
+~~~~~~~~~~~~~~~~~~~This is a long file...
+note: suggested fix applied but is too long to display
+
+In file {long_file.name}:1:
+This is a long file
+~~~~~~~~~~~~~~~~~~|
+warning: this is a long file
+
+"""
+        )
