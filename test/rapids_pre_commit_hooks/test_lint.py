@@ -207,7 +207,7 @@ warning: say good bye instead
 
 In file {hello_world_file.name}:1:
 Hello world!
-~~~~~Good bye
+~~~~~ Good bye
 note: suggested fix
 
 In file {hello_world_file.name}:1:
@@ -217,7 +217,7 @@ warning: use punctuation
 
 In file {hello_world_file.name}:1:
 Hello world!
-     ^,
+     ^ ,
 note: suggested fix
 
 """
@@ -242,7 +242,7 @@ warning: say good bye instead
 
 In file {hello_world_file.name}:1:
 Hello world!
-~~~~~Good bye
+~~~~~ Good bye
 note: suggested fix applied
 
 In file {hello_world_file.name}:1:
@@ -252,7 +252,7 @@ warning: use punctuation
 
 In file {hello_world_file.name}:1:
 Hello world!
-     ^,
+     ^ ,
 note: suggested fix applied
 
 """
@@ -285,7 +285,7 @@ warning: say good bye instead
 
 In file {hello_world_file.name}:1:
 Hello world!
-~~~~~Good bye
+~~~~~ Good bye
 note: suggested fix applied
 
 In file {hello_world_file.name}:1:
@@ -295,7 +295,7 @@ warning: use punctuation
 
 In file {hello_world_file.name}:1:
 Hello world!
-     ^,
+     ^ ,
 note: suggested fix applied
 
 In file {hello_file.name}:1:
@@ -305,7 +305,7 @@ warning: say good bye instead
 
 In file {hello_file.name}:1:
 Hello!
-~~~~~Good bye
+~~~~~ Good bye
 note: suggested fix applied
 
 """
@@ -359,7 +359,7 @@ warning: this is a long line
 
 In file {long_file.name}:1:
 This is a long file
-~~~~~~~~~~~~~~~~~~~This is a long file...
+~~~~~~~~~~~~~~~~~~~ This is a long file...
 note: suggested fix is too long to display, use --fix to apply it
 
 In file {long_file.name}:1:
@@ -400,7 +400,7 @@ warning: this is a long line
 
 In file {long_file.name}:1:
 This is a long file
-~~~~~~~~~~~~~~~~~~~This is a long file...
+~~~~~~~~~~~~~~~~~~~ This is a long file...
 note: suggested fix applied but is too long to display
 
 In file {long_file.name}:1:

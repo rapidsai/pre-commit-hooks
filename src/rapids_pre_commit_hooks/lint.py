@@ -149,6 +149,9 @@ class Linter:
         line_pos = self.lines[line_index]
         left = pos[0] - line_pos[0]
 
+        if replacement:
+            replacement = f" {replacement}"
+
         if self.line_for_pos(pos[1]) == line_index:
             right = pos[1] - line_pos[0]
             long = False
