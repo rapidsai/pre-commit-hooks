@@ -55,6 +55,9 @@ Major-minor version is {RAPIDS_VERSION_MAJOR_MINOR}
 Major version is {RAPIDS_VERSION_MAJOR}
 Minor version is {RAPIDS_VERSION_MINOR}
 Patch version is {RAPIDS_VERSION_PATCH}
+Hard-coded version is 24.04.00
+Old hard-coded version is 24.02.00
+Brace literal is {{RAPIDS_VERSION}}
 """,
         }
 
@@ -64,6 +67,9 @@ Major-minor version is 24.04
 Major version is 24
 Minor version is 04
 Patch version is 00
+Hard-coded version is 24.04.00
+Old hard-coded version is 24.02.00
+Brace literal is {RAPIDS_VERSION}
 """
 
         linter = Linter("file.txt", CONTENT)
@@ -78,6 +84,9 @@ Major-minor version is 24.02
 Major version is 24
 Minor version is 02
 Patch version is 00
+Hard-coded version is 24.04.00
+Old hard-coded version is 24.02.00
+Brace literal is {RAPIDS_VERSION}
 """
         expected_linter = Linter("file.txt", CONTENT)
         expected_linter.add_warning(
@@ -103,6 +112,9 @@ Major-minor version is 24.04
 Major version is 24
 Minor version is 04
 Patch version is 00
+Hard-coded version is 24.04.00
+Old hard-coded version is 24.02.00
+Brace literal is {RAPIDS_VERSION}
 """
         expected_linter = Linter("file.txt", CONTENT)
         expected_linter.add_warning(
@@ -112,6 +124,11 @@ Patch version is 00
         )
         expected_linter.add_warning(
             (83, 88),
+            "do not hard-code RAPIDS version; dynamically read from VERSION file or "
+            'write a "file.txt.rapids_metadata_template" file',
+        )
+        expected_linter.add_warning(
+            (171, 179),
             "do not hard-code RAPIDS version; dynamically read from VERSION file or "
             'write a "file.txt.rapids_metadata_template" file',
         )
