@@ -18,3 +18,14 @@
   language: python
   types: [shell]
   args: [--fix]
+- id: verify-rapids-metadata
+  name: RAPIDS metadata
+  description: make sure RAPIDS metadata has template file or isn't hard-coded
+  entry: verify-rapids-metadata
+  language: python
+  types: [text]
+  exclude: |
+    (?x)
+        ^VERSION$|
+        [.]rapids_metadata_template$
+  args: [--fix]
