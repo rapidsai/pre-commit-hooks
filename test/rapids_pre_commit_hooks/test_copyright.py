@@ -1101,14 +1101,9 @@ End of copyrighted file
         commit_date=datetime.datetime(2025, 2, 1, tzinfo=datetime.timezone.utc),
     )
 
-    expected_linter = Linter("file.txt", CONTENT)
-    expected_linter.add_warning(
-        (45, 54), "copyright is not out of date and should not be updated"
-    ).add_replacement((31, 73), "Copyright (c) 2023-2024 NVIDIA CORPORATION")
-
     linter = Linter("file.txt", CONTENT)
     copyright.apply_batch_copyright_check(git_repo, linter)
-    assert linter.warnings == expected_linter.warnings
+    assert linter.warnings == []
 
     CONTENT = """
 Beginning of copyrighted file
