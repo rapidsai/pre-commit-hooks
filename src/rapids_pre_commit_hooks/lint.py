@@ -21,6 +21,7 @@ import re
 import warnings
 
 from rich.console import Console
+from rich.markup import escape
 
 
 class OverlappingReplacementsError(RuntimeError):
@@ -118,11 +119,11 @@ class Linter:
             line_index = self.line_for_pos(warning.pos[0])
             line_pos = self.lines[line_index]
             self.console.print(
-                f"In file [bold]{self.filename}:{line_index + 1}:"
+                f"In file [bold]{escape(self.filename)}:{line_index + 1}:"
                 f"{warning.pos[0] - line_pos[0] + 1}[/bold]:"
             )
             self.print_highlighted_code(warning.pos)
-            self.console.print(f"[bold]warning:[/bold] {warning.msg}")
+            self.console.print(f"[bold]warning:[/bold] {escape(warning.msg)}")
             self.console.print()
 
             for replacement in warning.replacements:
@@ -138,7 +139,7 @@ class Linter:
                     long = True
 
                 self.console.print(
-                    f"In file [bold]{self.filename}:{line_index + 1}:"
+                    f"In file [bold]{escape(self.filename)}:{line_index + 1}:"
                     f"{replacement.pos[0] - line_pos[0] + 1}[/bold]:"
                 )
                 self.print_highlighted_code(replacement.pos, newtext)
@@ -172,18 +173,20 @@ class Linter:
 
         if replacement is None:
             self.console.print(
-                f" {self.content[line_pos[0] : left]}[bold]{self.content[left:right]}"
-                f"[/bold]{self.content[right:line_pos[1]]}"
+                f" {escape(self.content[line_pos[0] : left])}"
+                f"[bold]{escape(self.content[left:right])}[/bold]"
+                f"{escape(self.content[right:line_pos[1]])}"
             )
         else:
             self.console.print(
-                f"[red]-{self.content[line_pos[0] : left]}[bold]"
-                f"{self.content[left:right]}[/bold]{self.content[right:line_pos[1]]}"
-                "[/red]"
+                f"[red]-{escape(self.content[line_pos[0] : left])}"
+                f"[bold]{escape(self.content[left:right])}[/bold]"
+                f"{escape(self.content[right:line_pos[1]])}[/red]"
             )
             self.console.print(
-                f"[green]+{self.content[line_pos[0] : left]}[bold]{replacement}[/bold]"
-                f"{self.content[right:line_pos[1]]}[/green]"
+                f"[green]+{escape(self.content[line_pos[0] : left])}"
+                f"[bold]{escape(replacement)}[/bold]"
+                f"{escape(self.content[right:line_pos[1]])}[/green]"
             )
 
     def line_for_pos(self, index):

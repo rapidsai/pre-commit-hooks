@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import contextlib
+import os.path
 import tempfile
 from unittest.mock import Mock, call, patch
 
@@ -151,6 +152,16 @@ class TestLintMain:
             f.seek(0)
             yield f
 
+    @pytest.fixture
+    def bracket_file(self):
+        with tempfile.TemporaryDirectory() as d, open(
+            os.path.join(d, "file[with]brackets.txt"), "w+"
+        ) as f:
+            f.write("This [file] [has] [brackets]\n")
+            f.flush()
+            f.seek(0)
+            yield f
+
     @contextlib.contextmanager
     def mock_console(self):
         m = Mock()
@@ -179,6 +190,11 @@ class TestLintMain:
         linter.add_warning(
             (0, len(linter.content)), "this is a long file"
         ).add_replacement((0, len(linter.content)), "This is a short file now")
+
+    def bracket_check(self, linter, args):
+        linter.add_warning((0, 28), "this [file] has brackets").add_replacement(
+            (12, 17), "[has more]"
+        )
 
     def test_no_warnings_no_fix(self, hello_world_file):
         with patch(
@@ -472,5 +488,39 @@ It has multiple lines
             call().print(
                 "[bold]note:[/bold] suggested fix applied but is too long to display"
             ),
+            call().print(),
+        ]
+
+    def test_bracket_file(self, bracket_file):
+        with patch(
+            "sys.argv",
+            [
+                "check-test",
+                "--fix",
+                bracket_file.name,
+            ],
+        ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
+            m = LintMain()
+            with m.execute() as ctx:
+                ctx.add_check(self.bracket_check)
+        assert bracket_file.read() == "This [file] [has more] [brackets]\n"
+        assert console.mock_calls == [
+            call(highlight=False),
+            call().print(
+                rf"In file [bold]{os.path.dirname(bracket_file.name)}"
+                r"/file\[with]brackets.txt:1:1[/bold]:"
+            ),
+            call().print(r" [bold]This \[file] \[has] \[brackets][/bold]"),
+            call().print(r"[bold]warning:[/bold] this \[file] has brackets"),
+            call().print(),
+            call().print(
+                rf"In file [bold]{os.path.dirname(bracket_file.name)}"
+                r"/file\[with]brackets.txt:1:13[/bold]:"
+            ),
+            call().print(r"[red]-This \[file] [bold]\[has][/bold] \[brackets][/red]"),
+            call().print(
+                r"[green]+This \[file] [bold]\[has more][/bold] \[brackets][/green]"
+            ),
+            call().print("[bold]note:[/bold] suggested fix applied"),
             call().print(),
         ]
