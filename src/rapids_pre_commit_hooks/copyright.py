@@ -280,69 +280,12 @@ def find_blob(tree, filename):
 
 
 def get_file_last_modified(commit, filename):
-    blob = find_blob(commit.tree, filename)
-    if not blob:
-        return (None, None)
+    try:
+        last_modified_commit = next(commit.repo.iter_commits(commit, filename))
+    except StopIteration:
+        return None
 
-    queue = [(commit, blob)]
-    last_modified = None
-    checked = set()
-
-    while queue:
-        commit, blob = queue.pop(0)
-        if (commit.hexsha, blob.path) in checked:
-            continue
-        checked.add((commit.hexsha, blob.path))
-        all_modified = True
-
-        for parent_commit in commit.parents:
-
-            def compare_files(old_blob):
-                nonlocal all_modified
-
-                if old_blob.hexsha == blob.hexsha:
-                    # Same file contents
-                    all_modified = False
-                    queue.append((parent_commit, old_blob))
-                else:
-                    # Different file contents, but non-copyright-header content might be
-                    # the same
-                    old_content, new_content = (
-                        old_blob.data_stream.read().decode(),
-                        blob.data_stream.read().decode(),
-                    )
-                    old_copyright_matches, new_copyright_matches = match_copyright(
-                        old_content
-                    ), match_copyright(new_content)
-
-                    if strip_copyright(
-                        old_content, old_copyright_matches
-                    ) == strip_copyright(new_content, new_copyright_matches):
-                        all_modified = False
-                        queue.append((parent_commit, old_blob))
-
-            if parent_blob := find_blob(parent_commit.tree, blob.path):
-                compare_files(parent_blob)
-            else:
-                diffs = parent_commit.diff(
-                    other=commit,
-                    find_copies=True,
-                    find_copies_harder=True,
-                    find_renames=True,
-                )
-                diff = next(diff for diff in diffs if diff.b_path == blob.path)
-                if diff.change_type != "A":
-                    compare_files(diff.a_blob)
-
-        if all_modified:
-            if (
-                not last_modified
-                or commit.committed_datetime > last_modified[0].committed_datetime
-            ):
-                last_modified = (commit, blob)
-
-    assert last_modified
-    return last_modified
+    return last_modified_commit
 
 
 def apply_batch_copyright_check(repo, linter):
@@ -370,31 +313,13 @@ def apply_batch_copyright_check(repo, linter):
         )
         return
 
-    commit, old_blob = get_file_last_modified(repo.head.commit, git_filename)
+    commit = get_file_last_modified(repo.head.commit, git_filename)
     year = commit.committed_datetime.year
-    old_content = old_blob.data_stream.read().decode()
 
-    old_copyright_matches, new_copyright_matches = match_copyright(
-        old_content
-    ), match_copyright(linter.content)
-    assert strip_copyright(old_content, old_copyright_matches) == strip_copyright(
-        linter.content, new_copyright_matches
-    )
-    if new_copyright_matches:
-        for old_match, new_match in zip(
-            old_copyright_matches, new_copyright_matches, strict=True
-        ):
-            if (
-                int(new_match.group("last_year") or new_match.group("first_year"))
-                < year
-            ):
-                apply_copyright_update(linter, new_match, year)
-            elif (
-                old_match.group() != new_match.group()
-                and int(old_match.group("last_year") or old_match.group("first_year"))
-                >= year
-            ):
-                apply_copyright_revert(linter, old_match, new_match)
+    if copyright_matches := match_copyright(linter.content):
+        for match in copyright_matches:
+            if int(match.group("last_year") or match.group("first_year")) < year:
+                apply_copyright_update(linter, match, year)
     else:
         linter.add_warning((0, 0), "no copyright notice found")
 

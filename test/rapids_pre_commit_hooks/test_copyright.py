@@ -692,59 +692,47 @@ def test_get_file_last_modified(git_repo):
         with open(fn(filename), "w") as f:
             f.write(contents)
 
-    def expected_return_value(commit, filename):
-        return (commit, copyright.find_blob(commit.tree, filename))
-
-    @contextlib.contextmanager
-    def no_match_copyright():
-        with patch(
-            "rapids_pre_commit_hooks.copyright.match_copyright", Mock()
-        ) as match_copyright, patch(
-            "rapids_pre_commit_hooks.copyright.strip_copyright", Mock()
-        ) as strip_copyright:
-            yield
-            match_copyright.assert_not_called()
-            strip_copyright.assert_not_called()
-
     write_file("file1.txt", "File 1")
     git_repo.index.add("file1.txt")
     git_repo.index.commit("Initial commit")
-    with no_match_copyright():
-        assert copyright.get_file_last_modified(
-            git_repo.head.commit, "file1.txt"
-        ) == expected_return_value(git_repo.head.commit, "file1.txt")
+    assert (
+        copyright.get_file_last_modified(git_repo.head.commit, "file1.txt")
+        == git_repo.head.commit
+    )
 
     write_file("file2.txt", "File 2")
     git_repo.index.add("file2.txt")
     git_repo.index.commit("Add file2.txt")
-    with no_match_copyright():
-        assert copyright.get_file_last_modified(
-            git_repo.head.commit, "file1.txt"
-        ) == expected_return_value(git_repo.head.commit.parents[0], "file1.txt")
-        assert copyright.get_file_last_modified(
-            git_repo.head.commit.parents[0], "file1.txt"
-        ) == expected_return_value(git_repo.head.commit.parents[0], "file1.txt")
-        assert copyright.get_file_last_modified(
-            git_repo.head.commit, "file2.txt"
-        ) == expected_return_value(git_repo.head.commit, "file2.txt")
-        assert copyright.get_file_last_modified(
-            git_repo.head.commit.parents[0], "file2.txt"
-        ) == (None, None)
+    assert (
+        copyright.get_file_last_modified(git_repo.head.commit, "file1.txt")
+        == git_repo.head.commit.parents[0]
+    )
+    assert (
+        copyright.get_file_last_modified(git_repo.head.commit.parents[0], "file1.txt")
+        == git_repo.head.commit.parents[0]
+    )
+    assert (
+        copyright.get_file_last_modified(git_repo.head.commit, "file2.txt")
+        == git_repo.head.commit
+    )
+    assert (
+        copyright.get_file_last_modified(git_repo.head.commit.parents[0], "file2.txt")
+        is None
+    )
 
     git_repo.index.remove("file1.txt", working_tree=True)
     write_file("file1_2.txt", "File 1")
     write_file("file2_2.txt", "File 2")
     git_repo.index.add(["file1_2.txt", "file2_2.txt"])
     git_repo.index.commit("Rename and copy")
-    with no_match_copyright():
-        assert copyright.get_file_last_modified(
-            git_repo.head.commit, "file1_2.txt"
-        ) == expected_return_value(
-            git_repo.head.commit.parents[0].parents[0], "file1.txt"
-        )
-        assert copyright.get_file_last_modified(
-            git_repo.head.commit, "file2_2.txt"
-        ) == expected_return_value(git_repo.head.commit.parents[0], "file2.txt")
+    assert (
+        copyright.get_file_last_modified(git_repo.head.commit, "file1_2.txt")
+        == git_repo.head.commit
+    )
+    assert (
+        copyright.get_file_last_modified(git_repo.head.commit, "file2_2.txt")
+        == git_repo.head.commit
+    )
 
     write_file(
         "copyright.txt",
@@ -766,9 +754,10 @@ End of copyrighted file
     )
     git_repo.index.add("copyright.txt")
     git_repo.index.commit("Update copyright")
-    assert copyright.get_file_last_modified(
-        git_repo.head.commit, "copyright.txt"
-    ) == expected_return_value(git_repo.head.commit.parents[0], "copyright.txt")
+    assert (
+        copyright.get_file_last_modified(git_repo.head.commit, "copyright.txt")
+        == git_repo.head.commit
+    )
 
     write_file(
         "copyright.txt",
@@ -781,9 +770,10 @@ End of copyrighted file
     )
     git_repo.index.add("copyright.txt")
     git_repo.index.commit("New contents")
-    assert copyright.get_file_last_modified(
-        git_repo.head.commit, "copyright.txt"
-    ) == expected_return_value(git_repo.head.commit, "copyright.txt")
+    assert (
+        copyright.get_file_last_modified(git_repo.head.commit, "copyright.txt")
+        == git_repo.head.commit
+    )
 
     write_file(
         "copyright.txt",
@@ -805,9 +795,10 @@ End of copyrighted file
         parent_commits=commit_1.parents,
     )
     git_repo.index.commit("Merge", parent_commits=[commit_1, commit_2])
-    assert copyright.get_file_last_modified(
-        git_repo.head.commit, "copyright.txt"
-    ) == expected_return_value(commit_2, "copyright.txt")
+    assert (
+        copyright.get_file_last_modified(git_repo.head.commit, "copyright.txt")
+        == commit_1
+    )
 
     write_file(
         "copyright.txt",
@@ -829,9 +820,10 @@ End of copyrighted file
         parent_commits=commit_1.parents,
     )
     git_repo.index.commit("Merge", parent_commits=[commit_1, commit_2])
-    assert copyright.get_file_last_modified(
-        git_repo.head.commit, "copyright.txt"
-    ) == expected_return_value(commit_1, "copyright.txt")
+    assert (
+        copyright.get_file_last_modified(git_repo.head.commit, "copyright.txt")
+        == commit_1
+    )
 
     write_file(
         "copyright.txt",
@@ -867,9 +859,10 @@ End of copyrighted file
         commit_date=datetime.datetime(2024, 1, 25, tzinfo=datetime.timezone.utc),
         parent_commits=[git_repo.head.commit, old_commit],
     )
-    assert copyright.get_file_last_modified(
-        git_repo.head.commit, "copyright.txt"
-    ) == expected_return_value(new_commit, "copyright.txt")
+    assert (
+        copyright.get_file_last_modified(git_repo.head.commit, "copyright.txt")
+        == new_commit
+    )
 
     write_file(
         "copyright.txt",
@@ -915,9 +908,10 @@ End of copyrighted file
         commit_date=datetime.datetime(2024, 1, 24, tzinfo=datetime.timezone.utc),
         parent_commits=[git_repo.head.commit, old_commit],
     )
-    assert copyright.get_file_last_modified(
-        git_repo.head.commit, "copyright.txt"
-    ) == expected_return_value(new_commit, "copyright.txt")
+    assert (
+        copyright.get_file_last_modified(git_repo.head.commit, "copyright.txt")
+        == git_repo.head.commit
+    )
 
     write_file(
         "copyright.txt",
@@ -941,9 +935,10 @@ End of copyrighted file
     )
     git_repo.index.add("copyright2.txt")
     git_repo.index.commit("Copy copyrighted file")
-    assert copyright.get_file_last_modified(
-        git_repo.head.commit, "copyright2.txt"
-    ) == expected_return_value(git_repo.head.commit.parents[0], "copyright.txt")
+    assert (
+        copyright.get_file_last_modified(git_repo.head.commit, "copyright2.txt")
+        == git_repo.head.commit
+    )
 
     git_repo.index.remove("copyright2.txt", working_tree=True)
     write_file(
@@ -971,9 +966,10 @@ End of copyrighted file
     )
     git_repo.index.add("copyright2.txt")
     git_repo.index.commit("Copy and modify copyrighted file")
-    assert copyright.get_file_last_modified(
-        git_repo.head.commit, "copyright2.txt"
-    ) == expected_return_value(git_repo.head.commit, "copyright2.txt")
+    assert (
+        copyright.get_file_last_modified(git_repo.head.commit, "copyright2.txt")
+        == git_repo.head.commit
+    )
 
 
 def test_apply_batch_copyright_check(git_repo):
