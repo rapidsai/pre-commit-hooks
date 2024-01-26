@@ -33,6 +33,7 @@ classifiers = [
 requires-python = ">=3.9"
 dependencies = [
     "bashlex",
+    "rich",
 ]
 
 [project.optional-dependencies]

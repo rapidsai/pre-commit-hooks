@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
 import tempfile
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 import pytest
 
@@ -150,6 +151,14 @@ class TestLintMain:
             f.seek(0)
             yield f
 
+    @contextlib.contextmanager
+    def mock_console(self):
+        m = Mock()
+        with patch("rich.console.Console", m), patch(
+            "rapids_pre_commit_hooks.lint.Console", m
+        ):
+            yield m
+
     def the_check(self, linter, args):
         assert args.check_test
         linter.add_warning((0, 5), "say good bye instead").add_replacement(
@@ -166,99 +175,100 @@ class TestLintMain:
             (0, 19), "This is a long file\nIt's even longer now"
         )
 
-    def test_no_warnings_no_fix(self, hello_world_file, capsys):
-        with patch("sys.argv", ["check-test", "--check-test", hello_world_file.name]):
-            m = LintMain()
-            m.argparser.add_argument("--check-test", action="store_true")
-            with m.execute():
-                pass
-        assert hello_world_file.read() == "Hello world!"
-        captured = capsys.readouterr()
-        assert captured.out == ""
+    def long_delete_fix_check(self, linter, args):
+        linter.add_warning(
+            (0, len(linter.content)), "this is a long file"
+        ).add_replacement((0, len(linter.content)), "This is a short file now")
 
-    def test_no_warnings_fix(self, hello_world_file, capsys):
-        with patch(
-            "sys.argv", ["check-test", "--check-test", "--fix", hello_world_file.name]
-        ):
-            m = LintMain()
-            m.argparser.add_argument("--check-test", action="store_true")
-            with m.execute():
-                pass
-        assert hello_world_file.read() == "Hello world!"
-        captured = capsys.readouterr()
-        assert captured.out == ""
-
-    def test_warnings_no_fix(self, hello_world_file, capsys):
+    def test_no_warnings_no_fix(self, hello_world_file):
         with patch(
             "sys.argv", ["check-test", "--check-test", hello_world_file.name]
-        ), pytest.raises(SystemExit, match=r"^1$"):
+        ), self.mock_console() as console:
+            m = LintMain()
+            m.argparser.add_argument("--check-test", action="store_true")
+            with m.execute():
+                pass
+        assert hello_world_file.read() == "Hello world!"
+        assert console.mock_calls == [
+            call(highlight=False),
+        ]
+
+    def test_no_warnings_fix(self, hello_world_file):
+        with patch(
+            "sys.argv", ["check-test", "--check-test", "--fix", hello_world_file.name]
+        ), self.mock_console() as console:
+            m = LintMain()
+            m.argparser.add_argument("--check-test", action="store_true")
+            with m.execute():
+                pass
+        assert hello_world_file.read() == "Hello world!"
+        assert console.mock_calls == [
+            call(highlight=False),
+        ]
+
+    def test_warnings_no_fix(self, hello_world_file):
+        with patch(
+            "sys.argv", ["check-test", "--check-test", hello_world_file.name]
+        ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
             with m.execute() as ctx:
                 ctx.add_check(self.the_check)
         assert hello_world_file.read() == "Hello world!"
-        captured = capsys.readouterr()
-        assert (
-            captured.out
-            == f"""In file {hello_world_file.name}:1:
-Hello world!
-~~~~~
-warning: say good bye instead
+        assert console.mock_calls == [
+            call(highlight=False),
+            call().print(f"In file [bold]{hello_world_file.name}:1:1[/bold]:"),
+            call().print(" [bold]Hello[/bold] world!"),
+            call().print("[bold]warning:[/bold] say good bye instead"),
+            call().print(),
+            call().print(f"In file [bold]{hello_world_file.name}:1:1[/bold]:"),
+            call().print("[red]-[bold]Hello[/bold] world![/red]"),
+            call().print("[green]+[bold]Good bye[/bold] world![/green]"),
+            call().print("[bold]note:[/bold] suggested fix"),
+            call().print(),
+            call().print(f"In file [bold]{hello_world_file.name}:1:6[/bold]:"),
+            call().print(" Hello[bold][/bold] world!"),
+            call().print("[bold]warning:[/bold] use punctuation"),
+            call().print(),
+            call().print(f"In file [bold]{hello_world_file.name}:1:6[/bold]:"),
+            call().print("[red]-Hello[bold][/bold] world![/red]"),
+            call().print("[green]+Hello[bold],[/bold] world![/green]"),
+            call().print("[bold]note:[/bold] suggested fix"),
+            call().print(),
+        ]
 
-In file {hello_world_file.name}:1:
-Hello world!
-~~~~~ Good bye
-note: suggested fix
-
-In file {hello_world_file.name}:1:
-Hello world!
-     ^
-warning: use punctuation
-
-In file {hello_world_file.name}:1:
-Hello world!
-     ^ ,
-note: suggested fix
-
-"""
-        )
-
-    def test_warnings_fix(self, hello_world_file, capsys):
+    def test_warnings_fix(self, hello_world_file):
         with patch(
             "sys.argv", ["check-test", "--check-test", "--fix", hello_world_file.name]
-        ), pytest.raises(SystemExit, match=r"^1$"):
+        ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
             with m.execute() as ctx:
                 ctx.add_check(self.the_check)
         assert hello_world_file.read() == "Good bye, world!"
-        captured = capsys.readouterr()
-        assert (
-            captured.out
-            == f"""In file {hello_world_file.name}:1:
-Hello world!
-~~~~~
-warning: say good bye instead
+        assert console.mock_calls == [
+            call(highlight=False),
+            call().print(f"In file [bold]{hello_world_file.name}:1:1[/bold]:"),
+            call().print(" [bold]Hello[/bold] world!"),
+            call().print("[bold]warning:[/bold] say good bye instead"),
+            call().print(),
+            call().print(f"In file [bold]{hello_world_file.name}:1:1[/bold]:"),
+            call().print("[red]-[bold]Hello[/bold] world![/red]"),
+            call().print("[green]+[bold]Good bye[/bold] world![/green]"),
+            call().print("[bold]note:[/bold] suggested fix applied"),
+            call().print(),
+            call().print(f"In file [bold]{hello_world_file.name}:1:6[/bold]:"),
+            call().print(" Hello[bold][/bold] world!"),
+            call().print("[bold]warning:[/bold] use punctuation"),
+            call().print(),
+            call().print(f"In file [bold]{hello_world_file.name}:1:6[/bold]:"),
+            call().print("[red]-Hello[bold][/bold] world![/red]"),
+            call().print("[green]+Hello[bold],[/bold] world![/green]"),
+            call().print("[bold]note:[/bold] suggested fix applied"),
+            call().print(),
+        ]
 
-In file {hello_world_file.name}:1:
-Hello world!
-~~~~~ Good bye
-note: suggested fix applied
-
-In file {hello_world_file.name}:1:
-Hello world!
-     ^
-warning: use punctuation
-
-In file {hello_world_file.name}:1:
-Hello world!
-     ^ ,
-note: suggested fix applied
-
-"""
-        )
-
-    def test_multiple_files(self, hello_world_file, hello_file, capsys):
+    def test_multiple_files(self, hello_world_file, hello_file):
         with patch(
             "sys.argv",
             [
@@ -268,48 +278,44 @@ note: suggested fix applied
                 hello_world_file.name,
                 hello_file.name,
             ],
-        ), pytest.raises(SystemExit, match=r"^1$"):
+        ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
             with m.execute() as ctx:
                 ctx.add_check(self.the_check)
         assert hello_world_file.read() == "Good bye, world!"
         assert hello_file.read() == "Good bye!"
-        captured = capsys.readouterr()
-        assert (
-            captured.out
-            == f"""In file {hello_world_file.name}:1:
-Hello world!
-~~~~~
-warning: say good bye instead
-
-In file {hello_world_file.name}:1:
-Hello world!
-~~~~~ Good bye
-note: suggested fix applied
-
-In file {hello_world_file.name}:1:
-Hello world!
-     ^
-warning: use punctuation
-
-In file {hello_world_file.name}:1:
-Hello world!
-     ^ ,
-note: suggested fix applied
-
-In file {hello_file.name}:1:
-Hello!
-~~~~~
-warning: say good bye instead
-
-In file {hello_file.name}:1:
-Hello!
-~~~~~ Good bye
-note: suggested fix applied
-
-"""
-        )
+        assert console.mock_calls == [
+            call(highlight=False),
+            call().print(f"In file [bold]{hello_world_file.name}:1:1[/bold]:"),
+            call().print(" [bold]Hello[/bold] world!"),
+            call().print("[bold]warning:[/bold] say good bye instead"),
+            call().print(),
+            call().print(f"In file [bold]{hello_world_file.name}:1:1[/bold]:"),
+            call().print("[red]-[bold]Hello[/bold] world![/red]"),
+            call().print("[green]+[bold]Good bye[/bold] world![/green]"),
+            call().print("[bold]note:[/bold] suggested fix applied"),
+            call().print(),
+            call().print(f"In file [bold]{hello_world_file.name}:1:6[/bold]:"),
+            call().print(" Hello[bold][/bold] world!"),
+            call().print("[bold]warning:[/bold] use punctuation"),
+            call().print(),
+            call().print(f"In file [bold]{hello_world_file.name}:1:6[/bold]:"),
+            call().print("[red]-Hello[bold][/bold] world![/red]"),
+            call().print("[green]+Hello[bold],[/bold] world![/green]"),
+            call().print("[bold]note:[/bold] suggested fix applied"),
+            call().print(),
+            call(highlight=False),
+            call().print(f"In file [bold]{hello_file.name}:1:1[/bold]:"),
+            call().print(" [bold]Hello[/bold]!"),
+            call().print("[bold]warning:[/bold] say good bye instead"),
+            call().print(),
+            call().print(f"In file [bold]{hello_file.name}:1:1[/bold]:"),
+            call().print("[red]-[bold]Hello[/bold]![/red]"),
+            call().print("[green]+[bold]Good bye[/bold]![/green]"),
+            call().print("[bold]note:[/bold] suggested fix applied"),
+            call().print(),
+        ]
 
     def test_binary_file(self, binary_file):
         mock_linter = Mock(wraps=Linter)
@@ -331,14 +337,14 @@ note: suggested fix applied
                 ctx.add_check(self.the_check)
         mock_linter.assert_not_called()
 
-    def test_long_file(self, long_file, capsys):
+    def test_long_file(self, long_file):
         with patch(
             "sys.argv",
             [
                 "check-test",
                 long_file.name,
             ],
-        ), pytest.raises(SystemExit, match=r"^1$"):
+        ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
             m = LintMain()
             with m.execute() as ctx:
                 ctx.add_check(self.long_file_check)
@@ -349,28 +355,60 @@ note: suggested fix applied
 It has multiple lines
 """
         )
-        captured = capsys.readouterr()
+        assert console.mock_calls == [
+            call(highlight=False),
+            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print(" [bold]This is a long file[/bold]"),
+            call().print("[bold]warning:[/bold] this is a long line"),
+            call().print(),
+            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print("[red]-[bold]This is a long file[/bold][/red]"),
+            call().print("[green]+[bold]This is a long file[/bold][/green]"),
+            call().print(
+                "[bold]note:[/bold] suggested fix is too long to display, use --fix to "
+                "apply it"
+            ),
+            call().print(),
+            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print(" [bold]This is a long file[/bold]"),
+            call().print("[bold]warning:[/bold] this is a long file"),
+            call().print(),
+        ]
+
+    def test_long_file_delete(self, long_file):
+        with patch(
+            "sys.argv",
+            [
+                "check-test",
+                long_file.name,
+            ],
+        ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
+            m = LintMain()
+            with m.execute() as ctx:
+                ctx.add_check(self.long_delete_fix_check)
         assert (
-            captured.out
-            == f"""In file {long_file.name}:1:
-This is a long file
-~~~~~~~~~~~~~~~~~~~
-warning: this is a long line
-
-In file {long_file.name}:1:
-This is a long file
-~~~~~~~~~~~~~~~~~~~ This is a long file...
-note: suggested fix is too long to display, use --fix to apply it
-
-In file {long_file.name}:1:
-This is a long file
-~~~~~~~~~~~~~~~~~~|
-warning: this is a long file
-
+            long_file.read()
+            == """This is a long file
+It has multiple lines
 """
         )
+        assert console.mock_calls == [
+            call(highlight=False),
+            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print(" [bold]This is a long file[/bold]"),
+            call().print("[bold]warning:[/bold] this is a long file"),
+            call().print(),
+            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print("[red]-[bold]This is a long file[/bold][/red]"),
+            call().print("[green]+[bold]This is a short file now[/bold][/green]"),
+            call().print(
+                "[bold]note:[/bold] suggested fix is too long to display, use --fix to "
+                "apply it"
+            ),
+            call().print(),
+        ]
 
-    def test_long_file_fix(self, long_file, capsys):
+    def test_long_file_fix(self, long_file):
         with patch(
             "sys.argv",
             [
@@ -378,7 +416,7 @@ warning: this is a long file
                 "--fix",
                 long_file.name,
             ],
-        ), pytest.raises(SystemExit, match=r"^1$"):
+        ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
             m = LintMain()
             with m.execute() as ctx:
                 ctx.add_check(self.long_file_check)
@@ -390,23 +428,49 @@ It's even longer now
 It has multiple lines
 """
         )
-        captured = capsys.readouterr()
-        assert (
-            captured.out
-            == f"""In file {long_file.name}:1:
-This is a long file
-~~~~~~~~~~~~~~~~~~~
-warning: this is a long line
+        assert console.mock_calls == [
+            call(highlight=False),
+            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print(" [bold]This is a long file[/bold]"),
+            call().print("[bold]warning:[/bold] this is a long line"),
+            call().print(),
+            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print("[red]-[bold]This is a long file[/bold][/red]"),
+            call().print("[green]+[bold]This is a long file[/bold][/green]"),
+            call().print(
+                "[bold]note:[/bold] suggested fix applied but is too long to display"
+            ),
+            call().print(),
+            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print(" [bold]This is a long file[/bold]"),
+            call().print("[bold]warning:[/bold] this is a long file"),
+            call().print(),
+        ]
 
-In file {long_file.name}:1:
-This is a long file
-~~~~~~~~~~~~~~~~~~~ This is a long file...
-note: suggested fix applied but is too long to display
-
-In file {long_file.name}:1:
-This is a long file
-~~~~~~~~~~~~~~~~~~|
-warning: this is a long file
-
-"""
-        )
+    def test_long_file_delete_fix(self, long_file):
+        with patch(
+            "sys.argv",
+            [
+                "check-test",
+                "--fix",
+                long_file.name,
+            ],
+        ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
+            m = LintMain()
+            with m.execute() as ctx:
+                ctx.add_check(self.long_delete_fix_check)
+        assert long_file.read() == "This is a short file now"
+        assert console.mock_calls == [
+            call(highlight=False),
+            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print(" [bold]This is a long file[/bold]"),
+            call().print("[bold]warning:[/bold] this is a long file"),
+            call().print(),
+            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print("[red]-[bold]This is a long file[/bold][/red]"),
+            call().print("[green]+[bold]This is a short file now[/bold][/green]"),
+            call().print(
+                "[bold]note:[/bold] suggested fix applied but is too long to display"
+            ),
+            call().print(),
+        ]
