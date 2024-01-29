@@ -173,7 +173,7 @@ def git_repo():
 
 
 def test_get_target_branch(git_repo):
-    with patch.dict("os.environ", {}):
+    with patch.dict("os.environ", {}, clear=True):
         with open(os.path.join(git_repo.working_tree_dir, "file.txt"), "w") as f:
             f.write("File\n")
         git_repo.index.add(["file.txt"])
