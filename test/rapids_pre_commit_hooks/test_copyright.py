@@ -173,74 +173,76 @@ def git_repo():
 
 
 def test_get_target_branch(git_repo):
-    with open(os.path.join(git_repo.working_tree_dir, "file.txt"), "w") as f:
-        f.write("File\n")
-    git_repo.index.add(["file.txt"])
-    git_repo.index.commit("Initial commit")
-    with pytest.warns(
-        copyright.NoTargetBranchWarning,
-        match=r"^Could not determine target branch[.] Try setting the TARGET_BRANCH "
-        r"environment variable, or setting the rapidsai.baseBranch "
-        r"configuration option[.]$",
-    ):
-        assert copyright.get_target_branch(git_repo) is None
+    with patch.dict("os.environ", {}):
+        with open(os.path.join(git_repo.working_tree_dir, "file.txt"), "w") as f:
+            f.write("File\n")
+        git_repo.index.add(["file.txt"])
+        git_repo.index.commit("Initial commit")
+        with pytest.warns(
+            copyright.NoTargetBranchWarning,
+            match=r"^Could not determine target branch[.] Try setting the "
+            r"TARGET_BRANCH environment variable, or setting the rapidsai.baseBranch "
+            r"configuration option[.]$",
+        ):
+            assert copyright.get_target_branch(git_repo) is None
 
-    git_repo.create_head("branch-24.02")
-    assert copyright.get_target_branch(git_repo) == "branch-24.02"
-
-    git_repo.create_head("branch-24.04")
-    git_repo.create_head("branch-24.03")
-    assert copyright.get_target_branch(git_repo) == "branch-24.04"
-
-    git_repo.create_head("branch-25.01")
-    assert copyright.get_target_branch(git_repo) == "branch-25.01"
-
-    with git_repo.config_writer() as w:
-        w.set_value("rapidsai", "baseBranch", "nonexistent")
-    assert copyright.get_target_branch(git_repo) == "nonexistent"
-
-    with git_repo.config_writer() as w:
-        w.set_value("rapidsai", "baseBranch", "branch-24.03")
-    assert copyright.get_target_branch(git_repo) == "branch-24.03"
-
-    with patch.dict("os.environ", {"RAPIDS_BASE_BRANCH": "nonexistent"}):
-        assert copyright.get_target_branch(git_repo) == "nonexistent"
-
-    with patch.dict("os.environ", {"RAPIDS_BASE_BRANCH": "master"}):
-        assert copyright.get_target_branch(git_repo) == "master"
-
-    with patch.dict(
-        "os.environ", {"GITHUB_BASE_REF": "nonexistent", "RAPIDS_BASE_BRANCH": "master"}
-    ):
-        assert copyright.get_target_branch(git_repo) == "nonexistent"
-
-    with patch.dict(
-        "os.environ",
-        {"GITHUB_BASE_REF": "branch-24.02", "RAPIDS_BASE_BRANCH": "master"},
-    ):
+        git_repo.create_head("branch-24.02")
         assert copyright.get_target_branch(git_repo) == "branch-24.02"
 
-    with patch.dict(
-        "os.environ",
-        {
-            "GITHUB_BASE_REF": "branch-24.02",
-            "RAPIDS_BASE_BRANCH": "master",
-            "TARGET_BRANCH": "nonexistent",
-        },
-    ):
+        git_repo.create_head("branch-24.04")
+        git_repo.create_head("branch-24.03")
+        assert copyright.get_target_branch(git_repo) == "branch-24.04"
+
+        git_repo.create_head("branch-25.01")
+        assert copyright.get_target_branch(git_repo) == "branch-25.01"
+
+        with git_repo.config_writer() as w:
+            w.set_value("rapidsai", "baseBranch", "nonexistent")
         assert copyright.get_target_branch(git_repo) == "nonexistent"
 
-    with patch.dict(
-        "os.environ",
-        {
-            "GITHUB_BASE_REF": "branch-24.02",
-            "RAPIDS_BASE_BRANCH": "master",
-            "TARGET_BRANCH": "branch-24.04",
-        },
-    ):
-        assert copyright.get_target_branch(git_repo) == "branch-24.04"
-        assert copyright.get_target_branch(git_repo, "nonexistent") == "nonexistent"
-        assert copyright.get_target_branch(git_repo, "master") == "master"
+        with git_repo.config_writer() as w:
+            w.set_value("rapidsai", "baseBranch", "branch-24.03")
+        assert copyright.get_target_branch(git_repo) == "branch-24.03"
+
+        with patch.dict("os.environ", {"RAPIDS_BASE_BRANCH": "nonexistent"}):
+            assert copyright.get_target_branch(git_repo) == "nonexistent"
+
+        with patch.dict("os.environ", {"RAPIDS_BASE_BRANCH": "master"}):
+            assert copyright.get_target_branch(git_repo) == "master"
+
+        with patch.dict(
+            "os.environ",
+            {"GITHUB_BASE_REF": "nonexistent", "RAPIDS_BASE_BRANCH": "master"},
+        ):
+            assert copyright.get_target_branch(git_repo) == "nonexistent"
+
+        with patch.dict(
+            "os.environ",
+            {"GITHUB_BASE_REF": "branch-24.02", "RAPIDS_BASE_BRANCH": "master"},
+        ):
+            assert copyright.get_target_branch(git_repo) == "branch-24.02"
+
+        with patch.dict(
+            "os.environ",
+            {
+                "GITHUB_BASE_REF": "branch-24.02",
+                "RAPIDS_BASE_BRANCH": "master",
+                "TARGET_BRANCH": "nonexistent",
+            },
+        ):
+            assert copyright.get_target_branch(git_repo) == "nonexistent"
+
+        with patch.dict(
+            "os.environ",
+            {
+                "GITHUB_BASE_REF": "branch-24.02",
+                "RAPIDS_BASE_BRANCH": "master",
+                "TARGET_BRANCH": "branch-24.04",
+            },
+        ):
+            assert copyright.get_target_branch(git_repo) == "branch-24.04"
+            assert copyright.get_target_branch(git_repo, "nonexistent") == "nonexistent"
+            assert copyright.get_target_branch(git_repo, "master") == "master"
 
 
 def test_get_target_branch_upstream_commit(git_repo):
