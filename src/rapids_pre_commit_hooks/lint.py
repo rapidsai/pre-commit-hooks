@@ -293,7 +293,9 @@ class LintMain:
 
     def __init__(self):
         self.argparser = argparse.ArgumentParser()
-        self.argparser.add_argument("--fix", action="store_true")
+        self.argparser.add_argument(
+            "--fix", action="store_true", help="automatically fix warnings"
+        )
         self.argparser.add_argument("files", nargs="+", metavar="file")
 
     def execute(self):
