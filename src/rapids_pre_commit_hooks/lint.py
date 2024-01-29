@@ -17,7 +17,11 @@ import bisect
 import contextlib
 import functools
 import itertools
+import re
 import warnings
+
+from rich.console import Console
+from rich.markup import escape
 
 
 class OverlappingReplacementsError(RuntimeError):
@@ -70,10 +74,13 @@ class LintWarning:
 
 
 class Linter:
+    NEWLINE_RE = re.compile("[\r\n]")
+
     def __init__(self, filename, content):
         self.filename = filename
         self.content = content
         self.warnings = []
+        self.console = Console(highlight=False)
         self._calculate_lines()
 
     def add_warning(self, pos, msg):
@@ -110,38 +117,77 @@ class Linter:
 
         for warning in sorted_warnings:
             line_index = self.line_for_pos(warning.pos[0])
-            print(f"In file {self.filename}:{line_index + 1}:")
+            line_pos = self.lines[line_index]
+            self.console.print(
+                f"In file [bold]{escape(self.filename)}:{line_index + 1}:"
+                f"{warning.pos[0] - line_pos[0] + 1}[/bold]:"
+            )
             self.print_highlighted_code(warning.pos)
-            print(f"warning: {warning.msg}")
-            print()
+            self.console.print(f"[bold]warning:[/bold] {escape(warning.msg)}")
+            self.console.print()
 
             for replacement in warning.replacements:
                 line_index = self.line_for_pos(replacement.pos[0])
-                print(f"In file {self.filename}:{line_index + 1}:")
-                self.print_highlighted_code(replacement.pos, replacement.newtext)
-                if fix_applied:
-                    print("note: suggested fix applied")
+                line_pos = self.lines[line_index]
+                newtext = replacement.newtext
+                if match := self.NEWLINE_RE.search(newtext):
+                    newtext = newtext[: match.start()]
+                    long = True
                 else:
-                    print("note: suggested fix")
-                print()
+                    long = False
+                if replacement.pos[1] > line_pos[1]:
+                    long = True
 
-    def print_highlighted_code(self, pos, replacement=""):
+                self.console.print(
+                    f"In file [bold]{escape(self.filename)}:{line_index + 1}:"
+                    f"{replacement.pos[0] - line_pos[0] + 1}[/bold]:"
+                )
+                self.print_highlighted_code(replacement.pos, newtext)
+                if fix_applied:
+                    if long:
+                        self.console.print(
+                            "[bold]note:[/bold] suggested fix applied but is too long "
+                            "to display"
+                        )
+                    else:
+                        self.console.print("[bold]note:[/bold] suggested fix applied")
+                else:
+                    if long:
+                        self.console.print(
+                            "[bold]note:[/bold] suggested fix is too long to display, "
+                            "use --fix to apply it"
+                        )
+                    else:
+                        self.console.print("[bold]note:[/bold] suggested fix")
+                self.console.print()
+
+    def print_highlighted_code(self, pos, replacement=None):
         line_index = self.line_for_pos(pos[0])
         line_pos = self.lines[line_index]
-        left = pos[0] - line_pos[0]
+        left = pos[0]
 
         if self.line_for_pos(pos[1]) == line_index:
-            right = pos[1] - line_pos[0]
+            right = pos[1]
         else:
-            right = line_pos[1] - line_pos[0]
-        length = right - left
+            right = line_pos[1]
 
-        print(self.content[line_pos[0] : line_pos[1]])
-        print(" " * left, end="")
-        if length == 0:
-            print(f"^{replacement}")
+        if replacement is None:
+            self.console.print(
+                f" {escape(self.content[line_pos[0] : left])}"
+                f"[bold]{escape(self.content[left:right])}[/bold]"
+                f"{escape(self.content[right:line_pos[1]])}"
+            )
         else:
-            print(f"{'~' * length}{replacement}")
+            self.console.print(
+                f"[red]-{escape(self.content[line_pos[0] : left])}"
+                f"[bold]{escape(self.content[left:right])}[/bold]"
+                f"{escape(self.content[right:line_pos[1]])}[/red]"
+            )
+            self.console.print(
+                f"[green]+{escape(self.content[line_pos[0] : left])}"
+                f"[bold]{escape(replacement)}[/bold]"
+                f"{escape(self.content[right:line_pos[1]])}[/green]"
+            )
 
     def line_for_pos(self, index):
         @functools.total_ordering
