@@ -18,3 +18,17 @@
   language: python
   types: [shell]
   args: [--fix]
+- id: verify-copyright
+  name: verify-copyright
+  description: make sure copyright headers are up to date
+  entry: verify-copyright
+  language: python
+  files: |
+    (?x)
+        [.](cmake|cpp|cu|cuh|h|hpp|sh|pxd|py|pyx)$|
+        CMakeLists[.]txt$|
+        CMakeLists_standalone[.]txt$|
+        meta[.]yaml$|
+        pyproject[.]toml$|
+        setup[.]cfg$
+  args: [--fix]
