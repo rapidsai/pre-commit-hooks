@@ -173,80 +173,74 @@ def git_repo():
 
 
 def test_get_target_branch(git_repo):
-    master = git_repo.head.reference
-
     with open(os.path.join(git_repo.working_tree_dir, "file.txt"), "w") as f:
         f.write("File\n")
     git_repo.index.add(["file.txt"])
     git_repo.index.commit("Initial commit")
     with pytest.warns(
         copyright.NoTargetBranchWarning,
-        match=r"^Could not determine target branch[.] Try setting the TARGET_BRANCH or "
-        r"RAPIDS_BASE_BRANCH environment variable, or setting the rapidsai.baseBranch "
+        match=r"^Could not determine target branch[.] Try setting the TARGET_BRANCH "
+        r"environment variable, or setting the rapidsai.baseBranch "
         r"configuration option[.]$",
     ):
         assert copyright.get_target_branch(git_repo) is None
 
-    branch_24_02 = git_repo.create_head("branch-24.02")
-    assert copyright.get_target_branch(git_repo) == branch_24_02
+    git_repo.create_head("branch-24.02")
+    assert copyright.get_target_branch(git_repo) == "branch-24.02"
 
-    branch_24_04 = git_repo.create_head("branch-24.04")
-    branch_24_03 = git_repo.create_head("branch-24.03")
-    assert copyright.get_target_branch(git_repo) == branch_24_04
+    git_repo.create_head("branch-24.04")
+    git_repo.create_head("branch-24.03")
+    assert copyright.get_target_branch(git_repo) == "branch-24.04"
 
-    branch_25_01 = git_repo.create_head("branch-25.01")
-    assert copyright.get_target_branch(git_repo) == branch_25_01
+    git_repo.create_head("branch-25.01")
+    assert copyright.get_target_branch(git_repo) == "branch-25.01"
 
     with git_repo.config_writer() as w:
         w.set_value("rapidsai", "baseBranch", "nonexistent")
-    assert copyright.get_target_branch(git_repo) == branch_25_01
+    assert copyright.get_target_branch(git_repo) == "nonexistent"
 
     with git_repo.config_writer() as w:
         w.set_value("rapidsai", "baseBranch", "branch-24.03")
-    assert copyright.get_target_branch(git_repo) == branch_24_03
+    assert copyright.get_target_branch(git_repo) == "branch-24.03"
 
-    with patch.dict("os.environ", {"GITHUB_BASE_REF": "nonexistent"}):
-        assert copyright.get_target_branch(git_repo) == branch_24_03
+    with patch.dict("os.environ", {"RAPIDS_BASE_BRANCH": "nonexistent"}):
+        assert copyright.get_target_branch(git_repo) == "nonexistent"
 
-    with patch.dict("os.environ", {"GITHUB_BASE_REF": "master"}):
-        assert copyright.get_target_branch(git_repo) == master
+    with patch.dict("os.environ", {"RAPIDS_BASE_BRANCH": "master"}):
+        assert copyright.get_target_branch(git_repo) == "master"
 
     with patch.dict(
-        "os.environ", {"GITHUB_BASE_REF": "master", "RAPIDS_BASE_BRANCH": "nonexistent"}
+        "os.environ", {"GITHUB_BASE_REF": "nonexistent", "RAPIDS_BASE_BRANCH": "master"}
     ):
-        assert copyright.get_target_branch(git_repo) == master
+        assert copyright.get_target_branch(git_repo) == "nonexistent"
 
     with patch.dict(
         "os.environ",
-        {"GITHUB_BASE_REF": "master", "RAPIDS_BASE_BRANCH": "branch-24.02"},
+        {"GITHUB_BASE_REF": "branch-24.02", "RAPIDS_BASE_BRANCH": "master"},
     ):
-        assert copyright.get_target_branch(git_repo) == branch_24_02
+        assert copyright.get_target_branch(git_repo) == "branch-24.02"
 
     with patch.dict(
         "os.environ",
         {
-            "GITHUB_BASE_REF": "master",
-            "RAPIDS_BASE_BRANCH": "branch-24.02",
+            "GITHUB_BASE_REF": "branch-24.02",
+            "RAPIDS_BASE_BRANCH": "master",
             "TARGET_BRANCH": "nonexistent",
         },
     ):
-        assert copyright.get_target_branch(git_repo) == branch_24_02
+        assert copyright.get_target_branch(git_repo) == "nonexistent"
 
     with patch.dict(
         "os.environ",
         {
-            "GITHUB_BASE_REF": "master",
-            "RAPIDS_BASE_BRANCH": "branch-24.02",
+            "GITHUB_BASE_REF": "branch-24.02",
+            "RAPIDS_BASE_BRANCH": "master",
             "TARGET_BRANCH": "branch-24.04",
         },
     ):
-        assert copyright.get_target_branch(git_repo) == branch_24_04
-        with pytest.warns(
-            copyright.NoSuchBranchWarning,
-            match=r'^--target-branch: branch name "nonexistent" does not exist\.$',
-        ):
-            assert copyright.get_target_branch(git_repo, "nonexistent") == branch_24_04
-        assert copyright.get_target_branch(git_repo, "master") == master
+        assert copyright.get_target_branch(git_repo) == "branch-24.04"
+        assert copyright.get_target_branch(git_repo, "nonexistent") == "nonexistent"
+        assert copyright.get_target_branch(git_repo, "master") == "master"
 
 
 def test_get_target_branch_upstream_commit(git_repo):
@@ -256,6 +250,12 @@ def test_get_target_branch_upstream_commit(git_repo):
     def write_file(repo, filename, contents):
         with open(fn(repo, filename), "w") as f:
             f.write(contents)
+
+    def mock_target_branch(branch):
+        return patch(
+            "rapids_pre_commit_hooks.copyright.get_target_branch",
+            Mock(return_value=branch),
+        )
 
     # fmt: off
     with tempfile.TemporaryDirectory() as remote_dir_1, \
@@ -285,7 +285,7 @@ def test_get_target_branch_upstream_commit(git_repo):
         remote_repo_1.index.commit("Initial commit")
 
         remote_1_branch_1 = remote_repo_1.create_head(
-            "branch-1", remote_1_master.commit
+            "branch-1-renamed", remote_1_master.commit
         )
         remote_repo_1.head.reference = remote_1_branch_1
         remote_repo_1.head.reset(index=True, working_tree=True)
@@ -363,45 +363,33 @@ def test_get_target_branch_upstream_commit(git_repo):
         remote_repo_2.index.add(["file5.txt"])
         remote_repo_2.index.commit("Update file5.txt")
 
+        with mock_target_branch(None):
+            assert copyright.get_target_branch_upstream_commit(git_repo) is None
+
+        with mock_target_branch("branch-1"):
+            assert copyright.get_target_branch_upstream_commit(git_repo) is None
+
         remote_1 = git_repo.create_remote("unconventional/remote/name/1", remote_dir_1)
-        remote_1.fetch(["master", "branch-1", "branch-2", "branch-3", "branch-4"])
+        remote_1.fetch([
+            "master",
+            "branch-1-renamed",
+            "branch-2",
+            "branch-3",
+            "branch-4",
+        ])
         remote_2 = git_repo.create_remote("unconventional/remote/name/2", remote_dir_2)
         remote_2.fetch(["branch-3", "branch-4", "branch-5"])
 
         main = git_repo.create_head("main", remote_1.refs["master"])
 
-        branch_1 = git_repo.create_head("branch-1-renamed", remote_1.refs["master"])
+        branch_1 = git_repo.create_head("branch-1", remote_1.refs["master"])
         with branch_1.config_writer() as w:
             w.set_value("remote", "unconventional/remote/name/1")
-            w.set_value("merge", "branch-1")
+            w.set_value("merge", "branch-1-renamed")
         git_repo.head.reference = branch_1
         git_repo.head.reset(index=True, working_tree=True)
         git_repo.index.remove("file1.txt", working_tree=True)
         git_repo.index.commit("Remove file1.txt")
-
-        branch_2 = git_repo.create_head("branch-2", remote_1.refs["master"])
-        git_repo.head.reference = branch_2
-        git_repo.head.reset(index=True, working_tree=True)
-        git_repo.index.remove("file2.txt", working_tree=True)
-        git_repo.index.commit("Remove file2.txt")
-
-        branch_3 = git_repo.create_head("branch-3", remote_1.refs["master"])
-        git_repo.head.reference = branch_3
-        git_repo.head.reset(index=True, working_tree=True)
-        git_repo.index.remove("file3.txt", working_tree=True)
-        git_repo.index.commit("Remove file3.txt")
-
-        branch_4 = git_repo.create_head("branch-4", remote_1.refs["master"])
-        git_repo.head.reference = branch_4
-        git_repo.head.reset(index=True, working_tree=True)
-        git_repo.index.remove(["file4.txt"], working_tree=True)
-        git_repo.index.commit("Remove file4.txt")
-
-        branch_5 = git_repo.create_head("branch-5", remote_1.refs["master"])
-        git_repo.head.reference = branch_5
-        git_repo.head.reset(index=True, working_tree=True)
-        git_repo.index.remove(["file5.txt"], working_tree=True)
-        git_repo.index.commit("Remove file5.txt")
 
         branch_6 = git_repo.create_head("branch-6", remote_1.refs["master"])
         git_repo.head.reference = branch_6
@@ -412,46 +400,43 @@ def test_get_target_branch_upstream_commit(git_repo):
         git_repo.head.reference = main
         git_repo.head.reset(index=True, working_tree=True)
 
-        def mock_target_branch(branch):
-            return patch(
-                "rapids_pre_commit_hooks.copyright.get_target_branch",
-                Mock(return_value=branch),
-            )
-
-        with mock_target_branch(branch_1):
+        with mock_target_branch("branch-1"):
             assert (
                 copyright.get_target_branch_upstream_commit(git_repo)
-                == remote_1.refs["branch-1"].commit
+                == remote_1.refs["branch-1-renamed"].commit
             )
 
-        with mock_target_branch(branch_2):
+        with mock_target_branch("branch-2"):
             assert (
                 copyright.get_target_branch_upstream_commit(git_repo)
                 == remote_1.refs["branch-2"].commit
             )
 
-        with mock_target_branch(branch_3):
+        with mock_target_branch("branch-3"):
             assert (
                 copyright.get_target_branch_upstream_commit(git_repo)
                 == remote_1.refs["branch-3"].commit
             )
 
-        with mock_target_branch(branch_4):
+        with mock_target_branch("branch-4"):
             assert (
                 copyright.get_target_branch_upstream_commit(git_repo)
                 == remote_2.refs["branch-4"].commit
             )
 
-        with mock_target_branch(branch_5):
+        with mock_target_branch("branch-5"):
             assert (
                 copyright.get_target_branch_upstream_commit(git_repo)
                 == remote_2.refs["branch-5"].commit
             )
 
-        with mock_target_branch(branch_6):
+        with mock_target_branch("branch-6"):
             assert (
                 copyright.get_target_branch_upstream_commit(git_repo) == branch_6.commit
             )
+
+        with mock_target_branch("branch-7"):
+            assert copyright.get_target_branch_upstream_commit(git_repo) == main.commit
 
         with mock_target_branch(None):
             assert copyright.get_target_branch_upstream_commit(git_repo) == main.commit
