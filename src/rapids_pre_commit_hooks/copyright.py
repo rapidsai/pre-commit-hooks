@@ -279,60 +279,7 @@ def find_blob(tree, filename):
         return None
 
 
-def get_file_last_modified(commit, filename):
-    try:
-        last_modified_commit = next(commit.repo.iter_commits(commit, filename))
-    except StopIteration:
-        return None
-
-    return last_modified_commit
-
-
-def apply_batch_copyright_check(repo, linter):
-    if not (git_filename := normalize_git_filename(linter.filename)):
-        warnings.warn(
-            f'File "{linter.filename}" is outside of current directory. Not running '
-            "linter on it.",
-            ConflictingFilesWarning,
-        )
-        return
-
-    current_blob = find_blob(repo.head.commit.tree, git_filename)
-    if not current_blob:
-        warnings.warn(
-            f'File "{linter.filename}" not in Git history. Not running batch copyright '
-            "update.",
-            ConflictingFilesWarning,
-        )
-        return
-    if current_blob.data_stream.read().decode() != linter.content:
-        warnings.warn(
-            f'File "{linter.filename}" differs from Git history. Not running batch '
-            "copyright update.",
-            ConflictingFilesWarning,
-        )
-        return
-
-    commit = get_file_last_modified(repo.head.commit, git_filename)
-    year = commit.committed_datetime.year
-
-    if copyright_matches := match_copyright(linter.content):
-        for match in copyright_matches:
-            if int(match.group("last_year") or match.group("first_year")) < year:
-                apply_copyright_update(linter, match, year)
-    else:
-        linter.add_warning((0, 0), "no copyright notice found")
-
-
 def check_copyright(args):
-    if args.batch:
-        repo = git.Repo()
-
-        def the_check(linter, args):
-            apply_batch_copyright_check(repo, linter)
-
-        return the_check
-
     changed_files = get_changed_files(args.target_branch)
 
     def the_check(linter, args):
@@ -371,11 +318,6 @@ def main():
         "--target-branch",
         metavar="<target branch>",
         help="target branch to check modified files against",
-    )
-    m.argparser.add_argument(
-        "--batch",
-        action="store_true",
-        help="batch update files based on last modification commit",
     )
     with m.execute() as ctx:
         ctx.add_check(check_copyright(ctx.args))
