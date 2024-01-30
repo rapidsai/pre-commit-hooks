@@ -115,16 +115,16 @@ def get_target_branch(repo, target_branch_arg=None):
 
     The target branch is determined in the following order:
 
-    * If the ``--target-branch`` argument is passed, and points to a valid branch, that
-      branch is used. This allows users to set a base branch on the command line.
-    * If either of the ``$TARGET_BRANCH`` or ``$RAPIDS_BASE_BRANCH`` environment
-      variables, in that order, are defined and point to a valid branch, that branch is
+    * If the ``--target-branch`` argument is passed, that branch is used. This allows
+      users to set a base branch on the command line.
+    * If the ``$TARGET_BRANCH`` environment variable is defined, that branch is
       used. This allows users to locally set a base branch on a one-time basis.
-    * If the ``$GITHUB_BASE_REF`` environment variable is defined and points to a valid
-      branch, that branch is used. This allows GitHub Actions to easily use this tool.
-    * If the configuration option ``rapidsai.baseBranch`` points to a valid branch, that
-      branch is used. This allows users to locally set a base branch on a long-term
-      basis.
+    * If the ``$GITHUB_BASE_REF`` environment variable is defined, that branch is used.
+      This allows GitHub Actions to easily use this tool.
+    * If the ``$RAPIDS_BASE_BRANCH`` environment variable is defined, that branch is
+      used. This allows GitHub Actions inside ``copy-pr-bot`` to easily use this tool.
+    * If the configuration option ``rapidsai.baseBranch`` is defined, that branch is
+      used. This allows users to locally set a base branch on a long-term basis.
     * If a ``branch-<major>.<minor>`` branch exists, that branch is used. If more than
       one such branch exists, the one with the latest version is used. This supports the
       expected default.
@@ -132,39 +132,21 @@ def get_target_branch(repo, target_branch_arg=None):
     """
     # Try command line
     if target_branch_arg:
-        try:
-            return repo.heads[target_branch_arg]
-        except IndexError:
-            warnings.warn(
-                f'--target-branch: branch name "{target_branch_arg}" does not exist.',
-                NoSuchBranchWarning,
-            )
+        return target_branch_arg
 
     # Try environment
     if target_branch_name := os.getenv("TARGET_BRANCH"):
-        try:
-            return repo.heads[target_branch_name]
-        except IndexError:
-            pass
-    if target_branch_name := os.getenv("RAPIDS_BASE_BRANCH"):
-        try:
-            return repo.heads[target_branch_name]
-        except IndexError:
-            pass
+        return target_branch_name
     if target_branch_name := os.getenv("GITHUB_BASE_REF"):
-        try:
-            return repo.heads[target_branch_name]
-        except IndexError:
-            pass
+        return target_branch_name
+    if target_branch_name := os.getenv("RAPIDS_BASE_BRANCH"):
+        return target_branch_name
 
     # Try config
     with repo.config_reader() as r:
         target_branch_name = r.get("rapidsai", "baseBranch", fallback=None)
     if target_branch_name:
-        try:
-            return repo.heads[target_branch_name]
-        except IndexError:
-            pass
+        return target_branch_name
 
     # Try newest branch-xx.yy
     try:
@@ -175,35 +157,39 @@ def get_target_branch(repo, target_branch_arg=None):
                 if (match := BRANCH_RE.search(branch.name))
             ),
             key=lambda i: i[1],
-        )[0]
+        )[0].name
     except ValueError:
         pass
 
     # Appropriate branch not found
     warnings.warn(
-        "Could not determine target branch. Try setting the TARGET_BRANCH or "
-        "RAPIDS_BASE_BRANCH environment variable, or setting the rapidsai.baseBranch "
-        "configuration option.",
+        "Could not determine target branch. Try setting the TARGET_BRANCH environment "
+        "variable, or setting the rapidsai.baseBranch configuration option.",
         NoTargetBranchWarning,
     )
     return None
 
 
 def get_target_branch_upstream_commit(repo, target_branch_arg=None):
-    target_branch = get_target_branch(repo, target_branch_arg)
-    if target_branch is None:
+    target_branch_name = get_target_branch(repo, target_branch_arg)
+    if target_branch_name is None:
         try:
             return repo.head.commit
         except ValueError:
             return None
 
-    target_branch_upstream = target_branch.tracking_branch()
-    if target_branch_upstream:
-        return target_branch_upstream.commit
+    try:
+        target_branch = repo.heads[target_branch_name]
+    except IndexError:
+        target_branch = None
+    if target_branch:
+        target_branch_upstream = target_branch.tracking_branch()
+        if target_branch_upstream:
+            return target_branch_upstream.commit
 
     def try_get_ref(remote):
         try:
-            return remote.refs[target_branch.name]
+            return remote.refs[target_branch_name]
         except IndexError:
             return None
 
@@ -215,7 +201,12 @@ def get_target_branch_upstream_commit(repo, target_branch_arg=None):
     except ValueError:
         pass
 
-    return target_branch.commit
+    if target_branch:
+        return target_branch.commit
+    try:
+        return repo.head.commit
+    except ValueError:
+        return None
 
 
 def get_changed_files(target_branch_arg):
