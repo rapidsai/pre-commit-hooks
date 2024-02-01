@@ -5,4 +5,4 @@ set -ue
 
 pip install pre-commit
 
-pre-commit run -a
+pre-commit run --all-files --show-diff-on-failure
