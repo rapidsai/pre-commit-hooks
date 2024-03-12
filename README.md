@@ -16,8 +16,6 @@ Copy the following into your repository's `.pre-commit-config.yaml`:
 
 All hooks are listed in `.pre-commit-hooks.yaml`.
 
-- (No hooks exist yet)
-
 ## Acknowledgements
 
 This project uses Bashlex.
