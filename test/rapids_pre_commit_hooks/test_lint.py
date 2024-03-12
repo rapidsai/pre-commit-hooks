@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import contextlib
 import os.path
 import tempfile
@@ -524,3 +525,23 @@ It has multiple lines
             call().print("[bold]note:[/bold] suggested fix applied"),
             call().print(),
         ]
+
+    def test_extra_args(self, hello_file):
+        class ExtraArgsMain(LintMain):
+            @classmethod
+            def get_extra_argparser(cls, args):
+                parser = argparse.ArgumentParser()
+                parser.add_argument("--extra-dynamic-arg", action="store")
+                return parser
+
+        with patch(
+            "sys.argv",
+            [
+                "check-test",
+                "--extra-dynamic-arg=Hello",
+                hello_file.name,
+            ],
+        ):
+            m = ExtraArgsMain()
+            with m.execute() as ctx:
+                assert ctx.extra_args.extra_dynamic_arg == "Hello"

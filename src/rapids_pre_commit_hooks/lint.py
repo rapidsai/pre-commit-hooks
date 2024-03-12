@@ -246,8 +246,9 @@ class Linter:
 
 
 class ExecutionContext(contextlib.AbstractContextManager):
-    def __init__(self, args):
+    def __init__(self, args, extra_args):
         self.args = args
+        self.extra_args = extra_args
         self.checks = []
 
     def add_check(self, check):
@@ -291,6 +292,10 @@ class ExecutionContext(contextlib.AbstractContextManager):
 class LintMain:
     context_class = ExecutionContext
 
+    @classmethod
+    def get_extra_argparser(cls, namespace):
+        return argparse.ArgumentParser()
+
     def __init__(self):
         self.argparser = argparse.ArgumentParser()
         self.argparser.add_argument(
@@ -299,4 +304,7 @@ class LintMain:
         self.argparser.add_argument("files", nargs="+", metavar="file")
 
     def execute(self):
-        return self.context_class(self.argparser.parse_args())
+        namespace, extra_args = self.argparser.parse_known_args()
+        extra_argparser = self.get_extra_argparser(namespace)
+        extra_namespace = extra_argparser.parse_args(extra_args)
+        return self.context_class(namespace, extra_namespace)
