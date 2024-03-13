@@ -46,13 +46,10 @@ repos:
       - id: flake8
         args:
         - --show-source
-  - repo: local
+  - repo: https://github.com/rapidsai/pre-commit-hooks
+    rev: v0.0.2
     hooks:
       - id: verify-copyright
-        name: verify-copyright
-        description: make sure copyright headers are up to date
-        entry: verify-copyright
-        language: python
         files: |
           (?x)
               [.]py$|
@@ -60,4 +57,3 @@ repos:
               [.]pre-commit-hooks[.]yaml$|
               pyproject[.]toml$
         args: [--fix, --main-branch=main]
-        additional_dependencies: [.]
