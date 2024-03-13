@@ -9,14 +9,12 @@ Copy the following into your repository's `.pre-commit-config.yaml`:
 ```yaml
 - repo: https://github.com/rapidsai/pre-commit-hooks
   rev: v0.0.1  # Use the ref you want to point at
-  hooks:
-    - id: copyright-checker  # Hook names
+  hooks:  # Hook names to use
+    - id: verify-copyright
 ```
 ## Included hooks
 
 All hooks are listed in `.pre-commit-hooks.yaml`.
-
-- (No hooks exist yet)
 
 ## Acknowledgements
 
