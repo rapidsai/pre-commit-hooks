@@ -110,7 +110,7 @@ def apply_copyright_check(linter, old_content):
             linter.add_warning((0, 0), "no copyright notice found")
 
 
-def get_target_branch(repo, target_branch_arg=None):
+def get_target_branch(repo, args):
     """Determine which branch is the "target" branch.
 
     The target branch is determined in the following order:
@@ -123,16 +123,18 @@ def get_target_branch(repo, target_branch_arg=None):
       This allows GitHub Actions to easily use this tool.
     * If the ``$RAPIDS_BASE_BRANCH`` environment variable is defined, that branch is
       used. This allows GitHub Actions inside ``copy-pr-bot`` to easily use this tool.
-    * If the configuration option ``rapidsai.baseBranch`` is defined, that branch is
+    * If the Git configuration option ``rapidsai.baseBranch`` is defined, that branch is
       used. This allows users to locally set a base branch on a long-term basis.
+    * If the ``--main-branch`` argument is passed, that branch is used. This allows
+      projects to use a branching strategy other than ``branch-<major>.<minor>``.
     * If a ``branch-<major>.<minor>`` branch exists, that branch is used. If more than
       one such branch exists, the one with the latest version is used. This supports the
       expected default.
     * Otherwise, None is returned and a warning is issued.
     """
-    # Try command line
-    if target_branch_arg:
-        return target_branch_arg
+    # Try --target-branch
+    if args.target_branch:
+        return args.target_branch
 
     # Try environment
     if target_branch_name := os.getenv("TARGET_BRANCH"):
@@ -147,6 +149,10 @@ def get_target_branch(repo, target_branch_arg=None):
         target_branch_name = r.get("rapidsai", "baseBranch", fallback=None)
     if target_branch_name:
         return target_branch_name
+
+    # Try --main-branch
+    if args.main_branch:
+        return args.main_branch
 
     # Try newest branch-xx.yy
     try:
@@ -170,8 +176,8 @@ def get_target_branch(repo, target_branch_arg=None):
     return None
 
 
-def get_target_branch_upstream_commit(repo, target_branch_arg=None):
-    target_branch_name = get_target_branch(repo, target_branch_arg)
+def get_target_branch_upstream_commit(repo, args):
+    target_branch_name = get_target_branch(repo, args)
     if target_branch_name is None:
         try:
             return repo.head.commit
@@ -209,7 +215,7 @@ def get_target_branch_upstream_commit(repo, target_branch_arg=None):
         return None
 
 
-def get_changed_files(target_branch_arg):
+def get_changed_files(args):
     try:
         repo = git.Repo()
     except git.InvalidGitRepositoryError:
@@ -220,9 +226,7 @@ def get_changed_files(target_branch_arg):
         }
 
     changed_files = {f: None for f in repo.untracked_files}
-    target_branch_upstream_commit = get_target_branch_upstream_commit(
-        repo, target_branch_arg
-    )
+    target_branch_upstream_commit = get_target_branch_upstream_commit(repo, args)
     if target_branch_upstream_commit is None:
         changed_files.update({blob.path: None for _, blob in repo.index.iter_blobs()})
         return changed_files
@@ -271,7 +275,7 @@ def find_blob(tree, filename):
 
 
 def check_copyright(args):
-    changed_files = get_changed_files(args.target_branch)
+    changed_files = get_changed_files(args)
 
     def the_check(linter, args):
         if not (git_filename := normalize_git_filename(linter.filename)):
@@ -303,7 +307,16 @@ def main():
         "Verify that all files have had their copyright notices updated. Each file "
         "will be compared against the target branch (determined automatically or with "
         "the --target-branch argument) to decide whether or not they need a copyright "
-        "update."
+        "update.\n\n"
+        "--main-branch and --target-branch effectively control the same thing, but "
+        "--target-branch has higher precedence and is meant only for a user-local "
+        "override, while --main-branch is a project-wide setting. Both --main-branch "
+        "and --target-branch may be specified."
+    )
+    m.argparser.add_argument(
+        "--main-branch",
+        metavar="<main branch>",
+        help="main branch to use instead of branch-<major>.<minor>",
     )
     m.argparser.add_argument(
         "--target-branch",
