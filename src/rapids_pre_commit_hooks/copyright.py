@@ -310,7 +310,8 @@ def main():
         "update.\n\n"
         "--main-branch and --target-branch effectively control the same thing, but "
         "--target-branch has higher precedence and is meant only for a user-local "
-        "override, while --main-branch is a project-wide setting."
+        "override, while --main-branch is a project-wide setting. Both --main-brnach "
+        "and --target-branch may be specified."
     )
     m.argparser.add_argument(
         "--main-branch",
