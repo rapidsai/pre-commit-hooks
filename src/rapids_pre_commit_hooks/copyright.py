@@ -123,7 +123,7 @@ def get_target_branch(repo, args):
       This allows GitHub Actions to easily use this tool.
     * If the ``$RAPIDS_BASE_BRANCH`` environment variable is defined, that branch is
       used. This allows GitHub Actions inside ``copy-pr-bot`` to easily use this tool.
-    * If the configuration option ``rapidsai.baseBranch`` is defined, that branch is
+    * If the Git configuration option ``rapidsai.baseBranch`` is defined, that branch is
       used. This allows users to locally set a base branch on a long-term basis.
     * If the ``--main-branch`` argument is passed, that branch is used. This allows
       projects to use a branching strategy other than ``branch-<major>.<minor>``.
@@ -307,7 +307,10 @@ def main():
         "Verify that all files have had their copyright notices updated. Each file "
         "will be compared against the target branch (determined automatically or with "
         "the --target-branch argument) to decide whether or not they need a copyright "
-        "update."
+        "update.\n\n"
+        "--main-branch and --target-branch effectively control the same thing, but "
+        "--target-branch has higher precedence and is meant only for a user-local "
+        "override, while --main-branch is a project-wide setting."
     )
     m.argparser.add_argument(
         "--main-branch",
