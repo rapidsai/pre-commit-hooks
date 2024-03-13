@@ -173,6 +173,8 @@ def git_repo():
 
 def test_get_target_branch(git_repo):
     with patch.dict("os.environ", {}, clear=True):
+        args = Mock(main_branch=None, target_branch=None)
+
         with open(os.path.join(git_repo.working_tree_dir, "file.txt"), "w") as f:
             f.write("File\n")
         git_repo.index.add(["file.txt"])
@@ -183,43 +185,49 @@ def test_get_target_branch(git_repo):
             r"TARGET_BRANCH environment variable, or setting the rapidsai.baseBranch "
             r"configuration option[.]$",
         ):
-            assert copyright.get_target_branch(git_repo) is None
+            assert copyright.get_target_branch(git_repo, args) is None
 
         git_repo.create_head("branch-24.02")
-        assert copyright.get_target_branch(git_repo) == "branch-24.02"
+        assert copyright.get_target_branch(git_repo, args) == "branch-24.02"
+
+        args.main_branch = ""
+        args.target_branch = ""
 
         git_repo.create_head("branch-24.04")
         git_repo.create_head("branch-24.03")
-        assert copyright.get_target_branch(git_repo) == "branch-24.04"
+        assert copyright.get_target_branch(git_repo, args) == "branch-24.04"
 
         git_repo.create_head("branch-25.01")
-        assert copyright.get_target_branch(git_repo) == "branch-25.01"
+        assert copyright.get_target_branch(git_repo, args) == "branch-25.01"
+
+        args.main_branch = "main"
+        assert copyright.get_target_branch(git_repo, args) == "main"
 
         with git_repo.config_writer() as w:
             w.set_value("rapidsai", "baseBranch", "nonexistent")
-        assert copyright.get_target_branch(git_repo) == "nonexistent"
+        assert copyright.get_target_branch(git_repo, args) == "nonexistent"
 
         with git_repo.config_writer() as w:
             w.set_value("rapidsai", "baseBranch", "branch-24.03")
-        assert copyright.get_target_branch(git_repo) == "branch-24.03"
+        assert copyright.get_target_branch(git_repo, args) == "branch-24.03"
 
         with patch.dict("os.environ", {"RAPIDS_BASE_BRANCH": "nonexistent"}):
-            assert copyright.get_target_branch(git_repo) == "nonexistent"
+            assert copyright.get_target_branch(git_repo, args) == "nonexistent"
 
         with patch.dict("os.environ", {"RAPIDS_BASE_BRANCH": "master"}):
-            assert copyright.get_target_branch(git_repo) == "master"
+            assert copyright.get_target_branch(git_repo, args) == "master"
 
         with patch.dict(
             "os.environ",
             {"GITHUB_BASE_REF": "nonexistent", "RAPIDS_BASE_BRANCH": "master"},
         ):
-            assert copyright.get_target_branch(git_repo) == "nonexistent"
+            assert copyright.get_target_branch(git_repo, args) == "nonexistent"
 
         with patch.dict(
             "os.environ",
             {"GITHUB_BASE_REF": "branch-24.02", "RAPIDS_BASE_BRANCH": "master"},
         ):
-            assert copyright.get_target_branch(git_repo) == "branch-24.02"
+            assert copyright.get_target_branch(git_repo, args) == "branch-24.02"
 
         with patch.dict(
             "os.environ",
@@ -229,7 +237,7 @@ def test_get_target_branch(git_repo):
                 "TARGET_BRANCH": "nonexistent",
             },
         ):
-            assert copyright.get_target_branch(git_repo) == "nonexistent"
+            assert copyright.get_target_branch(git_repo, args) == "nonexistent"
 
         with patch.dict(
             "os.environ",
@@ -239,9 +247,11 @@ def test_get_target_branch(git_repo):
                 "TARGET_BRANCH": "branch-24.04",
             },
         ):
-            assert copyright.get_target_branch(git_repo) == "branch-24.04"
-            assert copyright.get_target_branch(git_repo, "nonexistent") == "nonexistent"
-            assert copyright.get_target_branch(git_repo, "master") == "master"
+            assert copyright.get_target_branch(git_repo, args) == "branch-24.04"
+            args.target_branch = "nonexistent"
+            assert copyright.get_target_branch(git_repo, args) == "nonexistent"
+            args.target_branch = "master"
+            assert copyright.get_target_branch(git_repo, args) == "master"
 
 
 def test_get_target_branch_upstream_commit(git_repo):
@@ -365,10 +375,10 @@ def test_get_target_branch_upstream_commit(git_repo):
         remote_repo_2.index.commit("Update file5.txt")
 
         with mock_target_branch(None):
-            assert copyright.get_target_branch_upstream_commit(git_repo) is None
+            assert copyright.get_target_branch_upstream_commit(git_repo, None) is None
 
         with mock_target_branch("branch-1"):
-            assert copyright.get_target_branch_upstream_commit(git_repo) is None
+            assert copyright.get_target_branch_upstream_commit(git_repo, None) is None
 
         remote_1 = git_repo.create_remote("unconventional/remote/name/1", remote_dir_1)
         remote_1.fetch([
@@ -403,44 +413,51 @@ def test_get_target_branch_upstream_commit(git_repo):
 
         with mock_target_branch("branch-1"):
             assert (
-                copyright.get_target_branch_upstream_commit(git_repo)
+                copyright.get_target_branch_upstream_commit(git_repo, None)
                 == remote_1.refs["branch-1-renamed"].commit
             )
 
         with mock_target_branch("branch-2"):
             assert (
-                copyright.get_target_branch_upstream_commit(git_repo)
+                copyright.get_target_branch_upstream_commit(git_repo, None)
                 == remote_1.refs["branch-2"].commit
             )
 
         with mock_target_branch("branch-3"):
             assert (
-                copyright.get_target_branch_upstream_commit(git_repo)
+                copyright.get_target_branch_upstream_commit(git_repo, None)
                 == remote_1.refs["branch-3"].commit
             )
 
         with mock_target_branch("branch-4"):
             assert (
-                copyright.get_target_branch_upstream_commit(git_repo)
+                copyright.get_target_branch_upstream_commit(git_repo, None)
                 == remote_2.refs["branch-4"].commit
             )
 
         with mock_target_branch("branch-5"):
             assert (
-                copyright.get_target_branch_upstream_commit(git_repo)
+                copyright.get_target_branch_upstream_commit(git_repo, None)
                 == remote_2.refs["branch-5"].commit
             )
 
         with mock_target_branch("branch-6"):
             assert (
-                copyright.get_target_branch_upstream_commit(git_repo) == branch_6.commit
+                copyright.get_target_branch_upstream_commit(git_repo, None)
+                == branch_6.commit
             )
 
         with mock_target_branch("branch-7"):
-            assert copyright.get_target_branch_upstream_commit(git_repo) == main.commit
+            assert (
+                copyright.get_target_branch_upstream_commit(git_repo, None)
+                == main.commit
+            )
 
         with mock_target_branch(None):
-            assert copyright.get_target_branch_upstream_commit(git_repo) == main.commit
+            assert (
+                copyright.get_target_branch_upstream_commit(git_repo, None)
+                == main.commit
+            )
 
 
 def test_get_changed_files(git_repo):
@@ -470,7 +487,7 @@ def test_get_changed_files(git_repo):
         os.mkdir(os.path.join(non_git_dir, "subdir1/subdir2"))
         with open(os.path.join(non_git_dir, "subdir1", "subdir2", "sub.txt"), "w") as f:
             f.write("Subdir file\n")
-        assert copyright.get_changed_files(Mock(target_branch=None)) == {
+        assert copyright.get_changed_files(None) == {
             "top.txt": None,
             "subdir1/subdir2/sub.txt": None,
         }
@@ -515,7 +532,7 @@ def test_get_changed_files(git_repo):
         "rapids_pre_commit_hooks.copyright.get_target_branch_upstream_commit",
         Mock(return_value=None),
     ):
-        assert copyright.get_changed_files(Mock(target_branch=None)) == {
+        assert copyright.get_changed_files(None) == {
             "untouched.txt": None,
             "copied.txt": None,
             "modified_and_copied.txt": None,
@@ -609,7 +626,7 @@ def test_get_changed_files(git_repo):
         "rapids_pre_commit_hooks.copyright.get_target_branch_upstream_commit",
         Mock(return_value=target_branch.commit),
     ):
-        changed_files = copyright.get_changed_files(Mock(target_branch=None))
+        changed_files = copyright.get_changed_files(None)
     assert {
         path: old_blob.path if old_blob else None
         for path, old_blob in changed_files.items()
@@ -730,8 +747,8 @@ File {num} modified
         return patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir))
 
     def mock_target_branch_upstream_commit(target_branch):
-        def func(repo, target_branch_arg):
-            assert target_branch == target_branch_arg
+        def func(repo, args):
+            assert target_branch == args.target_branch
             return repo.heads[target_branch].commit
 
         return patch(
