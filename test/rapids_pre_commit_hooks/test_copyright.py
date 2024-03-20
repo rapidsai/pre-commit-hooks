@@ -649,6 +649,85 @@ def test_get_changed_files(git_repo):
             assert changed_files[new].data_stream.read() == old_contents
 
 
+def test_get_changed_files_multiple_merge_bases(git_repo):
+    def fn(filename):
+        return os.path.join(git_repo.working_tree_dir, filename)
+
+    def write_file(filename, contents):
+        with open(fn(filename), "w") as f:
+            f.write(contents)
+
+    write_file("file1.txt", "File 1\n")
+    write_file("file2.txt", "File 2\n")
+    write_file("file3.txt", "File 3\n")
+    git_repo.index.add(["file1.txt", "file2.txt", "file3.txt"])
+    git_repo.index.commit("Initial commit")
+
+    branch_1 = git_repo.create_head("branch-1", "master")
+    git_repo.head.reference = branch_1
+    git_repo.index.reset(index=True, working_tree=True)
+    write_file("file1.txt", "File 1 modified\n")
+    git_repo.index.add("file1.txt")
+    git_repo.index.commit(
+        "Modify file1.txt",
+        commit_date=datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc),
+    )
+
+    branch_2 = git_repo.create_head("branch-2", "master")
+    git_repo.head.reference = branch_2
+    git_repo.index.reset(index=True, working_tree=True)
+    write_file("file2.txt", "File 2 modified\n")
+    git_repo.index.add("file2.txt")
+    git_repo.index.commit(
+        "Modify file2.txt",
+        commit_date=datetime.datetime(2024, 2, 1, tzinfo=datetime.timezone.utc),
+    )
+
+    branch_1_2 = git_repo.create_head("branch-1-2", "master")
+    git_repo.head.reference = branch_1_2
+    git_repo.index.reset(index=True, working_tree=True)
+    write_file("file1.txt", "File 1 modified\n")
+    write_file("file2.txt", "File 2 modified\n")
+    git_repo.index.add(["file1.txt", "file2.txt"])
+    git_repo.index.commit(
+        "Merge branches branch-1 and branch-2",
+        parent_commits=[branch_1.commit, branch_2.commit],
+        commit_date=datetime.datetime(2024, 3, 1, tzinfo=datetime.timezone.utc),
+    )
+
+    branch_3 = git_repo.create_head("branch-3", "master")
+    git_repo.head.reference = branch_3
+    git_repo.index.reset(index=True, working_tree=True)
+    write_file("file1.txt", "File 1 modified\n")
+    write_file("file2.txt", "File 2 modified\n")
+    git_repo.index.add(["file1.txt", "file2.txt"])
+    git_repo.index.commit(
+        "Merge branches branch-1 and branch-2",
+        parent_commits=[branch_1.commit, branch_2.commit],
+        commit_date=datetime.datetime(2024, 4, 1, tzinfo=datetime.timezone.utc),
+    )
+    write_file("file3.txt", "File 3 modified\n")
+    git_repo.index.add("file3.txt")
+    git_repo.index.commit(
+        "Modify file3.txt",
+        commit_date=datetime.datetime(2024, 5, 1, tzinfo=datetime.timezone.utc),
+    )
+
+    with patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir)), patch(
+        "rapids_pre_commit_hooks.copyright.get_target_branch",
+        Mock(return_value="branch-1-2"),
+    ):
+        changed_files = copyright.get_changed_files(None)
+    assert {
+        path: old_blob.path if old_blob else None
+        for path, old_blob in changed_files.items()
+    } == {
+        "file1.txt": "file1.txt",
+        "file2.txt": "file2.txt",
+        "file3.txt": "file3.txt",
+    }
+
+
 def test_normalize_git_filename():
     assert copyright.normalize_git_filename("file.txt") == "file.txt"
     assert copyright.normalize_git_filename("sub/file.txt") == "sub/file.txt"
