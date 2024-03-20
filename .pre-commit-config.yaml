@@ -56,4 +56,7 @@ repos:
               [.]pre-commit-config[.]yaml$|
               [.]pre-commit-hooks[.]yaml$|
               pyproject[.]toml$
+        exclude: |
+          (?x)
+              test_copyright[.]py$
         args: [--fix, --main-branch=main]

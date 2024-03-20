@@ -231,18 +231,20 @@ def get_changed_files(args):
         changed_files.update({blob.path: None for _, blob in repo.index.iter_blobs()})
         return changed_files
 
-    diffs = target_branch_upstream_commit.diff(
-        other=None,
-        merge_base=True,
-        find_copies=True,
-        find_copies_harder=True,
-        find_renames=True,
-    )
-    for diff in diffs:
-        if diff.change_type == "A":
-            changed_files[diff.b_path] = None
-        elif diff.change_type != "D":
-            changed_files[diff.b_path] = diff.a_blob
+    for merge_base in repo.merge_base(
+        repo.head.commit, target_branch_upstream_commit, all=True
+    ):
+        diffs = merge_base.diff(
+            other=None,
+            find_copies=True,
+            find_copies_harder=True,
+            find_renames=True,
+        )
+        for diff in diffs:
+            if diff.change_type == "A":
+                changed_files[diff.b_path] = None
+            elif diff.change_type != "D":
+                changed_files[diff.b_path] = diff.a_blob
 
     return changed_files
 
