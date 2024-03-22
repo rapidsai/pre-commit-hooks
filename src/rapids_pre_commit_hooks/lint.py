@@ -204,7 +204,9 @@ class Linter:
             def __eq__(self, other):
                 return self.pos[0] <= other <= self.pos[1]
 
-        line_index = bisect.bisect_left(self.lines, index, key=LineComparator)
+        line_index = bisect.bisect_left(
+            [LineComparator(line) for line in self.lines], index
+        )
         try:
             line_pos = self.lines[line_index]
         except IndexError:
