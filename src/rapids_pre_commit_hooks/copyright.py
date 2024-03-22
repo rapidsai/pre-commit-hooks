@@ -95,7 +95,7 @@ def apply_copyright_check(linter, old_content):
             old_content, old_copyright_matches
         ) == strip_copyright(linter.content, new_copyright_matches):
             for old_match, new_match in zip(
-                old_copyright_matches, new_copyright_matches, strict=True
+                old_copyright_matches, new_copyright_matches
             ):
                 if old_match.group() != new_match.group():
                     apply_copyright_revert(linter, old_match, new_match)

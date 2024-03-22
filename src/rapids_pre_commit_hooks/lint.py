@@ -16,12 +16,23 @@ import argparse
 import bisect
 import contextlib
 import functools
-import itertools
 import re
 import warnings
 
 from rich.console import Console
 from rich.markup import escape
+
+
+# Taken from Python docs
+# (https://docs.python.org/3.12/library/itertools.html#itertools.pairwise)
+# Replace with itertools.pairwise after dropping Python 3.9 support
+def _pairwise(iterable):
+    # pairwise('ABCDEFG') → AB BC CD DE EF FG
+    iterator = iter(iterable)
+    a = next(iterator, None)
+    for b in iterator:
+        yield a, b
+        a = b
 
 
 class OverlappingReplacementsError(RuntimeError):
@@ -98,7 +109,7 @@ class Linter:
             key=lambda replacement: replacement.pos,
         )
 
-        for r1, r2 in itertools.pairwise(sorted_replacements):
+        for r1, r2 in _pairwise(sorted_replacements):
             if r1.pos[1] > r2.pos[0]:
                 raise OverlappingReplacementsError(f"{r1} overlaps with {r2}")
 
@@ -204,7 +215,9 @@ class Linter:
             def __eq__(self, other):
                 return self.pos[0] <= other <= self.pos[1]
 
-        line_index = bisect.bisect_left(self.lines, index, key=LineComparator)
+        line_index = bisect.bisect_left(
+            [LineComparator(line) for line in self.lines], index
+        )
         try:
             line_pos = self.lines[line_index]
         except IndexError:
