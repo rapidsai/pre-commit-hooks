@@ -19,9 +19,19 @@ import functools
 import re
 import warnings
 
-import more_itertools
 from rich.console import Console
 from rich.markup import escape
+
+
+# Taken from Python docs
+# (https://docs.python.org/3.12/library/itertools.html#itertools.pairwise)
+def _pairwise(iterable):
+    # pairwise('ABCDEFG') → AB BC CD DE EF FG
+    iterator = iter(iterable)
+    a = next(iterator, None)
+    for b in iterator:
+        yield a, b
+        a = b
 
 
 class OverlappingReplacementsError(RuntimeError):
@@ -98,7 +108,7 @@ class Linter:
             key=lambda replacement: replacement.pos,
         )
 
-        for r1, r2 in more_itertools.pairwise(sorted_replacements):
+        for r1, r2 in _pairwise(sorted_replacements):
             if r1.pos[1] > r2.pos[0]:
                 raise OverlappingReplacementsError(f"{r1} overlaps with {r2}")
 
