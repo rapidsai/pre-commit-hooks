@@ -25,6 +25,7 @@ from rich.markup import escape
 
 # Taken from Python docs
 # (https://docs.python.org/3.12/library/itertools.html#itertools.pairwise)
+# Replace with itertools.pairwise after dropping Python 3.9 support
 def _pairwise(iterable):
     # pairwise('ABCDEFG') → AB BC CD DE EF FG
     iterator = iter(iterable)
