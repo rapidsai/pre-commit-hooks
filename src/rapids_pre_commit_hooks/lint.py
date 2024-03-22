@@ -16,10 +16,10 @@ import argparse
 import bisect
 import contextlib
 import functools
-import itertools
 import re
 import warnings
 
+import more_itertools
 from rich.console import Console
 from rich.markup import escape
 
@@ -98,7 +98,7 @@ class Linter:
             key=lambda replacement: replacement.pos,
         )
 
-        for r1, r2 in itertools.pairwise(sorted_replacements):
+        for r1, r2 in more_itertools.pairwise(sorted_replacements):
             if r1.pos[1] > r2.pos[0]:
                 raise OverlappingReplacementsError(f"{r1} overlaps with {r2}")
 
