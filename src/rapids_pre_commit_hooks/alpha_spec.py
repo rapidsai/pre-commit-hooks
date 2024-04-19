@@ -49,6 +49,11 @@ RAPIDS_VERSIONED_PACKAGES = {
 
 ALPHA_SPECIFIER = ">=0.0.0a0"
 
+ALPHA_SPEC_OUTPUT_TYPES = {
+    "pyproject",
+    "requirements",
+}
+
 
 def check_package_spec(linter, args, node):
     if node.tag == "tag:yaml.org,2002:str":
@@ -101,13 +106,14 @@ def check_common(linter, args, node):
                     ):
                         packages = dependency_set_value
                 if output_types.tag == "tag:yaml.org,2002:seq" and any(
-                    t.tag == "tag:yaml.org,2002:str" and t.value == "pyproject"
+                    t.tag == "tag:yaml.org,2002:str"
+                    and t.value in ALPHA_SPEC_OUTPUT_TYPES
                     for t in output_types.value
                 ):
                     check_packages(linter, args, packages)
                 elif (
                     output_types.tag == "tag:yaml.org,2002:str"
-                    and output_types.value == "pyproject"
+                    and output_types.value in ALPHA_SPEC_OUTPUT_TYPES
                 ):
                     check_packages(linter, args, packages)
 
@@ -140,13 +146,14 @@ def check_specific(linter, args, node):
                     ):
                         matrices = matrix_matcher_value
                 if output_types.tag == "tag:yaml.org,2002:seq" and any(
-                    t.tag == "tag:yaml.org,2002:str" and t.value == "pyproject"
+                    t.tag == "tag:yaml.org,2002:str"
+                    and t.value in ALPHA_SPEC_OUTPUT_TYPES
                     for t in output_types.value
                 ):
                     check_matrices(linter, args, matrices)
                 elif (
                     output_types.tag == "tag:yaml.org,2002:str"
-                    and output_types.value == "pyproject"
+                    and output_types.value in ALPHA_SPEC_OUTPUT_TYPES
                 ):
                     check_matrices(linter, args, matrices)
 
