@@ -64,9 +64,9 @@ def test_check_package_spec(package, content, mode, replacement):
         (
             dedent(
                 """\
-            - package_a
-            - package_b
-            """
+                - package_a
+                - package_b
+                """
             ),
             [0, 1],
         ),
@@ -95,16 +95,16 @@ def test_check_packages(content, indices):
         (
             dedent(
                 """\
-            - output_types: [pyproject, conda]
-              packages:
-                - package_a
-            - output_types: [conda]
-              packages:
-                - package_b
-            - packages:
-                - package_c
-              output_types: pyproject
-            """
+                - output_types: [pyproject, conda]
+                  packages:
+                    - package_a
+                - output_types: [conda]
+                  packages:
+                    - package_b
+                - packages:
+                    - package_c
+                  output_types: pyproject
+                """
             ),
             [(0, 1), (2, 0)],
         ),
@@ -129,14 +129,14 @@ def test_check_common(content, indices):
         (
             dedent(
                 """\
-            - matrix:
-                arch: x86_64
-              packages:
-                - package_a
-            - packages:
-                - package_b
-              matrix:
-            """
+                - matrix:
+                    arch: x86_64
+                  packages:
+                    - package_a
+                - packages:
+                    - package_b
+                  matrix:
+                """
             ),
             [(0, 1), (1, 0)],
         ),
@@ -161,25 +161,25 @@ def test_check_matrices(content, indices):
         (
             dedent(
                 """\
-            - output_types: [pyproject, conda]
-              matrices:
-                - matrix:
-                    arch: x86_64
-                  packages:
-                    - package_a
-            - output_types: [conda]
-              matrices:
-                - matrix:
-                    arch: x86_64
-                  packages:
-                    - package_b
-            - matrices:
-                - matrix:
-                    arch: x86_64
-                  packages:
-                    - package_c
-              output_types: pyproject
-            """
+                - output_types: [pyproject, conda]
+                  matrices:
+                    - matrix:
+                        arch: x86_64
+                      packages:
+                        - package_a
+                - output_types: [conda]
+                  matrices:
+                    - matrix:
+                        arch: x86_64
+                      packages:
+                        - package_b
+                - matrices:
+                    - matrix:
+                        arch: x86_64
+                      packages:
+                        - package_c
+                  output_types: pyproject
+                """
             ),
             [(0, 1), (2, 0)],
         ),
@@ -204,31 +204,31 @@ def test_check_specific(content, indices):
         (
             dedent(
                 """\
-            set_a:
-              common:
-                - output_types: [pyproject]
-                  packages:
-                    - package_a
-              specific:
-                - output_types: [pyproject]
-                  matrices:
-                    - matrix:
-                        arch: x86_64
+                set_a:
+                  common:
+                    - output_types: [pyproject]
                       packages:
-                        - package_b
-            set_b:
-              specific:
-                - output_types: [pyproject]
-                  matrices:
-                    - matrix:
-                        arch: x86_64
+                        - package_a
+                  specific:
+                    - output_types: [pyproject]
+                      matrices:
+                        - matrix:
+                            arch: x86_64
+                          packages:
+                            - package_b
+                set_b:
+                  specific:
+                    - output_types: [pyproject]
+                      matrices:
+                        - matrix:
+                            arch: x86_64
+                          packages:
+                            - package_c
+                  common:
+                    - output_types: [pyproject]
                       packages:
-                        - package_c
-              common:
-                - output_types: [pyproject]
-                  packages:
-                    - package_d
-            """
+                        - package_d
+                """
             ),
             [(0, 0), (1, 1)],
             [(0, 1), (1, 0)],
