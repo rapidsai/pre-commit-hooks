@@ -35,6 +35,7 @@ dependencies = [
     "bashlex",
     "gitpython",
     "rich",
+    "tomlkit",
 ]
 
 [project.optional-dependencies]
@@ -46,6 +47,7 @@ test = [
 [project.scripts]
 verify-conda-yes = "rapids_pre_commit_hooks.shell.verify_conda_yes:main"
 verify-copyright = "rapids_pre_commit_hooks.copyright:main"
+verify-pyproject-license = "rapids_pre_commit_hooks.pyproject_license:main"
 
 [tool.setuptools]
 packages = { "find" = { where = ["src"] } }
