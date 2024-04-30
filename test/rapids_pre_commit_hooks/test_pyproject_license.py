@@ -53,6 +53,7 @@ def test_find_value_location(key, loc):
     )
     parsed_doc = tomlkit.loads(CONTENT)
     assert pyproject_license.find_value_location(parsed_doc, key) == loc
+    assert parsed_doc.as_string() == CONTENT
 
 
 @pytest.mark.parametrize(
