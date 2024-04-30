@@ -63,25 +63,25 @@ def test_find_value_location(key, loc):
             dedent(
                 """\
                 [project]
-                license = "Apache-2.0"
+                license = { text = "Apache-2.0" }
                 """
             ),
-            (20, 32),
+            (29, 41),
         ),
         (
             dedent(
                 """\
                 [project]
-                license = "BSD"
+                license = { text = "BSD" }
                 """
             ),
-            (20, 25),
+            (29, 34),
         ),
         (
             dedent(
                 """\
                 [project]
-                license = "Apache 2.0"
+                license = { text = "Apache 2.0" }
                 """
             ),
             None,
@@ -90,7 +90,7 @@ def test_find_value_location(key, loc):
             dedent(
                 """\
                 [project]
-                license = 'Apache 2.0'  # Single quotes are fine
+                license = { text = 'Apache 2.0' }  # Single quotes are fine
                 """
             ),
             None,
