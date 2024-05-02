@@ -57,7 +57,7 @@ def test_find_value_location(key, loc):
 
 
 @pytest.mark.parametrize(
-    ["document", "loc"],
+    ["document", "loc", "message", "replacement_loc", "replacement_text"],
     [
         (
             dedent(
@@ -67,6 +67,9 @@ def test_find_value_location(key, loc):
                 """
             ),
             (29, 41),
+            'license should be "Apache 2.0"',
+            (29, 41),
+            '"Apache 2.0"',
         ),
         (
             dedent(
@@ -76,6 +79,9 @@ def test_find_value_location(key, loc):
                 """
             ),
             (29, 34),
+            'license should be "Apache 2.0"',
+            (29, 34),
+            '"Apache 2.0"',
         ),
         (
             dedent(
@@ -84,6 +90,9 @@ def test_find_value_location(key, loc):
                 license = { text = "Apache 2.0" }
                 """
             ),
+            None,
+            None,
+            None,
             None,
         ),
         (
@@ -94,17 +103,75 @@ def test_find_value_location(key, loc):
                 """
             ),
             None,
+            None,
+            None,
+            None,
         ),
-        ("", None),
+        (
+            dedent(
+                """\
+                [build-system]
+                requires = ["scikit-build-core"]
+                """
+            ),
+            (48, 48),
+            'add project.license with value { text = "Apache 2.0" }',
+            (48, 48),
+            '[project]\nlicense = { text = "Apache 2.0" }\n',
+        ),
+        (
+            dedent(
+                """\
+                [project]
+                name = "test-project"
+
+                [build-system]
+                requires = ["scikit-build-core"]
+                """
+            ),
+            (32, 32),
+            'add project.license with value { text = "Apache 2.0" }',
+            (32, 32),
+            'license = { text = "Apache 2.0" }\n',
+        ),
+        (
+            dedent(
+                """\
+                [project]
+                name = "test-project"
+
+                [project.optional-dependencies]
+                test = ["pytest"]
+                """
+            ),
+            (32, 32),
+            'add project.license with value { text = "Apache 2.0" }',
+            (32, 32),
+            'license = { text = "Apache 2.0" }\n',
+        ),
+        (
+            dedent(
+                """\
+                [project.optional-dependencies]
+                test = ["pytest"]
+                """
+            ),
+            (50, 50),
+            'add project.license with value { text = "Apache 2.0" }',
+            (50, 50),
+            '[project]\nlicense = { text = "Apache 2.0" }\n',
+        ),
     ],
 )
-def test_check_pyproject_license(document, loc):
+def test_check_pyproject_license(
+    document, loc, message, replacement_loc, replacement_text
+):
     linter = Linter("pyproject.toml", document)
     pyproject_license.check_pyproject_license(linter, None)
 
     expected_linter = Linter("pyproject.toml", document)
-    if loc:
-        expected_linter.add_warning(
-            loc, 'license should be "Apache 2.0"'
-        ).add_replacement(loc, '"Apache 2.0"')
+    if loc and message:
+        w = expected_linter.add_warning(loc, message)
+        if replacement_loc and replacement_text:
+            w.add_replacement(replacement_loc, replacement_text)
     assert linter.warnings == expected_linter.warnings

@@ -21,6 +21,10 @@ import tomlkit.exceptions
 from .lint import LintMain
 
 RAPIDS_LICENSE = "Apache 2.0"
+ACCEPTABLE_LICENSES = {
+    "Apache 2.0",
+    "BSD-3-Clause",
+}
 
 
 def find_value_location(document, key):
@@ -47,11 +51,52 @@ def find_value_location(document, key):
 def check_pyproject_license(linter, args):
     document = tomlkit.loads(linter.content)
     try:
-        license_value = document["project"]["license"]["text"]
+        project_table = document["project"]
     except tomlkit.exceptions.NonExistentKey:
+        loc = (len(linter.content), len(linter.content))
+        linter.add_warning(
+            loc, f'add project.license with value {{ text = "{RAPIDS_LICENSE}" }}'
+        ).add_replacement(
+            loc,
+            "[project]\nlicense = "
+            f"{{ text = {tomlkit.string(RAPIDS_LICENSE).as_string()} }}\n",
+        )
         return
 
-    if license_value != RAPIDS_LICENSE:
+    try:
+        license_value = project_table["license"]["text"]
+    except tomlkit.exceptions.NonExistentKey:
+        if project_table.is_super_table():
+            loc = (len(linter.content), len(linter.content))
+            linter.add_warning(
+                loc, f'add project.license with value {{ text = "{RAPIDS_LICENSE}" }}'
+            ).add_replacement(
+                loc,
+                "[project]\nlicense = "
+                f"{{ text = {tomlkit.string(RAPIDS_LICENSE).as_string()} }}\n",
+            )
+        else:
+            while (
+                str(placeholder := random.randint(0, 1048576)) in document.as_string()
+            ):
+                pass
+            copied_document = copy.deepcopy(document)
+            copied_document["project"].add(
+                str(placeholder), tomlkit.integer(placeholder)
+            )
+            index = copied_document.as_string().find(f"{placeholder} = {placeholder}")
+
+            loc = (index, index)
+            linter.add_warning(
+                loc, f'add project.license with value {{ text = "{RAPIDS_LICENSE}" }}'
+            ).add_replacement(
+                loc,
+                "license = "
+                f"{{ text = {tomlkit.string(RAPIDS_LICENSE).as_string()} }}\n",
+            )
+        return
+
+    if license_value not in ACCEPTABLE_LICENSES:
         loc = find_value_location(document, ("project", "license", "text"))
         linter.add_warning(
             loc, f'license should be "{RAPIDS_LICENSE}"'
