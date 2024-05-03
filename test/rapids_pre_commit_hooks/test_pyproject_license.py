@@ -83,17 +83,20 @@ def test_find_value_location(key, loc):
             (29, 34),
             '"Apache 2.0"',
         ),
-        (
-            dedent(
-                """\
-                [project]
-                license = { text = "Apache 2.0" }
-                """
-            ),
-            None,
-            None,
-            None,
-            None,
+        *(
+            (
+                dedent(
+                    f"""\
+                    [project]
+                    license = {{ text = {tomlkit.string(license).as_string()} }}
+                    """
+                ),
+                None,
+                None,
+                None,
+                None,
+            )
+            for license in pyproject_license.ACCEPTABLE_LICENSES
         ),
         (
             dedent(
