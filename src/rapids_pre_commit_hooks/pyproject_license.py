@@ -29,22 +29,20 @@ ACCEPTABLE_LICENSES = {
 
 def find_value_location(document, key):
     copied_document = copy.deepcopy(document)
-    node = copied_document
-    while str(placeholder := random.randint(0, 1048576)) in node.as_string():
-        pass
+    i = 0
+    while str(placeholder := random.randint(0, 1048576)) in copied_document.as_string():
+        if i := i + 1 >= 10000:
+            raise RuntimeError("Could not find suitable placeholder")
 
+    node = copied_document
     while len(key) > 1:
         node = node[key[0]]
         key = key[1:]
+    old_value = node[key[0]]
     node[key[0]] = placeholder
 
     begin_loc = copied_document.as_string().find(str(placeholder))
-    end_loc = (
-        begin_loc
-        + len(str(placeholder))
-        - len(copied_document.as_string())
-        + len(document.as_string())
-    )
+    end_loc = begin_loc + len(old_value.as_string())
     return begin_loc, end_loc
 
 
@@ -76,10 +74,12 @@ def check_pyproject_license(linter, args):
                 f"{{ text = {tomlkit.string(RAPIDS_LICENSE).as_string()} }}\n",
             )
         else:
+            i = 0
             while (
                 str(placeholder := random.randint(0, 1048576)) in document.as_string()
             ):
-                pass
+                if i := i + 1 >= 10000:
+                    raise RuntimeError("Could not find suitable placeholder")
             copied_document = copy.deepcopy(document)
             copied_document["project"].add(
                 str(placeholder), tomlkit.integer(placeholder)
