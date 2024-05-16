@@ -188,31 +188,28 @@ def get_target_branch_upstream_commit(repo, args):
     try:
         target_branch = repo.heads[target_branch_name]
     except IndexError:
-
-        def try_get_ref(remote):
-            try:
-                return remote.refs[target_branch_name]
-            except IndexError:
-                return None
-
-        try:
-            upstream_commit = max(
-                (
-                    upstream
-                    for remote in repo.remotes
-                    if (upstream := try_get_ref(remote))
-                ),
-                key=lambda upstream: upstream.commit.committed_datetime,
-            ).commit
-        except ValueError:
-            pass
-        else:
-            commits_to_try.append(upstream_commit)
+        pass
     else:
         commits_to_try.append(target_branch.commit)
-        target_branch_upstream = target_branch.tracking_branch()
-        if target_branch_upstream:
+        if target_branch_upstream := target_branch.tracking_branch():
             commits_to_try.append(target_branch_upstream.commit)
+            return max(commits_to_try, key=lambda commit: commit.committed_datetime)
+
+    def try_get_ref(remote):
+        try:
+            return remote.refs[target_branch_name]
+        except IndexError:
+            return None
+
+    try:
+        upstream_commit = max(
+            (upstream for remote in repo.remotes if (upstream := try_get_ref(remote))),
+            key=lambda upstream: upstream.commit.committed_datetime,
+        ).commit
+    except ValueError:
+        pass
+    else:
+        commits_to_try.append(upstream_commit)
 
     if commits_to_try:
         return max(commits_to_try, key=lambda commit: commit.committed_datetime)
