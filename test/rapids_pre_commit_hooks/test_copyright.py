@@ -283,6 +283,7 @@ def test_get_target_branch_upstream_commit(git_repo):
         write_file(remote_repo_1, "file4.txt", "File 4")
         write_file(remote_repo_1, "file5.txt", "File 5")
         write_file(remote_repo_1, "file6.txt", "File 6")
+        write_file(remote_repo_1, "file7.txt", "File 7")
         remote_repo_1.index.add(
             [
                 "file1.txt",
@@ -291,6 +292,7 @@ def test_get_target_branch_upstream_commit(git_repo):
                 "file4.txt",
                 "file5.txt",
                 "file6.txt",
+                "file7.txt",
             ]
         )
         remote_repo_1.index.commit("Initial commit")
@@ -302,7 +304,10 @@ def test_get_target_branch_upstream_commit(git_repo):
         remote_repo_1.head.reset(index=True, working_tree=True)
         write_file(remote_repo_1, "file1.txt", "File 1 modified")
         remote_repo_1.index.add(["file1.txt"])
-        remote_repo_1.index.commit("Update file1.txt")
+        remote_repo_1.index.commit(
+            "Update file1.txt",
+            commit_date=datetime.datetime(2024, 2, 1, tzinfo=datetime.timezone.utc),
+        )
 
         remote_1_branch_2 = remote_repo_1.create_head(
             "branch-2", remote_1_master.commit
@@ -334,6 +339,18 @@ def test_get_target_branch_upstream_commit(git_repo):
         remote_repo_1.index.add(["file4.txt"])
         remote_repo_1.index.commit(
             "Update file4.txt",
+            commit_date=datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc),
+        )
+
+        remote_1_branch_7 = remote_repo_1.create_head(
+            "branch-7", remote_1_master.commit
+        )
+        remote_repo_1.head.reference = remote_1_branch_7
+        remote_repo_1.head.reset(index=True, working_tree=True)
+        write_file(remote_repo_1, "file7.txt", "File 7 modified")
+        remote_repo_1.index.add(["file7.txt"])
+        remote_repo_1.index.commit(
+            "Update file7.txt",
             commit_date=datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc),
         )
 
@@ -387,6 +404,7 @@ def test_get_target_branch_upstream_commit(git_repo):
             "branch-2",
             "branch-3",
             "branch-4",
+            "branch-7",
         ])
         remote_2 = git_repo.create_remote("unconventional/remote/name/2", remote_dir_2)
         remote_2.fetch(["branch-3", "branch-4", "branch-5"])
@@ -400,13 +418,28 @@ def test_get_target_branch_upstream_commit(git_repo):
         git_repo.head.reference = branch_1
         git_repo.head.reset(index=True, working_tree=True)
         git_repo.index.remove("file1.txt", working_tree=True)
-        git_repo.index.commit("Remove file1.txt")
+        git_repo.index.commit(
+            "Remove file1.txt",
+            commit_date=datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc),
+        )
 
         branch_6 = git_repo.create_head("branch-6", remote_1.refs["master"])
         git_repo.head.reference = branch_6
         git_repo.head.reset(index=True, working_tree=True)
         git_repo.index.remove(["file6.txt"], working_tree=True)
         git_repo.index.commit("Remove file6.txt")
+
+        branch_7 = git_repo.create_head("branch-7", remote_1.refs["master"])
+        with branch_7.config_writer() as w:
+            w.set_value("remote", "unconventional/remote/name/1")
+            w.set_value("merge", "branch-7")
+        git_repo.head.reference = branch_7
+        git_repo.head.reset(index=True, working_tree=True)
+        git_repo.index.remove(["file7.txt"], working_tree=True)
+        git_repo.index.commit(
+            "Remove file7.txt",
+            commit_date=datetime.datetime(2024, 2, 1, tzinfo=datetime.timezone.utc),
+        )
 
         git_repo.head.reference = main
         git_repo.head.reset(index=True, working_tree=True)
@@ -448,6 +481,12 @@ def test_get_target_branch_upstream_commit(git_repo):
             )
 
         with mock_target_branch("branch-7"):
+            assert (
+                copyright.get_target_branch_upstream_commit(git_repo, None)
+                == branch_7.commit
+            )
+
+        with mock_target_branch("nonexistent-branch"):
             assert (
                 copyright.get_target_branch_upstream_commit(git_repo, None)
                 == main.commit
