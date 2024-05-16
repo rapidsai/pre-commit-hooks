@@ -177,6 +177,7 @@ def get_target_branch(repo, args):
 
 
 def get_target_branch_upstream_commit(repo, args):
+    # If no target branch can be determined, use HEAD if it exists
     target_branch_name = get_target_branch(repo, args)
     if target_branch_name is None:
         try:
@@ -185,15 +186,21 @@ def get_target_branch_upstream_commit(repo, args):
             return None
 
     commits_to_try = []
+
     try:
         target_branch = repo.heads[target_branch_name]
     except IndexError:
         pass
     else:
+        # Try the branch specified by the branch name
         commits_to_try.append(target_branch.commit)
+
+        # If the branch has an upstream, try it and exit
         if target_branch_upstream := target_branch.tracking_branch():
-            commits_to_try.append(target_branch_upstream.commit)
-            return max(commits_to_try, key=lambda commit: commit.committed_datetime)
+            return max(
+                [target_branch.commit, target_branch_upstream.commit],
+                key=lambda commit: commit.committed_datetime,
+            )
 
     def try_get_ref(remote):
         try:
@@ -202,6 +209,7 @@ def get_target_branch_upstream_commit(repo, args):
             return None
 
     try:
+        # Try branches in all remotes that have the branch name
         upstream_commit = max(
             (upstream for remote in repo.remotes if (upstream := try_get_ref(remote))),
             key=lambda upstream: upstream.commit.committed_datetime,
@@ -214,6 +222,8 @@ def get_target_branch_upstream_commit(repo, args):
     if commits_to_try:
         return max(commits_to_try, key=lambda commit: commit.committed_datetime)
 
+    # No branch with the specified name, local or remote, can be found, so return HEAD
+    # if it exists
     try:
         return repo.head.commit
     except ValueError:
