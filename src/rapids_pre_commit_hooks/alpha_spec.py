@@ -47,6 +47,29 @@ RAPIDS_VERSIONED_PACKAGES = {
     "distributed-ucxx",
 }
 
+RAPIDS_CUDA_VERSIONED_PACKAGES = {
+    "rmm",
+    "pylibcugraphops",
+    "pylibcugraph",
+    "nx-cugraph",
+    "dask-cudf",
+    "cuspatial",
+    "cuproj",
+    "cuml",
+    "cugraph",
+    "cudf",
+    "ptxcompiler",
+    "cubinlinker",
+    "cugraph-dgl",
+    "cugraph-pyg",
+    "cugraph-equivariant",
+    "raft-dask",
+    "pylibwholegraph",
+    "pylibraft",
+    "cuxfilter",
+    "cucim",
+}
+
 ALPHA_SPECIFIER = ">=0.0.0a0"
 
 ALPHA_SPEC_OUTPUT_TYPES = {
@@ -55,10 +78,18 @@ ALPHA_SPEC_OUTPUT_TYPES = {
 }
 
 
+def is_rapids_cuda_versioned_package(name):
+    return any(
+        name.startswith(f"{package}-cu") for package in RAPIDS_CUDA_VERSIONED_PACKAGES
+    )
+
+
 def check_package_spec(linter, args, node):
     if node.tag == "tag:yaml.org,2002:str":
         req = Requirement(node.value)
-        if req.name in RAPIDS_VERSIONED_PACKAGES:
+        if req.name in RAPIDS_VERSIONED_PACKAGES or is_rapids_cuda_versioned_package(
+            req.name
+        ):
             has_alpha_spec = any(
                 filter(lambda s: str(s) == ALPHA_SPECIFIER, req.specifier)
             )

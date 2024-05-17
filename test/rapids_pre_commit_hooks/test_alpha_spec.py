@@ -36,6 +36,27 @@ from rapids_pre_commit_hooks import alpha_spec, lint
                 for p in alpha_spec.RAPIDS_VERSIONED_PACKAGES
             )
         ),
+        *chain(
+            *(
+                [
+                    (f"{p}-cu12", f"{p}-cu12", "development", f"{p}-cu12>=0.0.0a0"),
+                    (f"{p}-cu12", f"{p}-cu12", "release", None),
+                    (f"{p}-cu12", f"{p}-cu12>=0.0.0a0", "development", None),
+                    (f"{p}-cu12", f"{p}-cu12>=0.0.0a0", "release", f"{p}-cu12"),
+                ]
+                for p in alpha_spec.RAPIDS_CUDA_VERSIONED_PACKAGES
+            )
+        ),
+        *chain(
+            *(
+                [
+                    (f"{p}-cu12", f"{p}-cu12", "development", None),
+                    (f"{p}-cu12", f"{p}-cu12>=0.0.0a0", "release", None),
+                ]
+                for p in alpha_spec.RAPIDS_VERSIONED_PACKAGES
+                - alpha_spec.RAPIDS_CUDA_VERSIONED_PACKAGES
+            )
+        ),
         ("cuml", "cuml>=24.04,<=24.06", "development", "cuml<=24.06,>=0.0.0a0,>=24.04"),
         ("cuml", "cuml>=24.04,<=24.06,>=0.0.0a0", "release", "cuml<=24.06,>=24.04"),
         ("packaging", "packaging", "development", None),
