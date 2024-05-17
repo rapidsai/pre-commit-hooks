@@ -22,37 +22,49 @@ from rapids_pre_commit_hooks.lint import Linter
 
 
 @pytest.mark.parametrize(
-    ["key", "loc"],
+    ["key", "append", "loc"],
     [
         (
             ("table", "key1"),
+            False,
             (15, 22),
         ),
         (
             ("table", "key2"),
+            False,
             (30, 32),
         ),
         (
             ("table", "key3"),
+            False,
             (40, 60),
         ),
         (
             ("table", "key3", "nested"),
+            False,
             (51, 58),
+        ),
+        (
+            ("table",),
+            True,
+            (61, 61),
         ),
     ],
 )
-def test_find_value_location(key, loc):
+def test_find_value_location(key, append, loc):
     CONTENT = dedent(
         """\
         [table]
         key1 = "value"
         key2 = 42
         key3 = { nested = "value" }
+
+        [table2]
+        key = "value"
         """
     )
     parsed_doc = tomlkit.loads(CONTENT)
-    assert pyproject_license.find_value_location(parsed_doc, key) == loc
+    assert pyproject_license.find_value_location(parsed_doc, key, append) == loc
     assert parsed_doc.as_string() == CONTENT
 
 
