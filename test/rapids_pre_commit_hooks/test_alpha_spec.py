@@ -59,6 +59,12 @@ from rapids_pre_commit_hooks import alpha_spec, lint
         ),
         ("cuml", "cuml>=24.04,<=24.06", "development", "cuml<=24.06,>=0.0.0a0,>=24.04"),
         ("cuml", "cuml>=24.04,<=24.06,>=0.0.0a0", "release", "cuml<=24.06,>=24.04"),
+        (
+            "cuml",
+            "&cuml cuml>=24.04,<=24.06,>=0.0.0a0",
+            "release",
+            "cuml<=24.06,>=24.04",
+        ),
         ("packaging", "packaging", "development", None),
     ],
 )
@@ -86,7 +92,7 @@ def test_check_package_spec(package, content, mode, replacement):
             dedent(
                 """\
                 - package_a
-                - package_b
+                - &package_b package_b
                 """
             ),
             [0, 1],
