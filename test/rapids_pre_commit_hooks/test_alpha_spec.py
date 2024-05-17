@@ -106,7 +106,7 @@ def test_check_packages(content, indices):
                   output_types: pyproject
                 """
             ),
-            [(0, 1), (2, 0)],
+            [(0, 1), (1, 1), (2, 0)],
         ),
     ],
 )
@@ -181,7 +181,7 @@ def test_check_matrices(content, indices):
                   output_types: pyproject
                 """
             ),
-            [(0, 1), (2, 0)],
+            [(0, 1), (1, 1), (2, 0)],
         ),
     ],
 )

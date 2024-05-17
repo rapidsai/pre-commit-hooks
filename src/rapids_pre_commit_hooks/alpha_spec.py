@@ -97,25 +97,10 @@ def check_common(linter, args, node):
                 for dependency_set_key, dependency_set_value in dependency_set.value:
                     if (
                         dependency_set_key.tag == "tag:yaml.org,2002:str"
-                        and dependency_set_key.value == "output_types"
-                    ):
-                        output_types = dependency_set_value
-                    elif (
-                        dependency_set_key.tag == "tag:yaml.org,2002:str"
                         and dependency_set_key.value == "packages"
                     ):
                         packages = dependency_set_value
-                if output_types.tag == "tag:yaml.org,2002:seq" and any(
-                    t.tag == "tag:yaml.org,2002:str"
-                    and t.value in ALPHA_SPEC_OUTPUT_TYPES
-                    for t in output_types.value
-                ):
-                    check_packages(linter, args, packages)
-                elif (
-                    output_types.tag == "tag:yaml.org,2002:str"
-                    and output_types.value in ALPHA_SPEC_OUTPUT_TYPES
-                ):
-                    check_packages(linter, args, packages)
+                check_packages(linter, args, packages)
 
 
 def check_matrices(linter, args, node):
@@ -137,25 +122,10 @@ def check_specific(linter, args, node):
                 for matrix_matcher_key, matrix_matcher_value in matrix_matcher.value:
                     if (
                         matrix_matcher_key.tag == "tag:yaml.org,2002:str"
-                        and matrix_matcher_key.value == "output_types"
-                    ):
-                        output_types = matrix_matcher_value
-                    elif (
-                        matrix_matcher_key.tag == "tag:yaml.org,2002:str"
                         and matrix_matcher_key.value == "matrices"
                     ):
                         matrices = matrix_matcher_value
-                if output_types.tag == "tag:yaml.org,2002:seq" and any(
-                    t.tag == "tag:yaml.org,2002:str"
-                    and t.value in ALPHA_SPEC_OUTPUT_TYPES
-                    for t in output_types.value
-                ):
-                    check_matrices(linter, args, matrices)
-                elif (
-                    output_types.tag == "tag:yaml.org,2002:str"
-                    and output_types.value in ALPHA_SPEC_OUTPUT_TYPES
-                ):
-                    check_matrices(linter, args, matrices)
+                check_matrices(linter, args, matrices)
 
 
 def check_dependencies(linter, args, node):
