@@ -57,22 +57,12 @@ def find_value_location(document, key, append):
 def check_pyproject_license(linter, args):
     document = tomlkit.loads(linter.content)
     try:
+        add_project_table = True
         project_table = document["project"]
-    except tomlkit.exceptions.NonExistentKey:
-        loc = (len(linter.content), len(linter.content))
-        linter.add_warning(
-            loc, f'add project.license with value {{ text = "{RAPIDS_LICENSE}" }}'
-        ).add_replacement(
-            loc,
-            "[project]\nlicense = "
-            f"{{ text = {tomlkit.string(RAPIDS_LICENSE).as_string()} }}\n",
-        )
-        return
-
-    try:
+        add_project_table = project_table.is_super_table()
         license_value = project_table["license"]["text"]
     except tomlkit.exceptions.NonExistentKey:
-        if project_table.is_super_table():
+        if add_project_table:
             loc = (len(linter.content), len(linter.content))
             linter.add_warning(
                 loc, f'add project.license with value {{ text = "{RAPIDS_LICENSE}" }}'
