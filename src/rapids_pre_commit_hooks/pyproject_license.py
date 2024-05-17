@@ -30,6 +30,8 @@ ACCEPTABLE_LICENSES = {
 def find_value_location(document, key, append):
     copied_document = copy.deepcopy(document)
     placeholder = uuid.uuid4()
+    placeholder_toml = tomlkit.string(str(placeholder))
+    placeholder_repr = placeholder_toml.as_string()
 
     # tomlkit does not provide "mark" information to determine where exactly in the
     # document a value is located, so instead we replace it with a placeholder and
@@ -39,15 +41,13 @@ def find_value_location(document, key, append):
         node = node[key[0]]
         key = key[1:]
     if append:
-        node.add(str(placeholder), tomlkit.string(str(placeholder)))
+        node.add(str(placeholder), placeholder_toml)
     else:
         old_value = node[key[0]]
         node[key[0]] = str(placeholder)
 
     value_to_find = (
-        f"{placeholder} = {tomlkit.string(str(placeholder)).as_string()}"
-        if append
-        else tomlkit.string(str(placeholder)).as_string()
+        f"{placeholder} = {placeholder_repr}" if append else placeholder_repr
     )
     begin_loc = copied_document.as_string().find(value_to_find)
     end_loc = begin_loc + (0 if append else len(old_value.as_string()))
@@ -84,9 +84,7 @@ def check_pyproject_license(linter, args):
 
     if license_value not in ACCEPTABLE_LICENSES:
         loc = find_value_location(document, ("project", "license", "text"), False)
-        linter.add_warning(
-            loc, f'license should be "{RAPIDS_LICENSE}"'
-        ).add_replacement(loc, tomlkit.string(RAPIDS_LICENSE).as_string())
+        linter.add_warning(loc, f'license should be "{RAPIDS_LICENSE}"')
 
 
 def main():

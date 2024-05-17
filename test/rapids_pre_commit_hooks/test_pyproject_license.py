@@ -80,8 +80,8 @@ def test_find_value_location(key, append, loc):
             ),
             (29, 41),
             'license should be "Apache 2.0"',
-            (29, 41),
-            '"Apache 2.0"',
+            None,
+            None,
         ),
         (
             dedent(
@@ -92,8 +92,8 @@ def test_find_value_location(key, append, loc):
             ),
             (29, 34),
             'license should be "Apache 2.0"',
-            (29, 34),
-            '"Apache 2.0"',
+            None,
+            None,
         ),
         *(
             (
