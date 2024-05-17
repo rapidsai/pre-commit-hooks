@@ -32,6 +32,15 @@
         pyproject[.]toml$|
         setup[.]cfg$
   args: [--fix]
+- id: verify-pyproject-license
+  name: verify-pyproject-license
+  description: make sure pyproject.toml license is correct
+  entry: verify-pyproject-license
+  language: python
+  files: |
+    (?x)
+        pyproject[.]toml$
+  args: [--fix]
 - id: verify-alpha-spec
   name: verify-alpha-spec
   description: make sure RAPIDS package have correct alpha spec
