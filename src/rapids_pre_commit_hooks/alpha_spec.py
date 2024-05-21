@@ -47,32 +47,7 @@ RAPIDS_ALPHA_SPEC_PACKAGES = {
     "distributed-ucxx",
 }
 
-RAPIDS_CUDA_SUFFIXED_PACKAGES = {
-    "rmm",
-    "pylibcugraphops",
-    "pylibcugraph",
-    "nx-cugraph",
-    "dask-cudf",
-    "cuspatial",
-    "cuproj",
-    "cuml",
-    "cugraph",
-    "cudf",
-    "ptxcompiler",
-    "cubinlinker",
-    "cugraph-dgl",
-    "cugraph-pyg",
-    "cugraph-equivariant",
-    "raft-dask",
-    "pylibwholegraph",
-    "pylibraft",
-    "cuxfilter",
-    "cucim",
-    "ucx-py",
-    "ucxx",
-    "pynvjitlink",
-    "distributed-ucxx",
-}
+RAPIDS_CUDA_SUFFIXED_PACKAGES = set(RAPIDS_ALPHA_SPEC_PACKAGES)
 
 ALPHA_SPECIFIER = ">=0.0.0a0"
 
