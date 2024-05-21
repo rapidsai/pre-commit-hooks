@@ -130,8 +130,7 @@ def check_common(linter, args, node):
                         dependency_set_key.tag == "tag:yaml.org,2002:str"
                         and dependency_set_key.value == "packages"
                     ):
-                        packages = dependency_set_value
-                check_packages(linter, args, packages)
+                        check_packages(linter, args, dependency_set_value)
 
 
 def check_matrices(linter, args, node):
@@ -155,8 +154,7 @@ def check_specific(linter, args, node):
                         matrix_matcher_key.tag == "tag:yaml.org,2002:str"
                         and matrix_matcher_key.value == "matrices"
                     ):
-                        matrices = matrix_matcher_value
-                check_matrices(linter, args, matrices)
+                        check_matrices(linter, args, matrix_matcher_value)
 
 
 def check_dependencies(linter, args, node):
