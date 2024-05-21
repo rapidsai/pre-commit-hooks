@@ -20,7 +20,7 @@ from packaging.specifiers import SpecifierSet
 
 from .lint import LintMain
 
-RAPIDS_VERSIONED_PACKAGES = {
+RAPIDS_ALPHA_SPEC_PACKAGES = {
     "rmm",
     "pylibcugraphops",
     "pylibcugraph",
@@ -47,7 +47,7 @@ RAPIDS_VERSIONED_PACKAGES = {
     "distributed-ucxx",
 }
 
-RAPIDS_CUDA_VERSIONED_PACKAGES = {
+RAPIDS_CUDA_SUFFIXED_PACKAGES = {
     "rmm",
     "pylibcugraphops",
     "pylibcugraph",
@@ -82,21 +82,19 @@ def node_has_type(node, tag_type):
     return node.tag == f"tag:yaml.org,2002:{tag_type}"
 
 
-def is_rapids_cuda_versioned_package(name):
+def is_rapids_cuda_suffixed_package(name):
     return any(
-        name.startswith(f"{package}-cu") for package in RAPIDS_CUDA_VERSIONED_PACKAGES
+        name.startswith(f"{package}-cu") for package in RAPIDS_CUDA_SUFFIXED_PACKAGES
     )
 
 
 def check_package_spec(linter, args, node):
     if node_has_type(node, "str"):
         req = Requirement(node.value)
-        if req.name in RAPIDS_VERSIONED_PACKAGES or is_rapids_cuda_versioned_package(
+        if req.name in RAPIDS_ALPHA_SPEC_PACKAGES or is_rapids_cuda_suffixed_package(
             req.name
         ):
-            has_alpha_spec = any(
-                filter(lambda s: str(s) == ALPHA_SPECIFIER, req.specifier)
-            )
+            has_alpha_spec = any(str(s) == ALPHA_SPECIFIER for s in req.specifier)
             if args.mode == "development" and not has_alpha_spec:
                 req.specifier &= ALPHA_SPECIFIER
                 linter.add_warning(

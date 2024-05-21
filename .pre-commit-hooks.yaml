@@ -43,7 +43,7 @@
   args: [--fix]
 - id: verify-alpha-spec
   name: verify-alpha-spec
-  description: make sure RAPIDS package have correct alpha spec
+  description: make sure RAPIDS packages have correct alpha spec
   entry: verify-alpha-spec
   language: python
   files: dependencies[.]yaml$

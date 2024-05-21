@@ -33,7 +33,7 @@ from rapids_pre_commit_hooks import alpha_spec, lint
                     (p, f"{p}>=0.0.0a0", "development", None),
                     (p, f"{p}>=0.0.0a0", "release", p),
                 ]
-                for p in alpha_spec.RAPIDS_VERSIONED_PACKAGES
+                for p in alpha_spec.RAPIDS_ALPHA_SPEC_PACKAGES
             )
         ),
         *chain(
@@ -44,7 +44,7 @@ from rapids_pre_commit_hooks import alpha_spec, lint
                     (f"{p}-cu12", f"{p}-cu12>=0.0.0a0", "development", None),
                     (f"{p}-cu12", f"{p}-cu12>=0.0.0a0", "release", f"{p}-cu12"),
                 ]
-                for p in alpha_spec.RAPIDS_CUDA_VERSIONED_PACKAGES
+                for p in alpha_spec.RAPIDS_CUDA_SUFFIXED_PACKAGES
             )
         ),
         *chain(
@@ -53,8 +53,8 @@ from rapids_pre_commit_hooks import alpha_spec, lint
                     (f"{p}-cu12", f"{p}-cu12", "development", None),
                     (f"{p}-cu12", f"{p}-cu12>=0.0.0a0", "release", None),
                 ]
-                for p in alpha_spec.RAPIDS_VERSIONED_PACKAGES
-                - alpha_spec.RAPIDS_CUDA_VERSIONED_PACKAGES
+                for p in alpha_spec.RAPIDS_ALPHA_SPEC_PACKAGES
+                - alpha_spec.RAPIDS_CUDA_SUFFIXED_PACKAGES
             )
         ),
         ("cuml", "cuml>=24.04,<=24.06", "development", "cuml<=24.06,>=0.0.0a0,>=24.04"),
