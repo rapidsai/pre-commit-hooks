@@ -68,6 +68,10 @@ RAPIDS_CUDA_SUFFIXED_PACKAGES = {
     "pylibraft",
     "cuxfilter",
     "cucim",
+    "ucx-py",
+    "ucxx",
+    "pynvjitlink",
+    "distributed-ucxx",
 }
 
 ALPHA_SPECIFIER = ">=0.0.0a0"
