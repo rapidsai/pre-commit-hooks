@@ -78,6 +78,10 @@ ALPHA_SPEC_OUTPUT_TYPES = {
 }
 
 
+def node_has_type(node, tag_type):
+    return node.tag == f"tag:yaml.org,2002:{tag_type}"
+
+
 def is_rapids_cuda_versioned_package(name):
     return any(
         name.startswith(f"{package}-cu") for package in RAPIDS_CUDA_VERSIONED_PACKAGES
@@ -85,7 +89,7 @@ def is_rapids_cuda_versioned_package(name):
 
 
 def check_package_spec(linter, args, node):
-    if node.tag == "tag:yaml.org,2002:str":
+    if node_has_type(node, "str"):
         req = Requirement(node.value)
         if req.name in RAPIDS_VERSIONED_PACKAGES or is_rapids_cuda_versioned_package(
             req.name
@@ -116,53 +120,53 @@ def check_package_spec(linter, args, node):
 
 
 def check_packages(linter, args, node):
-    if node.tag == "tag:yaml.org,2002:seq":
+    if node_has_type(node, "seq"):
         for package_spec in node.value:
             check_package_spec(linter, args, package_spec)
 
 
 def check_common(linter, args, node):
-    if node.tag == "tag:yaml.org,2002:seq":
+    if node_has_type(node, "seq"):
         for dependency_set in node.value:
-            if dependency_set.tag == "tag:yaml.org,2002:map":
+            if node_has_type(dependency_set, "map"):
                 for dependency_set_key, dependency_set_value in dependency_set.value:
                     if (
-                        dependency_set_key.tag == "tag:yaml.org,2002:str"
+                        node_has_type(dependency_set_key, "str")
                         and dependency_set_key.value == "packages"
                     ):
                         check_packages(linter, args, dependency_set_value)
 
 
 def check_matrices(linter, args, node):
-    if node.tag == "tag:yaml.org,2002:seq":
+    if node_has_type(node, "seq"):
         for item in node.value:
-            if item.tag == "tag:yaml.org,2002:map":
+            if node_has_type(item, "map"):
                 for matrix_key, matrix_value in item.value:
                     if (
-                        matrix_key.tag == "tag:yaml.org,2002:str"
+                        node_has_type(matrix_key, "str")
                         and matrix_key.value == "packages"
                     ):
                         check_packages(linter, args, matrix_value)
 
 
 def check_specific(linter, args, node):
-    if node.tag == "tag:yaml.org,2002:seq":
+    if node_has_type(node, "seq"):
         for matrix_matcher in node.value:
-            if matrix_matcher.tag == "tag:yaml.org,2002:map":
+            if node_has_type(matrix_matcher, "map"):
                 for matrix_matcher_key, matrix_matcher_value in matrix_matcher.value:
                     if (
-                        matrix_matcher_key.tag == "tag:yaml.org,2002:str"
+                        node_has_type(matrix_matcher_key, "str")
                         and matrix_matcher_key.value == "matrices"
                     ):
                         check_matrices(linter, args, matrix_matcher_value)
 
 
 def check_dependencies(linter, args, node):
-    if node.tag == "tag:yaml.org,2002:map":
+    if node_has_type(node, "map"):
         for _, dependencies_value in node.value:
-            if dependencies_value.tag == "tag:yaml.org,2002:map":
+            if node_has_type(dependencies_value, "map"):
                 for dependency_key, dependency_value in dependencies_value.value:
-                    if dependency_key.tag == "tag:yaml.org,2002:str":
+                    if node_has_type(dependency_key, "str"):
                         if dependency_key.value == "common":
                             check_common(linter, args, dependency_value)
                         elif dependency_key.value == "specific":
@@ -170,12 +174,9 @@ def check_dependencies(linter, args, node):
 
 
 def check_root(linter, args, node):
-    if node.tag == "tag:yaml.org,2002:map":
+    if node_has_type(node, "map"):
         for root_key, root_value in node.value:
-            if (
-                root_key.tag == "tag:yaml.org,2002:str"
-                and root_key.value == "dependencies"
-            ):
+            if node_has_type(root_key, "str") and root_key.value == "dependencies":
                 check_dependencies(linter, args, root_value)
 
 
