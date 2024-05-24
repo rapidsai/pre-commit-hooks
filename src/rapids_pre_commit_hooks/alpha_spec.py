@@ -45,6 +45,8 @@ RAPIDS_ALPHA_SPEC_PACKAGES = {
     "ucxx",
     "pynvjitlink",
     "distributed-ucxx",
+    "librmm",
+    "libucx",
 }
 
 RAPIDS_CUDA_SUFFIXED_PACKAGES = set(RAPIDS_ALPHA_SPEC_PACKAGES)
