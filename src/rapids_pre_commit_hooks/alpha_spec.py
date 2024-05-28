@@ -32,6 +32,7 @@ RAPIDS_ALPHA_SPEC_PACKAGES = {
     "cuproj",
     "cuspatial",
     "cuxfilter",
+    "dask-cuda",
     "dask-cudf",
     "distributed-ucxx",
     "librmm",
@@ -49,7 +50,13 @@ RAPIDS_ALPHA_SPEC_PACKAGES = {
     "ucxx",
 }
 
-RAPIDS_CUDA_SUFFIXED_PACKAGES = set(RAPIDS_ALPHA_SPEC_PACKAGES)
+RAPIDS_NON_CUDA_SUFFIXED_PACKAGES = {
+    "dask-cuda",
+}
+
+RAPIDS_CUDA_SUFFIXED_PACKAGES = (
+    RAPIDS_ALPHA_SPEC_PACKAGES - RAPIDS_NON_CUDA_SUFFIXED_PACKAGES
+)
 
 ALPHA_SPECIFIER = ">=0.0.0a0"
 

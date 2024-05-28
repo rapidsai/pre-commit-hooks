@@ -42,8 +42,7 @@ from rapids_pre_commit_hooks import alpha_spec, lint
                     (f"{p}-cu12", False),
                     (f"{p}-cuda", False),
                 ]
-                for p in alpha_spec.RAPIDS_ALPHA_SPEC_PACKAGES
-                - alpha_spec.RAPIDS_CUDA_SUFFIXED_PACKAGES
+                for p in alpha_spec.RAPIDS_NON_CUDA_SUFFIXED_PACKAGES
             )
         ),
     ],
@@ -83,8 +82,7 @@ def test_is_rapids_cuda_suffixed_package(name, is_suffixed):
                     (f"{p}-cu12", f"{p}-cu12", "development", None),
                     (f"{p}-cu12", f"{p}-cu12>=0.0.0a0", "release", None),
                 ]
-                for p in alpha_spec.RAPIDS_ALPHA_SPEC_PACKAGES
-                - alpha_spec.RAPIDS_CUDA_SUFFIXED_PACKAGES
+                for p in alpha_spec.RAPIDS_NON_CUDA_SUFFIXED_PACKAGES
             )
         ),
         ("cuml", "cuml>=24.04,<24.06", "development", "cuml>=24.04,<24.06,>=0.0.0a0"),
