@@ -40,9 +40,9 @@ from rapids_pre_commit_hooks import alpha_spec, lint
             *(
                 [
                     (f"{p}-cu12", f"{p}-cu12", "development", f"{p}-cu12>=0.0.0a0"),
-                    (f"{p}-cu12", f"{p}-cu12", "release", None),
+                    (f"{p}-cu11", f"{p}-cu11", "release", None),
                     (f"{p}-cu12", f"{p}-cu12>=0.0.0a0", "development", None),
-                    (f"{p}-cu12", f"{p}-cu12>=0.0.0a0", "release", f"{p}-cu12"),
+                    (f"{p}-cu11", f"{p}-cu11>=0.0.0a0", "release", f"{p}-cu11"),
                 ]
                 for p in alpha_spec.RAPIDS_CUDA_SUFFIXED_PACKAGES
             )
