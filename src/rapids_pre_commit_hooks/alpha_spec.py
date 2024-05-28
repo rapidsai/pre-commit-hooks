@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
 from functools import reduce
 
 import yaml
@@ -58,6 +59,8 @@ ALPHA_SPEC_OUTPUT_TYPES = {
     "requirements",
 }
 
+CUDA_SUFFIX_REGEX = re.compile(r"^(?P<package>.*)-cu[0-9]{2}$")
+
 
 def node_has_type(node, tag_type):
     return node.tag == f"tag:yaml.org,2002:{tag_type}"
@@ -65,7 +68,8 @@ def node_has_type(node, tag_type):
 
 def is_rapids_cuda_suffixed_package(name):
     return any(
-        name.startswith(f"{package}-cu") for package in RAPIDS_CUDA_SUFFIXED_PACKAGES
+        (match := CUDA_SUFFIX_REGEX.search(name)) and match.group("package") == package
+        for package in RAPIDS_CUDA_SUFFIXED_PACKAGES
     )
 
 

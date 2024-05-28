@@ -23,6 +23,36 @@ from rapids_pre_commit_hooks import alpha_spec, lint
 
 
 @pytest.mark.parametrize(
+    ["name", "is_suffixed"],
+    [
+        *chain(
+            *(
+                [
+                    (f"{p}-cu11", True),
+                    (f"{p}-cu12", True),
+                    (f"{p}-cuda", False),
+                ]
+                for p in alpha_spec.RAPIDS_CUDA_SUFFIXED_PACKAGES
+            )
+        ),
+        *chain(
+            *(
+                [
+                    (f"{p}-cu11", False),
+                    (f"{p}-cu12", False),
+                    (f"{p}-cuda", False),
+                ]
+                for p in alpha_spec.RAPIDS_ALPHA_SPEC_PACKAGES
+                - alpha_spec.RAPIDS_CUDA_SUFFIXED_PACKAGES
+            )
+        ),
+    ],
+)
+def test_is_rapids_cuda_suffixed_package(name, is_suffixed):
+    assert alpha_spec.is_rapids_cuda_suffixed_package(name) == is_suffixed
+
+
+@pytest.mark.parametrize(
     ["package", "content", "mode", "replacement"],
     [
         *chain(
