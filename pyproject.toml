@@ -47,10 +47,10 @@ test = [
 ]
 
 [project.scripts]
+verify-alpha-spec = "rapids_pre_commit_hooks.alpha_spec:main"
 verify-conda-yes = "rapids_pre_commit_hooks.shell.verify_conda_yes:main"
 verify-copyright = "rapids_pre_commit_hooks.copyright:main"
 verify-pyproject-license = "rapids_pre_commit_hooks.pyproject_license:main"
-verify-alpha-spec = "rapids_pre_commit_hooks.alpha_spec:main"
 
 [tool.setuptools]
 packages = { "find" = { where = ["src"] } }

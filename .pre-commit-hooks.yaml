@@ -11,6 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+- id: verify-alpha-spec
+  name: verify-alpha-spec
+  description: make sure RAPIDS packages have correct alpha spec
+  entry: verify-alpha-spec
+  language: python
+  files: dependencies[.]yaml$
+  args: [--fix]
 - id: verify-conda-yes
   name: pass -y/--yes to conda
   description: make sure that all calls to conda pass -y/--yes
@@ -40,11 +47,4 @@
   files: |
     (?x)
         pyproject[.]toml$
-  args: [--fix]
-- id: verify-alpha-spec
-  name: verify-alpha-spec
-  description: make sure RAPIDS packages have correct alpha spec
-  entry: verify-alpha-spec
-  language: python
-  files: dependencies[.]yaml$
   args: [--fix]
