@@ -87,13 +87,13 @@ def test_is_rapids_cuda_suffixed_package(name, is_suffixed):
                 - alpha_spec.RAPIDS_CUDA_SUFFIXED_PACKAGES
             )
         ),
-        ("cuml", "cuml>=24.04,<24.06", "development", "cuml<24.06,>=0.0.0a0,>=24.04"),
-        ("cuml", "cuml>=24.04,<24.06,>=0.0.0a0", "release", "cuml<24.06,>=24.04"),
+        ("cuml", "cuml>=24.04,<24.06", "development", "cuml>=24.04,<24.06,>=0.0.0a0"),
+        ("cuml", "cuml>=24.04,<24.06,>=0.0.0a0", "release", "cuml>=24.04,<24.06"),
         (
             "cuml",
             "&cuml cuml>=24.04,<24.06,>=0.0.0a0",
             "release",
-            "cuml<24.06,>=24.04",
+            "cuml>=24.04,<24.06",
         ),
         ("packaging", "packaging", "development", None),
     ],
