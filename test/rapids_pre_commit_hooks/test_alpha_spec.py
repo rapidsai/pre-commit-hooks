@@ -425,3 +425,31 @@ def test_check_alpha_spec():
         set(),
         mock_anchor_preserving_loader().get_single_node(),
     )
+
+
+def test_check_alpha_spec_integration():
+    CONTENT = dedent(
+        """\
+        dependencies:
+          test:
+            common:
+              - output_types: pyproject
+                packages:
+                  - cudf>=24.04,<24.06
+        """
+    )
+    REPLACED = "cudf>=24.04,<24.06"
+
+    args = Mock(mode="development")
+    linter = lint.Linter("dependencies.yaml", CONTENT)
+    alpha_spec.check_alpha_spec(linter, args)
+
+    start = CONTENT.find(REPLACED)
+    end = start + len(REPLACED)
+    pos = (start, end)
+
+    expected_linter = lint.Linter("dependencies.yaml", CONTENT)
+    expected_linter.add_warning(
+        pos, "add alpha spec for RAPIDS package cudf"
+    ).add_replacement(pos, "cudf>=24.04,<24.06,>=0.0.0a0")
+    assert linter.warnings == expected_linter.warnings
