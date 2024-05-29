@@ -246,7 +246,7 @@ class AnchorPreservingLoader(yaml.SafeLoader):
 
 
 def check_alpha_spec(linter, args):
-    loader = yaml.SafeLoader(linter.content)
+    loader = AnchorPreservingLoader(linter.content)
     try:
         root = loader.get_single_node()
     finally:

@@ -412,16 +412,16 @@ def test_check_alpha_spec():
     with patch(
         "rapids_pre_commit_hooks.alpha_spec.check_root", Mock()
     ) as mock_check_root, patch(
-        "yaml.SafeLoader", MagicMock()
-    ) as mock_yaml_safe_loader:
+        "rapids_pre_commit_hooks.alpha_spec.AnchorPreservingLoader", MagicMock()
+    ) as mock_anchor_preserving_loader:
         args = Mock()
         linter = lint.Linter("dependencies.yaml", CONTENT)
         alpha_spec.check_alpha_spec(linter, args)
-    mock_yaml_safe_loader.assert_called_once_with(CONTENT)
+    mock_anchor_preserving_loader.assert_called_once_with(CONTENT)
     mock_check_root.assert_called_once_with(
         linter,
         args,
-        mock_yaml_safe_loader().document_anchors[0],
+        mock_anchor_preserving_loader().document_anchors[0],
         set(),
-        mock_yaml_safe_loader().get_single_node(),
+        mock_anchor_preserving_loader().get_single_node(),
     )
