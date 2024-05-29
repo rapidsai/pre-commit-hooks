@@ -14,12 +14,21 @@
 
 from itertools import chain
 from textwrap import dedent
-from unittest.mock import Mock, call, patch
+from unittest.mock import MagicMock, Mock, call, patch
 
 import pytest
 import yaml
 
 from rapids_pre_commit_hooks import alpha_spec, lint
+
+
+def test_anchor_preserving_loader():
+    loader = alpha_spec.AnchorPreservingLoader("- &a A\n- *a")
+    try:
+        root = loader.get_single_node()
+    finally:
+        loader.dispose()
+    assert loader.document_anchors == [{"a": root.value[0]}]
 
 
 @pytest.mark.parametrize(
@@ -91,7 +100,7 @@ def test_is_rapids_cuda_suffixed_package(name, is_suffixed):
             "cuml",
             "&cuml cuml>=24.04,<24.06,>=0.0.0a0",
             "release",
-            "cuml>=24.04,<24.06",
+            "&cuml cuml>=24.04,<24.06",
         ),
         ("packaging", "packaging", "development", None),
         (None, "--extra-index-url=https://pypi.nvidia.com", "development", None),
@@ -103,8 +112,14 @@ def test_is_rapids_cuda_suffixed_package(name, is_suffixed):
 def test_check_package_spec(package, content, mode, replacement):
     args = Mock(mode=mode)
     linter = lint.Linter("dependencies.yaml", content)
-    composed = yaml.compose(content)
-    alpha_spec.check_package_spec(linter, args, composed)
+    loader = alpha_spec.AnchorPreservingLoader(content)
+    try:
+        composed = loader.get_single_node()
+    finally:
+        loader.dispose()
+    alpha_spec.check_package_spec(
+        linter, args, loader.document_anchors[0], set(), composed
+    )
     if replacement is None:
         assert linter.warnings == []
     else:
@@ -113,8 +128,43 @@ def test_check_package_spec(package, content, mode, replacement):
             (composed.start_mark.index, composed.end_mark.index),
             f"{'add' if mode == 'development' else 'remove'} "
             f"alpha spec for RAPIDS package {package}",
-        ).add_replacement((0, len(content)), replacement)
+        ).add_replacement(
+            (composed.start_mark.index, composed.end_mark.index), replacement
+        )
         assert linter.warnings == expected_linter.warnings
+
+
+def test_check_package_spec_anchor():
+    CONTENT = dedent(
+        """\
+        - &cudf cudf>=24.04,<24.06
+        - *cudf
+        """
+    )
+    args = Mock(mode="development")
+    linter = lint.Linter("dependencies.yaml", CONTENT)
+    loader = alpha_spec.AnchorPreservingLoader(CONTENT)
+    try:
+        composed = loader.get_single_node()
+    finally:
+        loader.dispose()
+    used_anchors = set()
+
+    expected_linter = lint.Linter("dependencies.yaml", CONTENT)
+    expected_linter.add_warning(
+        (2, 26), "add alpha spec for RAPIDS package cudf"
+    ).add_replacement((2, 26), "&cudf cudf>=24.04,<24.06,>=0.0.0a0")
+
+    alpha_spec.check_package_spec(
+        linter, args, loader.document_anchors[0], used_anchors, composed.value[0]
+    )
+    assert linter.warnings == expected_linter.warnings
+    assert used_anchors == {"cudf"}
+    alpha_spec.check_package_spec(
+        linter, args, loader.document_anchors[0], used_anchors, composed.value[1]
+    )
+    assert linter.warnings == expected_linter.warnings
+    assert used_anchors == {"cudf"}
 
 
 @pytest.mark.parametrize(
@@ -141,10 +191,12 @@ def test_check_packages(content, indices):
     ) as mock_check_package_spec:
         args = Mock()
         linter = lint.Linter("dependencies.yaml", content)
+        anchors = Mock()
+        used_anchors = Mock()
         composed = yaml.compose(content)
-        alpha_spec.check_packages(linter, args, composed)
+        alpha_spec.check_packages(linter, args, anchors, used_anchors, composed)
     assert mock_check_package_spec.mock_calls == [
-        call(linter, args, composed.value[i]) for i in indices
+        call(linter, args, anchors, used_anchors, composed.value[i]) for i in indices
     ]
 
 
@@ -175,10 +227,13 @@ def test_check_common(content, indices):
     ) as mock_check_packages:
         args = Mock()
         linter = lint.Linter("dependencies.yaml", content)
+        anchors = Mock()
+        used_anchors = Mock()
         composed = yaml.compose(content)
-        alpha_spec.check_common(linter, args, composed)
+        alpha_spec.check_common(linter, args, anchors, used_anchors, composed)
     assert mock_check_packages.mock_calls == [
-        call(linter, args, composed.value[i].value[j][1]) for i, j in indices
+        call(linter, args, anchors, used_anchors, composed.value[i].value[j][1])
+        for i, j in indices
     ]
 
 
@@ -207,10 +262,13 @@ def test_check_matrices(content, indices):
     ) as mock_check_packages:
         args = Mock()
         linter = lint.Linter("dependencies.yaml", content)
+        anchors = Mock()
+        used_anchors = Mock()
         composed = yaml.compose(content)
-        alpha_spec.check_matrices(linter, args, composed)
+        alpha_spec.check_matrices(linter, args, anchors, used_anchors, composed)
     assert mock_check_packages.mock_calls == [
-        call(linter, args, composed.value[i].value[j][1]) for i, j in indices
+        call(linter, args, anchors, used_anchors, composed.value[i].value[j][1])
+        for i, j in indices
     ]
 
 
@@ -250,10 +308,13 @@ def test_check_specific(content, indices):
     ) as mock_check_matrices:
         args = Mock()
         linter = lint.Linter("dependencies.yaml", content)
+        anchors = Mock()
+        used_anchors = Mock()
         composed = yaml.compose(content)
-        alpha_spec.check_specific(linter, args, composed)
+        alpha_spec.check_specific(linter, args, anchors, used_anchors, composed)
     assert mock_check_matrices.mock_calls == [
-        call(linter, args, composed.value[i].value[j][1]) for i, j in indices
+        call(linter, args, anchors, used_anchors, composed.value[i].value[j][1])
+        for i, j in indices
     ]
 
 
@@ -302,13 +363,16 @@ def test_check_dependencies(content, common_indices, specific_indices):
     ) as mock_check_specific:
         args = Mock()
         linter = lint.Linter("dependencies.yaml", content)
+        anchors = Mock()
+        used_anchors = Mock()
         composed = yaml.compose(content)
-        alpha_spec.check_dependencies(linter, args, composed)
+        alpha_spec.check_dependencies(linter, args, anchors, used_anchors, composed)
     assert mock_check_common.mock_calls == [
-        call(linter, args, composed.value[i][1].value[j][1]) for i, j in common_indices
+        call(linter, args, anchors, used_anchors, composed.value[i][1].value[j][1])
+        for i, j in common_indices
     ]
     assert mock_check_specific.mock_calls == [
-        call(linter, args, composed.value[i][1].value[j][1])
+        call(linter, args, anchors, used_anchors, composed.value[i][1].value[j][1])
         for i, j in specific_indices
     ]
 
@@ -334,10 +398,12 @@ def test_check_root(content, indices):
     ) as mock_check_dependencies:
         args = Mock()
         linter = lint.Linter("dependencies.yaml", content)
+        anchors = Mock()
+        used_anchors = Mock()
         composed = yaml.compose(content)
-        alpha_spec.check_root(linter, args, composed)
+        alpha_spec.check_root(linter, args, anchors, used_anchors, composed)
     assert mock_check_dependencies.mock_calls == [
-        call(linter, args, composed.value[i][1]) for i in indices
+        call(linter, args, anchors, used_anchors, composed.value[i][1]) for i in indices
     ]
 
 
@@ -345,9 +411,17 @@ def test_check_alpha_spec():
     CONTENT = "dependencies: []"
     with patch(
         "rapids_pre_commit_hooks.alpha_spec.check_root", Mock()
-    ) as mock_check_root, patch("yaml.compose", Mock()) as mock_yaml_compose:
+    ) as mock_check_root, patch(
+        "yaml.SafeLoader", MagicMock()
+    ) as mock_yaml_safe_loader:
         args = Mock()
         linter = lint.Linter("dependencies.yaml", CONTENT)
         alpha_spec.check_alpha_spec(linter, args)
-    mock_yaml_compose.assert_called_once_with(CONTENT)
-    mock_check_root.assert_called_once_with(linter, args, mock_yaml_compose())
+    mock_yaml_safe_loader.assert_called_once_with(CONTENT)
+    mock_check_root.assert_called_once_with(
+        linter,
+        args,
+        mock_yaml_safe_loader().document_anchors[0],
+        set(),
+        mock_yaml_safe_loader().get_single_node(),
+    )
