@@ -117,7 +117,8 @@ def check_package_spec(linter, args, anchors, used_anchors, node):
                 else None
             )
             if anchor not in used_anchors:
-                used_anchors.add(anchor)
+                if anchor is not None:
+                    used_anchors.add(anchor)
                 has_alpha_spec = any(str(s) == ALPHA_SPECIFIER for s in req.specifier)
                 if args.mode == "development" and not has_alpha_spec:
                     linter.add_warning(

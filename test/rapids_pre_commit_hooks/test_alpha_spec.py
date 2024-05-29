@@ -139,6 +139,8 @@ def test_check_package_spec_anchor():
         """\
         - &cudf cudf>=24.04,<24.06
         - *cudf
+        - cuml>=24.04,<24.06
+        - rmm>=24.04,<24.06
         """
     )
     args = Mock(mode="development")
@@ -160,8 +162,27 @@ def test_check_package_spec_anchor():
     )
     assert linter.warnings == expected_linter.warnings
     assert used_anchors == {"cudf"}
+
     alpha_spec.check_package_spec(
         linter, args, loader.document_anchors[0], used_anchors, composed.value[1]
+    )
+    assert linter.warnings == expected_linter.warnings
+    assert used_anchors == {"cudf"}
+
+    expected_linter.add_warning(
+        (37, 55), "add alpha spec for RAPIDS package cuml"
+    ).add_replacement((37, 55), "cuml>=24.04,<24.06,>=0.0.0a0")
+    alpha_spec.check_package_spec(
+        linter, args, loader.document_anchors[0], used_anchors, composed.value[2]
+    )
+    assert linter.warnings == expected_linter.warnings
+    assert used_anchors == {"cudf"}
+
+    expected_linter.add_warning(
+        (58, 75), "add alpha spec for RAPIDS package rmm"
+    ).add_replacement((58, 75), "rmm>=24.04,<24.06,>=0.0.0a0")
+    alpha_spec.check_package_spec(
+        linter, args, loader.document_anchors[0], used_anchors, composed.value[3]
     )
     assert linter.warnings == expected_linter.warnings
     assert used_anchors == {"cudf"}
