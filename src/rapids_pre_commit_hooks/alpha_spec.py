@@ -16,7 +16,7 @@ import re
 from functools import total_ordering
 
 import yaml
-from packaging.requirements import Requirement
+from packaging.requirements import InvalidRequirement, Requirement
 
 from .lint import LintMain
 
@@ -104,7 +104,10 @@ def check_package_spec(linter, args, node):
         return ",".join(sorted(specifiers, key=SpecPriority))
 
     if node_has_type(node, "str"):
-        req = Requirement(node.value)
+        try:
+            req = Requirement(node.value)
+        except InvalidRequirement:
+            return
         if req.name in RAPIDS_ALPHA_SPEC_PACKAGES or is_rapids_cuda_suffixed_package(
             req.name
         ):

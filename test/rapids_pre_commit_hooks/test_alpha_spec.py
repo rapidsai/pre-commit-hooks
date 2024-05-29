@@ -94,6 +94,10 @@ def test_is_rapids_cuda_suffixed_package(name, is_suffixed):
             "cuml>=24.04,<24.06",
         ),
         ("packaging", "packaging", "development", None),
+        (None, "--extra-index-url=https://pypi.nvidia.com", "development", None),
+        (None, "--extra-index-url=https://pypi.nvidia.com", "release", None),
+        (None, "gcc_linux-64=11.*", "development", None),
+        (None, "gcc_linux-64=11.*", "release", None),
     ],
 )
 def test_check_package_spec(package, content, mode, replacement):
