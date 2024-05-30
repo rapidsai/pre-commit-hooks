@@ -111,11 +111,12 @@ def check_package_spec(linter, args, anchors, used_anchors, node):
         if req.name in RAPIDS_ALPHA_SPEC_PACKAGES or is_rapids_cuda_suffixed_package(
             req.name
         ):
-            anchor = (
-                keys[0]
-                if (keys := [key for key, value in anchors.items() if value == node])
-                else None
-            )
+            for key, value in anchors.items():
+                if value == node:
+                    anchor = key
+                    break
+            else:
+                anchor = None
             if anchor not in used_anchors:
                 if anchor is not None:
                     used_anchors.add(anchor)
