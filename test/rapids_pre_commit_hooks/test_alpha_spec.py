@@ -12,14 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
+import os.path
 from itertools import chain
 from textwrap import dedent
 from unittest.mock import MagicMock, Mock, call, patch
 
 import pytest
 import yaml
+from packaging.version import Version
+from rapids_metadata import all_metadata
 
 from rapids_pre_commit_hooks import alpha_spec, lint
+
+latest_version, latest_metadata = max(
+    all_metadata.versions.items(), key=lambda item: Version(item[0])
+)
+
+
+@contextlib.contextmanager
+def set_cwd(cwd):
+    old_cwd = os.getcwd()
+    os.chdir(cwd)
+    try:
+        yield
+    finally:
+        os.chdir(old_cwd)
 
 
 def test_anchor_preserving_loader():
@@ -32,32 +50,39 @@ def test_anchor_preserving_loader():
 
 
 @pytest.mark.parametrize(
-    ["name", "is_suffixed"],
+    ["name", "stripped_name"],
     [
         *chain(
             *(
                 [
-                    (f"{p}-cu11", True),
-                    (f"{p}-cu12", True),
-                    (f"{p}-cuda", False),
+                    (p, p),
+                    (f"{p}-cu11", p),
+                    (f"{p}-cu12", p),
+                    (f"{p}-cuda", f"{p}-cuda"),
                 ]
-                for p in alpha_spec.RAPIDS_CUDA_SUFFIXED_PACKAGES
+                for p in latest_metadata.cuda_suffixed_packages
             )
         ),
         *chain(
             *(
                 [
-                    (f"{p}-cu11", False),
-                    (f"{p}-cu12", False),
-                    (f"{p}-cuda", False),
+                    (p, p),
+                    (f"{p}-cu11", f"{p}-cu11"),
+                    (f"{p}-cu12", f"{p}-cu12"),
+                    (f"{p}-cuda", f"{p}-cuda"),
                 ]
-                for p in alpha_spec.RAPIDS_NON_CUDA_SUFFIXED_PACKAGES
+                for p in latest_metadata.all_packages
+                - latest_metadata.cuda_suffixed_packages
             )
         ),
     ],
 )
-def test_is_rapids_cuda_suffixed_package(name, is_suffixed):
-    assert alpha_spec.is_rapids_cuda_suffixed_package(name) == is_suffixed
+@patch(
+    "rapids_pre_commit_hooks.alpha_spec.all_metadata.get_current_version",
+    Mock(return_value=latest_metadata),
+)
+def test_strip_cuda_suffix(name, stripped_name):
+    assert alpha_spec.strip_cuda_suffix(name) == stripped_name
 
 
 @pytest.mark.parametrize(
@@ -71,7 +96,7 @@ def test_is_rapids_cuda_suffixed_package(name, is_suffixed):
                     (p, f"{p}>=0.0.0a0", "development", None),
                     (p, f"{p}>=0.0.0a0", "release", p),
                 ]
-                for p in alpha_spec.RAPIDS_ALPHA_SPEC_PACKAGES
+                for p in latest_metadata.prerelease_packages
             )
         ),
         *chain(
@@ -82,7 +107,8 @@ def test_is_rapids_cuda_suffixed_package(name, is_suffixed):
                     (f"{p}-cu12", f"{p}-cu12>=0.0.0a0", "development", None),
                     (f"{p}-cu11", f"{p}-cu11>=0.0.0a0", "release", f"{p}-cu11"),
                 ]
-                for p in alpha_spec.RAPIDS_CUDA_SUFFIXED_PACKAGES
+                for p in latest_metadata.prerelease_packages
+                & latest_metadata.cuda_suffixed_packages
             )
         ),
         *chain(
@@ -91,7 +117,11 @@ def test_is_rapids_cuda_suffixed_package(name, is_suffixed):
                     (f"{p}-cu12", f"{p}-cu12", "development", None),
                     (f"{p}-cu12", f"{p}-cu12>=0.0.0a0", "release", None),
                 ]
-                for p in alpha_spec.RAPIDS_NON_CUDA_SUFFIXED_PACKAGES
+                for p in latest_metadata.prerelease_packages
+                & (
+                    latest_metadata.all_packages
+                    - latest_metadata.cuda_suffixed_packages
+                )
             )
         ),
         ("cuml", "cuml>=24.04,<24.06", "development", "cuml>=24.04,<24.06,>=0.0.0a0"),
@@ -108,6 +138,10 @@ def test_is_rapids_cuda_suffixed_package(name, is_suffixed):
         (None, "gcc_linux-64=11.*", "development", None),
         (None, "gcc_linux-64=11.*", "release", None),
     ],
+)
+@patch(
+    "rapids_pre_commit_hooks.alpha_spec.all_metadata.get_current_version",
+    Mock(return_value=latest_metadata),
 )
 def test_check_package_spec(package, content, mode, replacement):
     args = Mock(mode=mode)
@@ -134,6 +168,10 @@ def test_check_package_spec(package, content, mode, replacement):
         assert linter.warnings == expected_linter.warnings
 
 
+@patch(
+    "rapids_pre_commit_hooks.alpha_spec.all_metadata.get_current_version",
+    Mock(return_value=latest_metadata),
+)
 def test_check_package_spec_anchor():
     CONTENT = dedent(
         """\
@@ -448,7 +486,7 @@ def test_check_alpha_spec():
     )
 
 
-def test_check_alpha_spec_integration():
+def test_check_alpha_spec_integration(tmp_path):
     CONTENT = dedent(
         """\
         dependencies:
@@ -463,7 +501,10 @@ def test_check_alpha_spec_integration():
 
     args = Mock(mode="development")
     linter = lint.Linter("dependencies.yaml", CONTENT)
-    alpha_spec.check_alpha_spec(linter, args)
+    with open(os.path.join(tmp_path, "VERSION"), "w") as f:
+        f.write(f"{latest_version}\n")
+    with set_cwd(tmp_path):
+        alpha_spec.check_alpha_spec(linter, args)
 
     start = CONTENT.find(REPLACED)
     end = start + len(REPLACED)
