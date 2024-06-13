@@ -36,7 +36,7 @@ def node_has_type(node, tag_type):
     return node.tag == f"tag:yaml.org,2002:{tag_type}"
 
 
-def strip_cuda_suffix(name):
+def strip_cuda_suffix(name: str) -> str:
     if (match := CUDA_SUFFIX_REGEX.search(name)) and match.group(
         "package"
     ) in all_metadata.get_current_version(os.getcwd()).cuda_suffixed_packages:
