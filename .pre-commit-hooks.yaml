@@ -18,6 +18,8 @@
   language: python
   files: dependencies[.]yaml$
   args: [--fix]
+  additional_dependencies:
+    - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
 - id: verify-conda-yes
   name: pass -y/--yes to conda
   description: make sure that all calls to conda pass -y/--yes

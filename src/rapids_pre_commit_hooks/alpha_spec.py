@@ -12,51 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import re
-from functools import total_ordering
+from functools import cache, total_ordering
 
 import yaml
 from packaging.requirements import InvalidRequirement, Requirement
+from rapids_metadata.remote import fetch_latest
 
 from .lint import LintMain
-
-RAPIDS_ALPHA_SPEC_PACKAGES = {
-    "cubinlinker",
-    "cucim",
-    "cudf",
-    "cugraph",
-    "cugraph-dgl",
-    "cugraph-equivariant",
-    "cugraph-pyg",
-    "cuml",
-    "cuproj",
-    "cuspatial",
-    "cuxfilter",
-    "dask-cuda",
-    "dask-cudf",
-    "distributed-ucxx",
-    "librmm",
-    "libucx",
-    "nx-cugraph",
-    "ptxcompiler",
-    "pylibcugraph",
-    "pylibcugraphops",
-    "pylibraft",
-    "pylibwholegraph",
-    "pynvjitlink",
-    "raft-dask",
-    "rmm",
-    "ucx-py",
-    "ucxx",
-}
-
-RAPIDS_NON_CUDA_SUFFIXED_PACKAGES = {
-    "dask-cuda",
-}
-
-RAPIDS_CUDA_SUFFIXED_PACKAGES = (
-    RAPIDS_ALPHA_SPEC_PACKAGES - RAPIDS_NON_CUDA_SUFFIXED_PACKAGES
-)
 
 ALPHA_SPECIFIER = ">=0.0.0a0"
 
@@ -68,15 +32,21 @@ ALPHA_SPEC_OUTPUT_TYPES = {
 CUDA_SUFFIX_REGEX = re.compile(r"^(?P<package>.*)-cu[0-9]{2}$")
 
 
+@cache
+def all_metadata():
+    return fetch_latest()
+
+
 def node_has_type(node, tag_type):
     return node.tag == f"tag:yaml.org,2002:{tag_type}"
 
 
-def is_rapids_cuda_suffixed_package(name):
-    return any(
-        (match := CUDA_SUFFIX_REGEX.search(name)) and match.group("package") == package
-        for package in RAPIDS_CUDA_SUFFIXED_PACKAGES
-    )
+def strip_cuda_suffix(name: str) -> str:
+    if (match := CUDA_SUFFIX_REGEX.search(name)) and match.group(
+        "package"
+    ) in all_metadata().get_current_version(os.getcwd()).cuda_suffixed_packages:
+        return match.group("package")
+    return name
 
 
 def check_package_spec(linter, args, anchors, used_anchors, node):
@@ -108,8 +78,9 @@ def check_package_spec(linter, args, anchors, used_anchors, node):
             req = Requirement(node.value)
         except InvalidRequirement:
             return
-        if req.name in RAPIDS_ALPHA_SPEC_PACKAGES or is_rapids_cuda_suffixed_package(
-            req.name
+        if (
+            strip_cuda_suffix(req.name)
+            in all_metadata().get_current_version(os.getcwd()).prerelease_packages
         ):
             for key, value in anchors.items():
                 if value == node:

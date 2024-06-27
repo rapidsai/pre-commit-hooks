@@ -10,6 +10,6 @@ python -m build .
 for PKG in dist/*; do
   echo "$PKG"
   pip uninstall -y rapids-pre-commit-hooks
-  pip install "$PKG[test]"
+  pip install --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple "$PKG[test]"
   pytest
 done
