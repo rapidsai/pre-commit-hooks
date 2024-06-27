@@ -36,7 +36,7 @@ dependencies = [
     "bashlex",
     "gitpython",
     "packaging",
-    "rapids-metadata>=0.2.0,<0.3.0.dev0",
+    "rapids-metadata>=0.3.0,<0.4.0.dev0",
     "rich",
     "tomlkit",
 ]

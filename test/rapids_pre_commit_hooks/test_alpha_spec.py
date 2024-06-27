@@ -21,12 +21,11 @@ from unittest.mock import MagicMock, Mock, call, patch
 import pytest
 import yaml
 from packaging.version import Version
-from rapids_metadata import all_metadata
 
 from rapids_pre_commit_hooks import alpha_spec, lint
 
 latest_version, latest_metadata = max(
-    all_metadata.versions.items(), key=lambda item: Version(item[0])
+    alpha_spec.all_metadata().versions.items(), key=lambda item: Version(item[0])
 )
 
 
@@ -77,8 +76,9 @@ def test_anchor_preserving_loader():
         ),
     ],
 )
-@patch(
-    "rapids_pre_commit_hooks.alpha_spec.all_metadata.get_current_version",
+@patch.object(
+    alpha_spec.all_metadata(),
+    "get_current_version",
     Mock(return_value=latest_metadata),
 )
 def test_strip_cuda_suffix(name, stripped_name):
@@ -139,8 +139,9 @@ def test_strip_cuda_suffix(name, stripped_name):
         (None, "gcc_linux-64=11.*", "release", None),
     ],
 )
-@patch(
-    "rapids_pre_commit_hooks.alpha_spec.all_metadata.get_current_version",
+@patch.object(
+    alpha_spec.all_metadata(),
+    "get_current_version",
     Mock(return_value=latest_metadata),
 )
 def test_check_package_spec(package, content, mode, replacement):
@@ -168,8 +169,9 @@ def test_check_package_spec(package, content, mode, replacement):
         assert linter.warnings == expected_linter.warnings
 
 
-@patch(
-    "rapids_pre_commit_hooks.alpha_spec.all_metadata.get_current_version",
+@patch.object(
+    alpha_spec.all_metadata(),
+    "get_current_version",
     Mock(return_value=latest_metadata),
 )
 def test_check_package_spec_anchor():

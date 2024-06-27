@@ -14,11 +14,11 @@
 
 import os
 import re
-from functools import total_ordering
+from functools import cache, total_ordering
 
 import yaml
 from packaging.requirements import InvalidRequirement, Requirement
-from rapids_metadata import all_metadata
+from rapids_metadata.remote import fetch_latest
 
 from .lint import LintMain
 
@@ -32,6 +32,11 @@ ALPHA_SPEC_OUTPUT_TYPES = {
 CUDA_SUFFIX_REGEX = re.compile(r"^(?P<package>.*)-cu[0-9]{2}$")
 
 
+@cache
+def all_metadata():
+    return fetch_latest()
+
+
 def node_has_type(node, tag_type):
     return node.tag == f"tag:yaml.org,2002:{tag_type}"
 
@@ -39,7 +44,7 @@ def node_has_type(node, tag_type):
 def strip_cuda_suffix(name: str) -> str:
     if (match := CUDA_SUFFIX_REGEX.search(name)) and match.group(
         "package"
-    ) in all_metadata.get_current_version(os.getcwd()).cuda_suffixed_packages:
+    ) in all_metadata().get_current_version(os.getcwd()).cuda_suffixed_packages:
         return match.group("package")
     return name
 
@@ -75,7 +80,7 @@ def check_package_spec(linter, args, anchors, used_anchors, node):
             return
         if (
             strip_cuda_suffix(req.name)
-            in all_metadata.get_current_version(os.getcwd()).prerelease_packages
+            in all_metadata().get_current_version(os.getcwd()).prerelease_packages
         ):
             for key, value in anchors.items():
                 if value == node:
