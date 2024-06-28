@@ -20,6 +20,7 @@
   args: [--fix]
   additional_dependencies:
     - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
+    - .[alpha-spec]
 - id: verify-conda-yes
   name: pass -y/--yes to conda
   description: make sure that all calls to conda pass -y/--yes
