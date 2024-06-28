@@ -47,7 +47,7 @@ repos:
         args:
         - --show-source
   - repo: https://github.com/rapidsai/pre-commit-hooks
-    rev: v0.0.3
+    rev: v0.1.0
     hooks:
       - id: verify-copyright
         files: |
@@ -58,5 +58,6 @@ repos:
               pyproject[.]toml$
         exclude: |
           (?x)
-              test_copyright[.]py$
+              test_copyright[.]py$|
+              test/examples/
         args: [--fix, --main-branch=main]
