@@ -1,0 +1,6 @@
+dependencies:
+  test:
+    common:
+      - output_types: pyproject
+        packages:
+          - cudf>=24.04,<24.06

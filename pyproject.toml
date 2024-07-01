@@ -43,6 +43,7 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "freezegun",
+    "pre-commit",
     "pytest",
     "rapids-pre-commit-hooks[alpha-spec]",
 ]
