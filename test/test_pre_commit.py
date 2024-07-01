@@ -56,7 +56,7 @@ def git_repo(tmp_path):
     return repo
 
 
-def run_hook(git_repo, hook_name, expected_status, exc):
+def run_pre_commit(git_repo, hook_name, expected_status, exc):
     def list_files(top):
         for dirpath, _, filenames in os.walk(top):
             for filename in filenames:
@@ -102,13 +102,13 @@ def run_hook(git_repo, hook_name, expected_status, exc):
     "hook_name",
     ALL_HOOKS,
 )
-def test_hook_pass(git_repo, hook_name):
-    run_hook(git_repo, hook_name, "pass", None)
+def test_pre_commit_pass(git_repo, hook_name):
+    run_pre_commit(git_repo, hook_name, "pass", None)
 
 
 @pytest.mark.parametrize(
     "hook_name",
     ALL_HOOKS,
 )
-def test_hook_fail(git_repo, hook_name):
-    run_hook(git_repo, hook_name, "fail", subprocess.CalledProcessError)
+def test_pre_commit_fail(git_repo, hook_name):
+    run_pre_commit(git_repo, hook_name, "fail", subprocess.CalledProcessError)
