@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, Mock, call, patch
 import pytest
 import yaml
 from packaging.version import Version
+from rapids_metadata.metadata import RAPIDSMetadata, RAPIDSRepository, RAPIDSVersion
 
 from rapids_pre_commit_hooks import alpha_spec, lint
 
@@ -37,6 +38,52 @@ def set_cwd(cwd):
         yield
     finally:
         os.chdir(old_cwd)
+
+
+@pytest.mark.parametrize(
+    ["version_file", "version_arg", "expected_version"],
+    [
+        ("24.06", None, "24.06"),
+        ("24.06", "24.08", "24.08"),
+        ("24.08", "24.06", "24.06"),
+        (None, "24.06", "24.06"),
+        (None, "24.10", KeyError),
+        (None, None, FileNotFoundError),
+    ],
+)
+def test_get_rapids_version(tmp_path, version_file, version_arg, expected_version):
+    MOCK_METADATA = RAPIDSMetadata(
+        versions={
+            "24.06": RAPIDSVersion(
+                repositories={
+                    "repo1": RAPIDSRepository(),
+                },
+            ),
+            "24.08": RAPIDSVersion(
+                repositories={
+                    "repo2": RAPIDSRepository(),
+                },
+            ),
+        },
+    )
+    with set_cwd(tmp_path), patch(
+        "rapids_pre_commit_hooks.alpha_spec.all_metadata",
+        Mock(return_value=MOCK_METADATA),
+    ):
+        if version_file:
+            with open("VERSION", "w") as f:
+                f.write(f"{version_file}\n")
+        args = Mock(rapids_version=version_arg)
+        if isinstance(expected_version, type) and issubclass(
+            expected_version, BaseException
+        ):
+            with pytest.raises(expected_version):
+                alpha_spec.get_rapids_version(args)
+        else:
+            assert (
+                alpha_spec.get_rapids_version(args)
+                == MOCK_METADATA.versions[expected_version]
+            )
 
 
 def test_anchor_preserving_loader():
@@ -76,13 +123,12 @@ def test_anchor_preserving_loader():
         ),
     ],
 )
-@patch.object(
-    alpha_spec.all_metadata(),
-    "get_current_version",
+@patch(
+    "rapids_pre_commit_hooks.alpha_spec.get_rapids_version",
     Mock(return_value=latest_metadata),
 )
 def test_strip_cuda_suffix(name, stripped_name):
-    assert alpha_spec.strip_cuda_suffix(name) == stripped_name
+    assert alpha_spec.strip_cuda_suffix(None, name) == stripped_name
 
 
 @pytest.mark.parametrize(
@@ -139,9 +185,8 @@ def test_strip_cuda_suffix(name, stripped_name):
         (None, "gcc_linux-64=11.*", "release", None),
     ],
 )
-@patch.object(
-    alpha_spec.all_metadata(),
-    "get_current_version",
+@patch(
+    "rapids_pre_commit_hooks.alpha_spec.get_rapids_version",
     Mock(return_value=latest_metadata),
 )
 def test_check_package_spec(package, content, mode, replacement):
@@ -169,9 +214,8 @@ def test_check_package_spec(package, content, mode, replacement):
         assert linter.warnings == expected_linter.warnings
 
 
-@patch.object(
-    alpha_spec.all_metadata(),
-    "get_current_version",
+@patch(
+    "rapids_pre_commit_hooks.alpha_spec.get_rapids_version",
     Mock(return_value=latest_metadata),
 )
 def test_check_package_spec_anchor():
@@ -501,7 +545,7 @@ def test_check_alpha_spec_integration(tmp_path):
     )
     REPLACED = "cudf>=24.04,<24.06"
 
-    args = Mock(mode="development")
+    args = Mock(mode="development", rapids_version=None)
     linter = lint.Linter("dependencies.yaml", CONTENT)
     with open(os.path.join(tmp_path, "VERSION"), "w") as f:
         f.write(f"{latest_version}\n")
