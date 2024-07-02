@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import os
 import re
 from functools import cache, total_ordering
@@ -41,10 +42,19 @@ def node_has_type(node, tag_type):
     return node.tag == f"tag:yaml.org,2002:{tag_type}"
 
 
-def strip_cuda_suffix(name: str) -> str:
+def get_rapids_version(args: argparse.Namespace) -> str:
+    md = all_metadata()
+    return (
+        md.versions[args.rapids_version]
+        if args.rapids_version
+        else md.get_current_version(os.getcwd())
+    )
+
+
+def strip_cuda_suffix(args: argparse.Namespace, name: str) -> str:
     if (match := CUDA_SUFFIX_REGEX.search(name)) and match.group(
         "package"
-    ) in all_metadata().get_current_version(os.getcwd()).cuda_suffixed_packages:
+    ) in get_rapids_version(args).cuda_suffixed_packages:
         return match.group("package")
     return name
 
@@ -79,8 +89,8 @@ def check_package_spec(linter, args, anchors, used_anchors, node):
         except InvalidRequirement:
             return
         if (
-            strip_cuda_suffix(req.name)
-            in all_metadata().get_current_version(os.getcwd()).prerelease_packages
+            strip_cuda_suffix(args, req.name)
+            in get_rapids_version(args).prerelease_packages
         ):
             for key, value in anchors.items():
                 if value == node:
@@ -238,6 +248,11 @@ def main():
         help="mode to use (development has alpha spec, release does not)",
         choices=["development", "release"],
         default="development",
+    )
+    m.argparser.add_argument(
+        "--rapids-version",
+        help="Specify a RAPIDS version to use instead of reading from the "
+        "VERSION file",
     )
     with m.execute() as ctx:
         ctx.add_check(check_alpha_spec)
