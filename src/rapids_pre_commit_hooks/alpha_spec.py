@@ -59,6 +59,20 @@ def strip_cuda_suffix(args: argparse.Namespace, name: str) -> str:
     return name
 
 
+def check_and_mark_anchor(anchors, used_anchors, node):
+    for key, value in anchors.items():
+        if value == node:
+            anchor = key
+            break
+    else:
+        anchor = None
+    if anchor in used_anchors:
+        return False, anchor
+    if anchor is not None:
+        used_anchors.add(anchor)
+    return True, anchor
+
+
 def check_package_spec(linter, args, anchors, used_anchors, node):
     @total_ordering
     class SpecPriority:
@@ -92,15 +106,8 @@ def check_package_spec(linter, args, anchors, used_anchors, node):
             strip_cuda_suffix(args, req.name)
             in get_rapids_version(args).prerelease_packages
         ):
-            for key, value in anchors.items():
-                if value == node:
-                    anchor = key
-                    break
-            else:
-                anchor = None
-            if anchor not in used_anchors:
-                if anchor is not None:
-                    used_anchors.add(anchor)
+            descend, anchor = check_and_mark_anchor(anchors, used_anchors, node)
+            if descend:
                 has_alpha_spec = any(str(s) == ALPHA_SPECIFIER for s in req.specifier)
                 if args.mode == "development" and not has_alpha_spec:
                     linter.add_warning(
@@ -134,8 +141,10 @@ def check_package_spec(linter, args, anchors, used_anchors, node):
 
 def check_packages(linter, args, anchors, used_anchors, node):
     if node_has_type(node, "seq"):
-        for package_spec in node.value:
-            check_package_spec(linter, args, anchors, used_anchors, package_spec)
+        descend, _ = check_and_mark_anchor(anchors, used_anchors, node)
+        if descend:
+            for package_spec in node.value:
+                check_package_spec(linter, args, anchors, used_anchors, package_spec)
 
 
 def check_common(linter, args, anchors, used_anchors, node):
