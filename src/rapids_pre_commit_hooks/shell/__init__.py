@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# type: ignore
-import bashlex
+import bashlex  # type: ignore
 
 from ..lint import ExecutionContext, LintMain
 
