@@ -46,8 +46,30 @@ repos:
       - id: flake8
         args:
         - --show-source
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: 'v1.10.0'
+    hooks:
+      - id: mypy
+        args:
+          - --config-file=pyproject.toml
+          - --exclude
+          - '^test/examples/'
+          - src/
+          - test/
+        pass_filenames: false
+        additional_dependencies:
+          - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
+          - bashlex
+          - freezegun
+          - gitpython
+          - packaging
+          - pytest
+          - rapids-metadata>=0.3.1
+          - rich
+          - tomlkit
+          - types-PyYAML
   - repo: https://github.com/rapidsai/pre-commit-hooks
-    rev: v0.1.0
+    rev: v0.3.1
     hooks:
       - id: verify-copyright
         files: |

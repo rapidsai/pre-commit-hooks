@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# type: ignore
 import bashlex
 
 from rapids_pre_commit_hooks.lint import Linter
