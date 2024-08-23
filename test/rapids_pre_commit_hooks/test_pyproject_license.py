@@ -13,12 +13,15 @@
 # limitations under the License.
 
 from textwrap import dedent
+from unittest.mock import Mock
 
 import pytest
 import tomlkit
 
 from rapids_pre_commit_hooks import pyproject_license
 from rapids_pre_commit_hooks.lint import Linter
+
+_LocType = tuple[int, int]
 
 
 @pytest.mark.parametrize(
@@ -51,7 +54,7 @@ from rapids_pre_commit_hooks.lint import Linter
         ),
     ],
 )
-def test_find_value_location(key, append, loc):
+def test_find_value_location(key: tuple[str, ...], append: bool, loc: _LocType):
     CONTENT = dedent(
         """\
         [table]
@@ -179,10 +182,14 @@ def test_find_value_location(key, append, loc):
     ],
 )
 def test_check_pyproject_license(
-    document, loc, message, replacement_loc, replacement_text
+    document: str,
+    loc: _LocType,
+    message: str,
+    replacement_loc: _LocType,
+    replacement_text: str,
 ):
     linter = Linter("pyproject.toml", document)
-    pyproject_license.check_pyproject_license(linter, None)
+    pyproject_license.check_pyproject_license(linter, Mock())
 
     expected_linter = Linter("pyproject.toml", document)
     if loc and message:
