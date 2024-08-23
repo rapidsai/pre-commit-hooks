@@ -16,6 +16,7 @@ import contextlib
 import os.path
 from itertools import chain
 from textwrap import dedent
+from typing import Iterator, Optional
 from unittest.mock import MagicMock, Mock, call, patch
 
 import pytest
@@ -31,7 +32,7 @@ latest_version, latest_metadata = max(
 
 
 @contextlib.contextmanager
-def set_cwd(cwd):
+def set_cwd(cwd: os.PathLike[str]) -> Iterator:
     old_cwd = os.getcwd()
     os.chdir(cwd)
     try:
@@ -41,17 +42,23 @@ def set_cwd(cwd):
 
 
 @pytest.mark.parametrize(
-    ["version_file", "version_arg", "expected_version"],
+    ["version_file", "version_arg", "expected_version", "raises"],
     [
-        ("24.06", None, "24.06"),
-        ("24.06", "24.08", "24.08"),
-        ("24.08", "24.06", "24.06"),
-        (None, "24.06", "24.06"),
-        (None, "24.10", KeyError),
-        (None, None, FileNotFoundError),
+        ("24.06", None, "24.06", contextlib.nullcontext()),
+        ("24.06", "24.08", "24.08", contextlib.nullcontext()),
+        ("24.08", "24.06", "24.06", contextlib.nullcontext()),
+        (None, "24.06", "24.06", contextlib.nullcontext()),
+        (None, "24.10", None, pytest.raises(KeyError)),
+        (None, None, None, pytest.raises(FileNotFoundError)),
     ],
 )
-def test_get_rapids_version(tmp_path, version_file, version_arg, expected_version):
+def test_get_rapids_version(
+    tmp_path: os.PathLike,
+    version_file: Optional[str],
+    version_arg: Optional[str],
+    expected_version: Optional[str],
+    raises: contextlib.AbstractContextManager,
+):
     MOCK_METADATA = RAPIDSMetadata(
         versions={
             "24.06": RAPIDSVersion(
@@ -74,16 +81,10 @@ def test_get_rapids_version(tmp_path, version_file, version_arg, expected_versio
             with open("VERSION", "w") as f:
                 f.write(f"{version_file}\n")
         args = Mock(rapids_version=version_arg)
-        if isinstance(expected_version, type) and issubclass(
-            expected_version, BaseException
-        ):
-            with pytest.raises(expected_version):
-                alpha_spec.get_rapids_version(args)
-        else:
-            assert (
-                alpha_spec.get_rapids_version(args)
-                == MOCK_METADATA.versions[expected_version]
-            )
+        with raises:
+            version = alpha_spec.get_rapids_version(args)
+            if expected_version:
+                assert version == MOCK_METADATA.versions[expected_version]
 
 
 def test_anchor_preserving_loader():
@@ -127,8 +128,8 @@ def test_anchor_preserving_loader():
     "rapids_pre_commit_hooks.alpha_spec.get_rapids_version",
     Mock(return_value=latest_metadata),
 )
-def test_strip_cuda_suffix(name, stripped_name):
-    assert alpha_spec.strip_cuda_suffix(None, name) == stripped_name
+def test_strip_cuda_suffix(name: str, stripped_name: str):
+    assert alpha_spec.strip_cuda_suffix(Mock(), name) == stripped_name
 
 
 @pytest.mark.parametrize(
@@ -172,10 +173,14 @@ def test_strip_cuda_suffix(name, stripped_name):
     ],
 )
 def test_check_and_mark_anchor(
-    used_anchors_before, node_index, descend, anchor, used_anchors_after
+    used_anchors_before: set[str],
+    node_index: int,
+    descend: bool,
+    anchor: Optional[str],
+    used_anchors_after: set[str],
 ):
     NODES = [Mock() for _ in range(3)]
-    ANCHORS = {
+    ANCHORS: dict[str, yaml.Node] = {
         "anchor1": NODES[0],
         "anchor2": NODES[1],
     }
@@ -246,12 +251,13 @@ def test_check_and_mark_anchor(
     "rapids_pre_commit_hooks.alpha_spec.get_rapids_version",
     Mock(return_value=latest_metadata),
 )
-def test_check_package_spec(package, content, mode, replacement):
+def test_check_package_spec(package: str, content: str, mode: str, replacement: str):
     args = Mock(mode=mode)
     linter = lint.Linter("dependencies.yaml", content)
     loader = alpha_spec.AnchorPreservingLoader(content)
     try:
         composed = loader.get_single_node()
+        assert composed is not None
     finally:
         loader.dispose()
     alpha_spec.check_package_spec(
@@ -349,7 +355,7 @@ def test_check_package_spec_anchor():
         ),
     ],
 )
-def test_check_packages(content, indices, use_anchor):
+def test_check_packages(content: str, indices: list[int], use_anchor: bool):
     with patch(
         "rapids_pre_commit_hooks.alpha_spec.check_package_spec", Mock()
     ) as mock_check_package_spec:
@@ -357,7 +363,7 @@ def test_check_packages(content, indices, use_anchor):
         linter = lint.Linter("dependencies.yaml", content)
         composed = yaml.compose(content)
         anchors = {"anchor": composed}
-        used_anchors = set()
+        used_anchors: set[str] = set()
         alpha_spec.check_packages(linter, args, anchors, used_anchors, composed)
         assert used_anchors == ({"anchor"} if use_anchor else set())
         alpha_spec.check_packages(linter, args, anchors, used_anchors, composed)
@@ -387,7 +393,7 @@ def test_check_packages(content, indices, use_anchor):
         ),
     ],
 )
-def test_check_common(content, indices):
+def test_check_common(content: str, indices: list[tuple[int, int]]):
     with patch(
         "rapids_pre_commit_hooks.alpha_spec.check_packages", Mock()
     ) as mock_check_packages:
@@ -422,7 +428,7 @@ def test_check_common(content, indices):
         ),
     ],
 )
-def test_check_matrices(content, indices):
+def test_check_matrices(content: str, indices: list[tuple[int, int]]):
     with patch(
         "rapids_pre_commit_hooks.alpha_spec.check_packages", Mock()
     ) as mock_check_packages:
@@ -468,7 +474,7 @@ def test_check_matrices(content, indices):
         ),
     ],
 )
-def test_check_specific(content, indices):
+def test_check_specific(content: str, indices: list[tuple[int, int]]):
     with patch(
         "rapids_pre_commit_hooks.alpha_spec.check_matrices", Mock()
     ) as mock_check_matrices:
@@ -521,7 +527,11 @@ def test_check_specific(content, indices):
         ),
     ],
 )
-def test_check_dependencies(content, common_indices, specific_indices):
+def test_check_dependencies(
+    content: str,
+    common_indices: list[tuple[int, int]],
+    specific_indices: list[tuple[int, int]],
+):
     with patch(
         "rapids_pre_commit_hooks.alpha_spec.check_common", Mock()
     ) as mock_check_common, patch(
@@ -558,7 +568,7 @@ def test_check_dependencies(content, common_indices, specific_indices):
         ),
     ],
 )
-def test_check_root(content, indices):
+def test_check_root(content: str, indices: list[int]):
     with patch(
         "rapids_pre_commit_hooks.alpha_spec.check_dependencies", Mock()
     ) as mock_check_dependencies:
@@ -593,7 +603,7 @@ def test_check_alpha_spec():
     )
 
 
-def test_check_alpha_spec_integration(tmp_path):
+def test_check_alpha_spec_integration(tmp_path: os.PathLike[str]):
     CONTENT = dedent(
         """\
         dependencies:
