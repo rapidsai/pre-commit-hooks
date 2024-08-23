@@ -18,7 +18,7 @@ from rapids_pre_commit_hooks.lint import Linter
 from rapids_pre_commit_hooks.shell.verify_conda_yes import VerifyCondaYesVisitor
 
 
-def run_shell_linter(content, cls):
+def run_shell_linter(content: str, cls: type) -> Linter:
     linter = Linter("test.sh", content)
     visitor = cls(linter, None)
     parts = bashlex.parse(content)
