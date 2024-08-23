@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import contextlib
 import os.path
-import tempfile
+from typing import BinaryIO, Generator, TextIO
 from unittest.mock import Mock, call, patch
 
 import pytest
@@ -104,7 +105,13 @@ class TestLinter:
             ("line 1", 6, 0, contextlib.nullcontext()),
         ],
     )
-    def test_line_for_pos(self, contents, pos, line, raises):
+    def test_line_for_pos(
+        self,
+        contents: str,
+        pos: int,
+        line: int,
+        raises: contextlib.AbstractContextManager,
+    ):
         linter = Linter("test.txt", contents)
         with raises:
             assert linter.line_for_pos(pos) == line
@@ -135,42 +142,40 @@ class TestLinter:
 
 class TestLintMain:
     @pytest.fixture
-    def hello_world_file(self):
-        with tempfile.NamedTemporaryFile("w+") as f:
+    def hello_world_file(self, tmp_path: str) -> Generator[TextIO, None, None]:
+        with open(os.path.join(tmp_path, "hello_world.txt"), "w+") as f:
             f.write("Hello world!")
             f.flush()
             f.seek(0)
             yield f
 
     @pytest.fixture
-    def hello_file(self):
-        with tempfile.NamedTemporaryFile("w+") as f:
+    def hello_file(self, tmp_path: str) -> Generator[TextIO, None, None]:
+        with open(os.path.join(tmp_path, "hello.txt"), "w+") as f:
             f.write("Hello!")
             f.flush()
             f.seek(0)
             yield f
 
     @pytest.fixture
-    def binary_file(self):
-        with tempfile.NamedTemporaryFile("wb+") as f:
+    def binary_file(self, tmp_path: str) -> Generator[BinaryIO, None, None]:
+        with open(os.path.join(tmp_path, "binary.bin"), "wb+") as f:
             f.write(b"\xDE\xAD\xBE\xEF")
             f.flush()
             f.seek(0)
             yield f
 
     @pytest.fixture
-    def long_file(self):
-        with tempfile.NamedTemporaryFile("w+") as f:
+    def long_file(self, tmp_path: str) -> Generator[TextIO, None, None]:
+        with open(os.path.join(tmp_path, "long.txt"), "w+") as f:
             f.write("This is a long file\nIt has multiple lines\n")
             f.flush()
             f.seek(0)
             yield f
 
     @pytest.fixture
-    def bracket_file(self):
-        with tempfile.TemporaryDirectory() as d, open(
-            os.path.join(d, "file[with]brackets.txt"), "w+"
-        ) as f:
+    def bracket_file(self, tmp_path: str) -> Generator[TextIO, None, None]:
+        with open(os.path.join(tmp_path, "file[with]brackets.txt"), "w+") as f:
             f.write("This [file] [has] [brackets]\n")
             f.flush()
             f.seek(0)
@@ -184,7 +189,7 @@ class TestLintMain:
         ):
             yield m
 
-    def the_check(self, linter, args):
+    def the_check(self, linter: Linter, args: argparse.Namespace):
         assert args.check_test
         linter.add_warning((0, 5), "say good bye instead").add_replacement(
             (0, 5), "Good bye"
@@ -192,25 +197,25 @@ class TestLintMain:
         if linter.content[5] != "!":
             linter.add_warning((5, 5), "use punctuation").add_replacement((5, 5), ",")
 
-    def long_file_check(self, linter, args):
+    def long_file_check(self, linter: Linter, args: argparse.Namespace):
         linter.add_warning((0, len(linter.content)), "this is a long file")
 
-    def long_fix_check(self, linter, args):
+    def long_fix_check(self, linter: Linter, args: argparse.Namespace):
         linter.add_warning((0, 19), "this is a long line").add_replacement(
             (0, 19), "This is a long file\nIt's even longer now"
         )
 
-    def long_delete_fix_check(self, linter, args):
+    def long_delete_fix_check(self, linter: Linter, args: argparse.Namespace):
         linter.add_warning(
             (0, len(linter.content)), "this is a long file"
         ).add_replacement((0, len(linter.content)), "This is a short file now")
 
-    def bracket_check(self, linter, args):
+    def bracket_check(self, linter: Linter, args: argparse.Namespace):
         linter.add_warning((0, 28), "this [file] has brackets").add_replacement(
             (12, 17), "[has more]"
         )
 
-    def test_no_warnings_no_fix(self, hello_world_file):
+    def test_no_warnings_no_fix(self, hello_world_file: TextIO):
         with patch(
             "sys.argv", ["check-test", "--check-test", hello_world_file.name]
         ), self.mock_console() as console:
@@ -223,7 +228,7 @@ class TestLintMain:
             call(highlight=False),
         ]
 
-    def test_no_warnings_fix(self, hello_world_file):
+    def test_no_warnings_fix(self, hello_world_file: TextIO):
         with patch(
             "sys.argv", ["check-test", "--check-test", "--fix", hello_world_file.name]
         ), self.mock_console() as console:
@@ -236,7 +241,7 @@ class TestLintMain:
             call(highlight=False),
         ]
 
-    def test_warnings_no_fix(self, hello_world_file):
+    def test_warnings_no_fix(self, hello_world_file: TextIO):
         with patch(
             "sys.argv", ["check-test", "--check-test", hello_world_file.name]
         ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
@@ -267,7 +272,7 @@ class TestLintMain:
             call().print(),
         ]
 
-    def test_warnings_fix(self, hello_world_file):
+    def test_warnings_fix(self, hello_world_file: TextIO):
         with patch(
             "sys.argv", ["check-test", "--check-test", "--fix", hello_world_file.name]
         ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
@@ -298,7 +303,7 @@ class TestLintMain:
             call().print(),
         ]
 
-    def test_multiple_files(self, hello_world_file, hello_file):
+    def test_multiple_files(self, hello_world_file: TextIO, hello_file: TextIO):
         with patch(
             "sys.argv",
             [
@@ -347,7 +352,7 @@ class TestLintMain:
             call().print(),
         ]
 
-    def test_binary_file(self, binary_file):
+    def test_binary_file(self, binary_file: BinaryIO):
         mock_linter = Mock(wraps=Linter)
         with patch(
             "sys.argv",
@@ -367,7 +372,7 @@ class TestLintMain:
                 ctx.add_check(self.the_check)
         mock_linter.assert_not_called()
 
-    def test_long_file(self, long_file):
+    def test_long_file(self, long_file: TextIO):
         with patch(
             "sys.argv",
             [
@@ -405,7 +410,7 @@ It has multiple lines
             call().print(),
         ]
 
-    def test_long_file_delete(self, long_file):
+    def test_long_file_delete(self, long_file: TextIO):
         with patch(
             "sys.argv",
             [
@@ -438,7 +443,7 @@ It has multiple lines
             call().print(),
         ]
 
-    def test_long_file_fix(self, long_file):
+    def test_long_file_fix(self, long_file: TextIO):
         with patch(
             "sys.argv",
             [
@@ -477,7 +482,7 @@ It has multiple lines
             call().print(),
         ]
 
-    def test_long_file_delete_fix(self, long_file):
+    def test_long_file_delete_fix(self, long_file: TextIO):
         with patch(
             "sys.argv",
             [
@@ -505,7 +510,7 @@ It has multiple lines
             call().print(),
         ]
 
-    def test_bracket_file(self, bracket_file):
+    def test_bracket_file(self, bracket_file: TextIO):
         with patch(
             "sys.argv",
             [
