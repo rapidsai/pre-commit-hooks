@@ -265,9 +265,9 @@ class Linter:
 class ExecutionContext(contextlib.AbstractContextManager):
     def __init__(self, args: argparse.Namespace):
         self.args: argparse.Namespace = args
-        self.checks: list[Callable[[], None]] = []
+        self.checks: list[Callable[[Linter, argparse.Namespace], None]] = []
 
-    def add_check(self, check):
+    def add_check(self, check: Callable[[Linter, argparse.Namespace], None]):
         self.checks.append(check)
 
     def __exit__(self, exc_type, exc_value, traceback):

@@ -19,27 +19,27 @@ from functools import cache, total_ordering
 
 import yaml
 from packaging.requirements import InvalidRequirement, Requirement
-from rapids_metadata.metadata import RAPIDSVersion
+from rapids_metadata.metadata import RAPIDSMetadata, RAPIDSVersion
 from rapids_metadata.remote import fetch_latest
 
-from .lint import LintMain
+from .lint import Linter, LintMain
 
-ALPHA_SPECIFIER = ">=0.0.0a0"
+ALPHA_SPECIFIER: str = ">=0.0.0a0"
 
-ALPHA_SPEC_OUTPUT_TYPES = {
+ALPHA_SPEC_OUTPUT_TYPES: set[str] = {
     "pyproject",
     "requirements",
 }
 
-CUDA_SUFFIX_REGEX = re.compile(r"^(?P<package>.*)-cu[0-9]{2}$")
+CUDA_SUFFIX_REGEX: re.Pattern = re.compile(r"^(?P<package>.*)-cu[0-9]{2}$")
 
 
 @cache
-def all_metadata():
+def all_metadata() -> RAPIDSMetadata:
     return fetch_latest()
 
 
-def node_has_type(node, tag_type):
+def node_has_type(node: yaml.Node, tag_type: str):
     return node.tag == f"tag:yaml.org,2002:{tag_type}"
 
 
@@ -60,7 +60,9 @@ def strip_cuda_suffix(args: argparse.Namespace, name: str) -> str:
     return name
 
 
-def check_and_mark_anchor(anchors, used_anchors, node):
+def check_and_mark_anchor(
+    anchors: dict[str, yaml.Node], used_anchors: set[str], node: yaml.Node
+):
     for key, value in anchors.items():
         if value == node:
             anchor = key
@@ -74,16 +76,26 @@ def check_and_mark_anchor(anchors, used_anchors, node):
     return True, anchor
 
 
-def check_package_spec(linter, args, anchors, used_anchors, node):
+def check_package_spec(
+    linter: Linter,
+    args: argparse.Namespace,
+    anchors: dict[str, yaml.Node],
+    used_anchors: set[str],
+    node: yaml.Node,
+):
     @total_ordering
     class SpecPriority:
-        def __init__(self, spec):
-            self.spec = spec
+        def __init__(self, spec: str):
+            self.spec: str = spec
 
-        def __eq__(self, other):
+        def __eq__(self, other: object) -> bool:
+            if not isinstance(other, SpecPriority):
+                return False
             return self.spec == other.spec
 
-        def __lt__(self, other):
+        def __lt__(self, other: object) -> bool:
+            if not isinstance(other, SpecPriority):
+                return False
             if self.spec == other.spec:
                 return False
             if self.spec == ALPHA_SPECIFIER:
@@ -92,10 +104,10 @@ def check_package_spec(linter, args, anchors, used_anchors, node):
                 return True
             return self.sort_str() < other.sort_str()
 
-        def sort_str(self):
+        def sort_str(self) -> str:
             return "".join(c for c in self.spec if c not in "<>=")
 
-    def create_specifier_string(specifiers):
+    def create_specifier_string(specifiers: set[str]) -> str:
         return ",".join(sorted(specifiers, key=SpecPriority))
 
     if node_has_type(node, "str"):
@@ -140,7 +152,13 @@ def check_package_spec(linter, args, anchors, used_anchors, node):
                     )
 
 
-def check_packages(linter, args, anchors, used_anchors, node):
+def check_packages(
+    linter: Linter,
+    args: argparse.Namespace,
+    anchors: dict[str, yaml.Node],
+    used_anchors: set[str],
+    node: yaml.Node,
+):
     if node_has_type(node, "seq"):
         descend, _ = check_and_mark_anchor(anchors, used_anchors, node)
         if descend:
@@ -148,7 +166,13 @@ def check_packages(linter, args, anchors, used_anchors, node):
                 check_package_spec(linter, args, anchors, used_anchors, package_spec)
 
 
-def check_common(linter, args, anchors, used_anchors, node):
+def check_common(
+    linter: Linter,
+    args: argparse.Namespace,
+    anchors: dict[str, yaml.Node],
+    used_anchors: set[str],
+    node: yaml.Node,
+):
     if node_has_type(node, "seq"):
         for dependency_set in node.value:
             if node_has_type(dependency_set, "map"):
@@ -162,7 +186,13 @@ def check_common(linter, args, anchors, used_anchors, node):
                         )
 
 
-def check_matrices(linter, args, anchors, used_anchors, node):
+def check_matrices(
+    linter: Linter,
+    args: argparse.Namespace,
+    anchors: dict[str, yaml.Node],
+    used_anchors: set[str],
+    node: yaml.Node,
+):
     if node_has_type(node, "seq"):
         for item in node.value:
             if node_has_type(item, "map"):
@@ -176,7 +206,13 @@ def check_matrices(linter, args, anchors, used_anchors, node):
                         )
 
 
-def check_specific(linter, args, anchors, used_anchors, node):
+def check_specific(
+    linter: Linter,
+    args: argparse.Namespace,
+    anchors: dict[str, yaml.Node],
+    used_anchors: set[str],
+    node: yaml.Node,
+):
     if node_has_type(node, "seq"):
         for matrix_matcher in node.value:
             if node_has_type(matrix_matcher, "map"):
@@ -190,7 +226,13 @@ def check_specific(linter, args, anchors, used_anchors, node):
                         )
 
 
-def check_dependencies(linter, args, anchors, used_anchors, node):
+def check_dependencies(
+    linter: Linter,
+    args: argparse.Namespace,
+    anchors: dict[str, yaml.Node],
+    used_anchors: set[str],
+    node: yaml.Node,
+):
     if node_has_type(node, "map"):
         for _, dependencies_value in node.value:
             if node_has_type(dependencies_value, "map"):
@@ -206,7 +248,13 @@ def check_dependencies(linter, args, anchors, used_anchors, node):
                             )
 
 
-def check_root(linter, args, anchors, used_anchors, node):
+def check_root(
+    linter: Linter,
+    args: argparse.Namespace,
+    anchors: dict[str, yaml.Node],
+    used_anchors: set[str],
+    node: yaml.Node,
+):
     if node_has_type(node, "map"):
         for root_key, root_value in node.value:
             if node_has_type(root_key, "str") and root_key.value == "dependencies":
@@ -221,27 +269,29 @@ class AnchorPreservingLoader(yaml.SafeLoader):
 
     def __init__(self, stream):
         super().__init__(stream)
-        self.document_anchors = []
+        self.document_anchors: list[dict[str, yaml.Node]] = []
 
-    def compose_document(self):
+    def compose_document(self) -> yaml.Node:
         # Drop the DOCUMENT-START event.
         self.get_event()
 
         # Compose the root node.
-        node = self.compose_node(None, None)
+        node = self.compose_node(None, None)  # type: ignore
 
         # Drop the DOCUMENT-END event.
         self.get_event()
 
         self.document_anchors.append(self.anchors)
         self.anchors = {}
+        assert node is not None
         return node
 
 
-def check_alpha_spec(linter, args):
+def check_alpha_spec(linter: Linter, args: argparse.Namespace):
     loader = AnchorPreservingLoader(linter.content)
     try:
         root = loader.get_single_node()
+        assert root is not None
     finally:
         loader.dispose()
     check_root(linter, args, loader.document_anchors[0], set(), root)
