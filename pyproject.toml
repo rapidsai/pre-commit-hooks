@@ -67,3 +67,7 @@ profile = "black"
 testpaths = [
     "test",
 ]
+
+[[tool.mypy.overrides]]
+module = "bashlex.*"
+ignore_missing_imports = true

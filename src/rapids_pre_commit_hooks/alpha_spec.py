@@ -19,6 +19,7 @@ from functools import cache, total_ordering
 
 import yaml
 from packaging.requirements import InvalidRequirement, Requirement
+from rapids_metadata.metadata import RAPIDSVersion
 from rapids_metadata.remote import fetch_latest
 
 from .lint import LintMain
@@ -42,7 +43,7 @@ def node_has_type(node, tag_type):
     return node.tag == f"tag:yaml.org,2002:{tag_type}"
 
 
-def get_rapids_version(args: argparse.Namespace) -> str:
+def get_rapids_version(args: argparse.Namespace) -> RAPIDSVersion:
     md = all_metadata()
     return (
         md.versions[args.rapids_version]
