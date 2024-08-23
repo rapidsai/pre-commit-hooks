@@ -12,22 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import datetime
 import functools
 import os
 import re
 import warnings
+from typing import Callable, Optional, Union
 
 import git
 
-from .lint import LintMain
+from .lint import Linter, LintMain
 
-COPYRIGHT_RE = re.compile(
+COPYRIGHT_RE: re.Pattern = re.compile(
     r"Copyright *(?:\(c\))? *(?P<years>(?P<first_year>\d{4})(-(?P<last_year>\d{4}))?),?"
     r" *NVIDIA C(?:ORPORATION|orporation)"
 )
-BRANCH_RE = re.compile(r"^branch-(?P<major>[0-9]+)\.(?P<minor>[0-9]+)$")
-COPYRIGHT_REPLACEMENT = "Copyright (c) {first_year}-{last_year}, NVIDIA CORPORATION"
+BRANCH_RE: re.Pattern = re.compile(r"^branch-(?P<major>[0-9]+)\.(?P<minor>[0-9]+)$")
+COPYRIGHT_REPLACEMENT: str = (
+    "Copyright (c) {first_year}-{last_year}, NVIDIA CORPORATION"
+)
 
 
 class NoTargetBranchWarning(RuntimeWarning):
@@ -38,14 +42,14 @@ class ConflictingFilesWarning(RuntimeWarning):
     pass
 
 
-def match_copyright(content):
+def match_copyright(content: str) -> list[re.Match]:
     return list(COPYRIGHT_RE.finditer(content))
 
 
-def strip_copyright(content, copyright_matches):
+def strip_copyright(content: str, copyright_matches: list[re.Match]) -> list[str]:
     lines = []
 
-    def append_stripped(start, item):
+    def append_stripped(start: int, item: re.Match):
         lines.append(content[start : item.start()])
         return item.end()
 
@@ -54,7 +58,7 @@ def strip_copyright(content, copyright_matches):
     return lines
 
 
-def apply_copyright_revert(linter, old_match, new_match):
+def apply_copyright_revert(linter: Linter, old_match: re.Match, new_match: re.Match):
     if old_match.group("years") == new_match.group("years"):
         warning_pos = new_match.span()
     else:
@@ -65,7 +69,7 @@ def apply_copyright_revert(linter, old_match, new_match):
     ).add_replacement(new_match.span(), old_match.group())
 
 
-def apply_copyright_update(linter, match, year):
+def apply_copyright_update(linter: Linter, match: re.Match, year: int):
     linter.add_warning(match.span("years"), "copyright is out of date").add_replacement(
         match.span(),
         COPYRIGHT_REPLACEMENT.format(
@@ -75,7 +79,7 @@ def apply_copyright_update(linter, match, year):
     )
 
 
-def apply_copyright_check(linter, old_content):
+def apply_copyright_check(linter: Linter, old_content: str):
     if linter.content != old_content:
         current_year = datetime.datetime.now().year
         new_copyright_matches = match_copyright(linter.content)
@@ -102,7 +106,7 @@ def apply_copyright_check(linter, old_content):
             linter.add_warning((0, 0), "no copyright notice found")
 
 
-def get_target_branch(repo, args):
+def get_target_branch(repo: git.Repo, args: argparse.Namespace) -> Optional[str]:
     """Determine which branch is the "target" branch.
 
     The target branch is determined in the following order:
@@ -168,7 +172,9 @@ def get_target_branch(repo, args):
     return None
 
 
-def get_target_branch_upstream_commit(repo, args):
+def get_target_branch_upstream_commit(
+    repo: git.Repo, args: argparse.Namespace
+) -> Optional[git.Commit]:
     # If no target branch can be determined, use HEAD if it exists
     target_branch_name = get_target_branch(repo, args)
     if target_branch_name is None:
@@ -194,7 +200,7 @@ def get_target_branch_upstream_commit(repo, args):
                 key=lambda commit: commit.committed_datetime,
             )
 
-    def try_get_ref(remote):
+    def try_get_ref(remote: git.Remote) -> Optional[git.Reference]:
         try:
             return remote.refs[target_branch_name]
         except IndexError:
@@ -222,7 +228,9 @@ def get_target_branch_upstream_commit(repo, args):
         return None
 
 
-def get_changed_files(args):
+def get_changed_files(
+    args: argparse.Namespace,
+) -> dict[Union[str, os.PathLike[str]], Optional[git.Blob]]:
     try:
         repo = git.Repo()
     except git.InvalidGitRepositoryError:
@@ -232,7 +240,9 @@ def get_changed_files(args):
             for filename in filenames
         }
 
-    changed_files = {f: None for f in repo.untracked_files}
+    changed_files: dict[Union[str, os.PathLike[str]], Optional[git.Blob]] = {
+        f: None for f in repo.untracked_files
+    }
     target_branch_upstream_commit = get_target_branch_upstream_commit(repo, args)
     if target_branch_upstream_commit is None:
         changed_files.update({blob.path: None for _, blob in repo.index.iter_blobs()})
@@ -256,14 +266,14 @@ def get_changed_files(args):
     return changed_files
 
 
-def normalize_git_filename(filename):
+def normalize_git_filename(filename: Union[str, os.PathLike[str]]):
     relpath = os.path.relpath(filename)
     if re.search(r"^\.\.(/|$)", relpath):
         return None
     return relpath
 
 
-def find_blob(tree, filename):
+def find_blob(tree: git.Tree, filename: Union[str, os.PathLike[str]]):
     d1, d2 = os.path.split(filename)
     split = [d2]
     while d1:
@@ -283,10 +293,12 @@ def find_blob(tree, filename):
         return None
 
 
-def check_copyright(args):
+def check_copyright(
+    args: argparse.Namespace,
+) -> Callable[[Linter, argparse.Namespace], None]:
     changed_files = get_changed_files(args)
 
-    def the_check(linter, args):
+    def the_check(linter: Linter, args: argparse.Namespace):
         if not (git_filename := normalize_git_filename(linter.filename)):
             warnings.warn(
                 f'File "{linter.filename}" is outside of current directory. Not '
