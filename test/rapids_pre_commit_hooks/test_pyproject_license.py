@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from textwrap import dedent
+from unittest.mock import Mock
 
 import pytest
 import tomlkit
@@ -179,10 +180,14 @@ def test_find_value_location(key, append, loc):
     ],
 )
 def test_check_pyproject_license(
-    document, loc, message, replacement_loc, replacement_text
+    document,
+    loc,
+    message,
+    replacement_loc,
+    replacement_text,
 ):
     linter = Linter("pyproject.toml", document)
-    pyproject_license.check_pyproject_license(linter, None)
+    pyproject_license.check_pyproject_license(linter, Mock())
 
     expected_linter = Linter("pyproject.toml", document)
     if loc and message:

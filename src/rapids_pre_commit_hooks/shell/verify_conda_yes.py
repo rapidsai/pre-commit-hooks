@@ -40,7 +40,7 @@ INTERACTIVE_CONDA_COMMANDS = {
 
 
 class VerifyCondaYesVisitor(LintVisitor):
-    def visitcommand(self, n, parts):
+    def visitcommand(self, n, parts) -> None:
         part_words = [part.word for part in parts]
         if part_words[0] != "conda":
             return
@@ -73,7 +73,7 @@ class VerifyCondaYesVisitor(LintVisitor):
             warning.add_replacement(insert_pos, f" {command['args'][0]}")
 
 
-def main():
+def main() -> None:
     m = ShellMain()
     with m.execute() as ctx:
         ctx.add_visitor_class(VerifyCondaYesVisitor)

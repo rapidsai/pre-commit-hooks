@@ -15,6 +15,7 @@
 import datetime
 import os.path
 import tempfile
+from textwrap import dedent
 from unittest.mock import Mock, patch
 
 import git
@@ -26,11 +27,13 @@ from rapids_pre_commit_hooks.lint import Linter
 
 
 def test_match_copyright():
-    CONTENT = r"""
-Copyright (c) 2024 NVIDIA CORPORATION
-Copyright (c) 2021-2024 NVIDIA CORPORATION
-# Copyright 2021,  NVIDIA Corporation and affiliates
-"""
+    CONTENT = dedent(
+        r"""
+        Copyright (c) 2024 NVIDIA CORPORATION
+        Copyright (c) 2021-2024 NVIDIA CORPORATION
+        # Copyright 2021,  NVIDIA Corporation and affiliates
+        """
+    )
 
     re_matches = copyright.match_copyright(CONTENT)
     matches = [
@@ -65,15 +68,17 @@ Copyright (c) 2021-2024 NVIDIA CORPORATION
 
 
 def test_strip_copyright():
-    CONTENT = r"""
-This is a line before the first copyright statement
-Copyright (c) 2024 NVIDIA CORPORATION
-This is a line between the first two copyright statements
-Copyright (c) 2021-2024 NVIDIA CORPORATION
-This is a line between the next two copyright statements
-# Copyright 2021,  NVIDIA Corporation and affiliates
-This is a line after the last copyright statement
-"""
+    CONTENT = dedent(
+        r"""
+        This is a line before the first copyright statement
+        Copyright (c) 2024 NVIDIA CORPORATION
+        This is a line between the first two copyright statements
+        Copyright (c) 2021-2024 NVIDIA CORPORATION
+        This is a line between the next two copyright statements
+        # Copyright 2021,  NVIDIA Corporation and affiliates
+        This is a line after the last copyright statement
+        """
+    )
     matches = copyright.match_copyright(CONTENT)
     stripped = copyright.strip_copyright(CONTENT, matches)
     assert stripped == [
@@ -103,23 +108,27 @@ def test_apply_copyright_check():
     linter = run_apply_copyright_check("No copyright notice", "No copyright notice")
     assert linter.warnings == []
 
-    OLD_CONTENT = r"""
-Copyright (c) 2021-2023 NVIDIA CORPORATION
-Copyright (c) 2023 NVIDIA CORPORATION
-Copyright (c) 2024 NVIDIA CORPORATION
-Copyright (c) 2025 NVIDIA CORPORATION
-This file has not been changed
-"""
+    OLD_CONTENT = dedent(
+        r"""
+        Copyright (c) 2021-2023 NVIDIA CORPORATION
+        Copyright (c) 2023 NVIDIA CORPORATION
+        Copyright (c) 2024 NVIDIA CORPORATION
+        Copyright (c) 2025 NVIDIA CORPORATION
+        This file has not been changed
+        """
+    )
     linter = run_apply_copyright_check(OLD_CONTENT, OLD_CONTENT)
     assert linter.warnings == []
 
-    NEW_CONTENT = r"""
-Copyright (c) 2021-2023 NVIDIA CORPORATION
-Copyright (c) 2023 NVIDIA CORPORATION
-Copyright (c) 2024 NVIDIA CORPORATION
-Copyright (c) 2025 NVIDIA CORPORATION
-This file has been changed
-"""
+    NEW_CONTENT = dedent(
+        r"""
+        Copyright (c) 2021-2023 NVIDIA CORPORATION
+        Copyright (c) 2023 NVIDIA CORPORATION
+        Copyright (c) 2024 NVIDIA CORPORATION
+        Copyright (c) 2025 NVIDIA CORPORATION
+        This file has been changed
+        """
+    )
     expected_linter = Linter("file.txt", NEW_CONTENT)
     expected_linter.add_warning((15, 24), "copyright is out of date").add_replacement(
         (1, 43), "Copyright (c) 2021-2024, NVIDIA CORPORATION"
@@ -142,13 +151,15 @@ This file has been changed
     linter = run_apply_copyright_check(None, NEW_CONTENT)
     assert linter.warnings == expected_linter.warnings
 
-    NEW_CONTENT = r"""
-Copyright (c) 2021-2024 NVIDIA CORPORATION
-Copyright (c) 2023 NVIDIA CORPORATION
-Copyright (c) 2024 NVIDIA CORPORATION
-Copyright (c) 2025 NVIDIA Corporation
-This file has not been changed
-"""
+    NEW_CONTENT = dedent(
+        r"""
+        Copyright (c) 2021-2024 NVIDIA CORPORATION
+        Copyright (c) 2023 NVIDIA CORPORATION
+        Copyright (c) 2024 NVIDIA CORPORATION
+        Copyright (c) 2025 NVIDIA Corporation
+        This file has not been changed
+        """
+    )
     expected_linter = Linter("file.txt", NEW_CONTENT)
     expected_linter.add_warning(
         (15, 24), "copyright is not out of date and should not be updated"
@@ -162,13 +173,12 @@ This file has not been changed
 
 
 @pytest.fixture
-def git_repo():
-    with tempfile.TemporaryDirectory() as d:
-        repo = git.Repo.init(d)
-        with repo.config_writer() as w:
-            w.set_value("user", "name", "RAPIDS Test Fixtures")
-            w.set_value("user", "email", "testfixtures@rapids.ai")
-        yield repo
+def git_repo(tmp_path):
+    repo = git.Repo.init(tmp_path)
+    with repo.config_writer() as w:
+        w.set_value("user", "name", "RAPIDS Test Fixtures")
+        w.set_value("user", "email", "testfixtures@rapids.ai")
+    return repo
 
 
 def test_get_target_branch(git_repo):
@@ -392,10 +402,10 @@ def test_get_target_branch_upstream_commit(git_repo):
         remote_repo_2.index.commit("Update file5.txt")
 
         with mock_target_branch(None):
-            assert copyright.get_target_branch_upstream_commit(git_repo, None) is None
+            assert copyright.get_target_branch_upstream_commit(git_repo, Mock()) is None
 
         with mock_target_branch("branch-1"):
-            assert copyright.get_target_branch_upstream_commit(git_repo, None) is None
+            assert copyright.get_target_branch_upstream_commit(git_repo, Mock()) is None
 
         remote_1 = git_repo.create_remote("unconventional/remote/name/1", remote_dir_1)
         remote_1.fetch([
@@ -446,55 +456,55 @@ def test_get_target_branch_upstream_commit(git_repo):
 
         with mock_target_branch("branch-1"):
             assert (
-                copyright.get_target_branch_upstream_commit(git_repo, None)
+                copyright.get_target_branch_upstream_commit(git_repo, Mock())
                 == remote_1.refs["branch-1-renamed"].commit
             )
 
         with mock_target_branch("branch-2"):
             assert (
-                copyright.get_target_branch_upstream_commit(git_repo, None)
+                copyright.get_target_branch_upstream_commit(git_repo, Mock())
                 == remote_1.refs["branch-2"].commit
             )
 
         with mock_target_branch("branch-3"):
             assert (
-                copyright.get_target_branch_upstream_commit(git_repo, None)
+                copyright.get_target_branch_upstream_commit(git_repo, Mock())
                 == remote_1.refs["branch-3"].commit
             )
 
         with mock_target_branch("branch-4"):
             assert (
-                copyright.get_target_branch_upstream_commit(git_repo, None)
+                copyright.get_target_branch_upstream_commit(git_repo, Mock())
                 == remote_2.refs["branch-4"].commit
             )
 
         with mock_target_branch("branch-5"):
             assert (
-                copyright.get_target_branch_upstream_commit(git_repo, None)
+                copyright.get_target_branch_upstream_commit(git_repo, Mock())
                 == remote_2.refs["branch-5"].commit
             )
 
         with mock_target_branch("branch-6"):
             assert (
-                copyright.get_target_branch_upstream_commit(git_repo, None)
+                copyright.get_target_branch_upstream_commit(git_repo, Mock())
                 == branch_6.commit
             )
 
         with mock_target_branch("branch-7"):
             assert (
-                copyright.get_target_branch_upstream_commit(git_repo, None)
+                copyright.get_target_branch_upstream_commit(git_repo, Mock())
                 == branch_7.commit
             )
 
         with mock_target_branch("nonexistent-branch"):
             assert (
-                copyright.get_target_branch_upstream_commit(git_repo, None)
+                copyright.get_target_branch_upstream_commit(git_repo, Mock())
                 == main.commit
             )
 
         with mock_target_branch(None):
             assert (
-                copyright.get_target_branch_upstream_commit(git_repo, None)
+                copyright.get_target_branch_upstream_commit(git_repo, Mock())
                 == main.commit
             )
 
@@ -526,7 +536,7 @@ def test_get_changed_files(git_repo):
         os.mkdir(os.path.join(non_git_dir, "subdir1/subdir2"))
         with open(os.path.join(non_git_dir, "subdir1", "subdir2", "sub.txt"), "w") as f:
             f.write("Subdir file\n")
-        assert copyright.get_changed_files(None) == {
+        assert copyright.get_changed_files(Mock()) == {
             "top.txt": None,
             "subdir1/subdir2/sub.txt": None,
         }
@@ -571,7 +581,7 @@ def test_get_changed_files(git_repo):
         "rapids_pre_commit_hooks.copyright.get_target_branch_upstream_commit",
         Mock(return_value=None),
     ):
-        assert copyright.get_changed_files(None) == {
+        assert copyright.get_changed_files(Mock()) == {
             "untouched.txt": None,
             "copied.txt": None,
             "modified_and_copied.txt": None,
@@ -665,7 +675,7 @@ def test_get_changed_files(git_repo):
         "rapids_pre_commit_hooks.copyright.get_target_branch_upstream_commit",
         Mock(return_value=target_branch.commit),
     ):
-        changed_files = copyright.get_changed_files(None)
+        changed_files = copyright.get_changed_files(Mock())
     assert {
         path: old_blob.path if old_blob else None
         for path, old_blob in changed_files.items()
@@ -756,7 +766,7 @@ def test_get_changed_files_multiple_merge_bases(git_repo):
         "rapids_pre_commit_hooks.copyright.get_target_branch",
         Mock(return_value="branch-1-2"),
     ):
-        changed_files = copyright.get_changed_files(None)
+        changed_files = copyright.get_changed_files(Mock())
     assert {
         path: old_blob.path if old_blob else None
         for path, old_blob in changed_files.items()
@@ -786,7 +796,16 @@ def test_normalize_git_filename():
     )
 
 
-def test_find_blob(git_repo):
+@pytest.mark.parametrize(
+    ["path", "present"],
+    [
+        ("top.txt", True),
+        ("sub1/sub2/sub.txt", True),
+        ("nonexistent.txt", False),
+        ("nonexistent/sub.txt", False),
+    ],
+)
+def test_find_blob(git_repo, path, present):
     with open(os.path.join(git_repo.working_tree_dir, "top.txt"), "w"):
         pass
     os.mkdir(os.path.join(git_repo.working_tree_dir, "sub1"))
@@ -796,13 +815,11 @@ def test_find_blob(git_repo):
     git_repo.index.add(["top.txt", "sub1/sub2/sub.txt"])
     git_repo.index.commit("Initial commit")
 
-    assert copyright.find_blob(git_repo.head.commit.tree, "top.txt").path == "top.txt"
-    assert (
-        copyright.find_blob(git_repo.head.commit.tree, "sub1/sub2/sub.txt").path
-        == "sub1/sub2/sub.txt"
-    )
-    assert copyright.find_blob(git_repo.head.commit.tree, "nonexistent.txt") is None
-    assert copyright.find_blob(git_repo.head.commit.tree, "nonexistent/sub.txt") is None
+    blob = copyright.find_blob(git_repo.head.commit.tree, path)
+    if present:
+        assert blob.path == path
+    else:
+        assert blob is None
 
 
 @freeze_time("2024-01-18")
@@ -815,16 +832,20 @@ def test_check_copyright(git_repo):
             f.write(contents)
 
     def file_contents(num):
-        return rf"""
-Copyright (c) 2021-2023 NVIDIA CORPORATION
-File {num}
-"""
+        return dedent(
+            rf"""\
+            Copyright (c) 2021-2023 NVIDIA CORPORATION
+            File {num}
+            """
+        )
 
     def file_contents_modified(num):
-        return rf"""
-Copyright (c) 2021-2023 NVIDIA CORPORATION
-File {num} modified
-"""
+        return dedent(
+            rf"""\
+            Copyright (c) 2021-2023 NVIDIA CORPORATION
+            File {num} modified
+            """
+        )
 
     write_file("file1.txt", file_contents(1))
     write_file("file2.txt", file_contents(2))

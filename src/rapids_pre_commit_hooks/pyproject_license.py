@@ -12,22 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import copy
 import uuid
 
 import tomlkit
 import tomlkit.exceptions
 
-from .lint import LintMain
+from .lint import Linter, LintMain
 
-RAPIDS_LICENSE = "Apache 2.0"
-ACCEPTABLE_LICENSES = {
+RAPIDS_LICENSE: str = "Apache 2.0"
+ACCEPTABLE_LICENSES: set[str] = {
     RAPIDS_LICENSE,
     "BSD-3-Clause",
 }
 
 
-def find_value_location(document, key, append):
+_LocType = tuple[int, int]
+
+
+def find_value_location(
+    document: "tomlkit.TOMLDocument", key: tuple[str, ...], append: bool
+) -> _LocType:
     copied_document = copy.deepcopy(document)
     placeholder = uuid.uuid4()
     placeholder_toml = tomlkit.string(str(placeholder))
@@ -38,7 +44,7 @@ def find_value_location(document, key, append):
     # look for that in the new document.
     node = copied_document
     while len(key) > (0 if append else 1):
-        node = node[key[0]]
+        node = node[key[0]]  # type: ignore[assignment]
         key = key[1:]
     if append:
         node.add(str(placeholder), placeholder_toml)
@@ -54,13 +60,13 @@ def find_value_location(document, key, append):
     return begin_loc, end_loc
 
 
-def check_pyproject_license(linter, args):
+def check_pyproject_license(linter: Linter, args: argparse.Namespace) -> None:
     document = tomlkit.loads(linter.content)
     try:
         add_project_table = True
         project_table = document["project"]
-        add_project_table = project_table.is_super_table()
-        license_value = project_table["license"]["text"]
+        add_project_table = project_table.is_super_table()  # type: ignore[union-attr]
+        license_value = project_table["license"]["text"]  # type: ignore[index]
     except tomlkit.exceptions.NonExistentKey:
         if add_project_table:
             loc = (len(linter.content), len(linter.content))
@@ -87,7 +93,7 @@ def check_pyproject_license(linter, args):
         linter.add_warning(loc, f'license should be "{RAPIDS_LICENSE}"')
 
 
-def main():
+def main() -> None:
     m = LintMain()
     m.argparser.description = (
         f'Verify that pyproject.toml has the correct license ("{RAPIDS_LICENSE}").'

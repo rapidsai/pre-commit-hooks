@@ -18,6 +18,7 @@ import contextlib
 import functools
 import re
 import warnings
+from typing import Callable, Generator, Iterable, Optional
 
 from rich.console import Console
 from rich.markup import escape
@@ -26,13 +27,16 @@ from rich.markup import escape
 # Taken from Python docs
 # (https://docs.python.org/3.12/library/itertools.html#itertools.pairwise)
 # Replace with itertools.pairwise after dropping Python 3.9 support
-def _pairwise(iterable):
+def _pairwise(iterable: Iterable) -> Generator:
     # pairwise('ABCDEFG') → AB BC CD DE EF FG
     iterator = iter(iterable)
     a = next(iterator, None)
     for b in iterator:
         yield a, b
         a = b
+
+
+_PosType = tuple[int, int]
 
 
 class OverlappingReplacementsError(RuntimeError):
@@ -44,62 +48,60 @@ class BinaryFileWarning(Warning):
 
 
 class Replacement:
-    def __init__(self, pos, newtext):
-        self.pos = pos
-        self.newtext = newtext
+    def __init__(self, pos: _PosType, newtext: str) -> None:
+        self.pos: _PosType = pos
+        self.newtext: str = newtext
 
-    def __eq__(self, other):
-        if not isinstance(other, Replacement):
-            return False
+    def __eq__(self, other: object) -> bool:
+        assert isinstance(other, Replacement)
         return self.pos == other.pos and self.newtext == other.newtext
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"Replacement(pos={self.pos}, newtext={repr(self.newtext)})"
 
 
 class LintWarning:
-    def __init__(self, pos, msg):
-        self.pos = pos
-        self.msg = msg
-        self.replacements = []
+    def __init__(self, pos: _PosType, msg: str) -> None:
+        self.pos: _PosType = pos
+        self.msg: str = msg
+        self.replacements: list[Replacement] = []
 
-    def add_replacement(self, pos, newtext):
+    def add_replacement(self, pos: _PosType, newtext: str) -> None:
         self.replacements.append(Replacement(pos, newtext))
 
-    def __eq__(self, other):
-        if not isinstance(other, LintWarning):
-            return False
+    def __eq__(self, other: object) -> bool:
+        assert isinstance(other, LintWarning)
         return (
             self.pos == other.pos
             and self.msg == other.msg
             and self.replacements == other.replacements
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             "LintWarning("
-            + f"pos={self.pos}, "
-            + f"msg={self.msg}, "
-            + f"replacements={self.replacements})"
+            f"pos={self.pos}, "
+            f"msg={self.msg}, "
+            f"replacements={self.replacements})"
         )
 
 
 class Linter:
-    NEWLINE_RE = re.compile("[\r\n]")
+    NEWLINE_RE: re.Pattern = re.compile("[\r\n]")
 
-    def __init__(self, filename, content):
-        self.filename = filename
-        self.content = content
-        self.warnings = []
-        self.console = Console(highlight=False)
+    def __init__(self, filename: str, content: str) -> None:
+        self.filename: str = filename
+        self.content: str = content
+        self.warnings: list[LintWarning] = []
+        self.console: "Console" = Console(highlight=False)
         self._calculate_lines()
 
-    def add_warning(self, pos, msg):
+    def add_warning(self, pos: _PosType, msg: str) -> LintWarning:
         w = LintWarning(pos, msg)
         self.warnings.append(w)
         return w
 
-    def fix(self):
+    def fix(self) -> str:
         sorted_replacements = sorted(
             (
                 replacement
@@ -123,7 +125,7 @@ class Linter:
         replaced_content += self.content[cursor:]
         return replaced_content
 
-    def print_warnings(self, fix_applied=False):
+    def print_warnings(self, fix_applied: bool = False) -> None:
         sorted_warnings = sorted(self.warnings, key=lambda warning: warning.pos)
 
         for warning in sorted_warnings:
@@ -172,7 +174,9 @@ class Linter:
                         self.console.print("[bold]note:[/bold] suggested fix")
                 self.console.print()
 
-    def print_highlighted_code(self, pos, replacement=None):
+    def print_highlighted_code(
+        self, pos: _PosType, replacement: Optional[str] = None
+    ) -> None:
         line_index = self.line_for_pos(pos[0])
         line_pos = self.lines[line_index]
         left = pos[0]
@@ -200,19 +204,22 @@ class Linter:
                 f"{escape(self.content[right:line_pos[1]])}[/green]"
             )
 
-    def line_for_pos(self, index):
+    def line_for_pos(self, index: int) -> int:
         @functools.total_ordering
         class LineComparator:
-            def __init__(self, pos):
-                self.pos = pos
+            def __init__(self, pos: _PosType) -> None:
+                self.pos: _PosType = pos
 
-            def __lt__(self, other):
+            def __lt__(self, other: object) -> bool:
+                assert isinstance(other, int)
                 return self.pos[1] < other
 
-            def __gt__(self, other):
+            def __gt__(self, other: object) -> bool:
+                assert isinstance(other, int)
                 return self.pos[0] > other
 
-            def __eq__(self, other):
+            def __eq__(self, other: object) -> bool:
+                assert isinstance(other, int)
                 return self.pos[0] <= other <= self.pos[1]
 
         line_index = bisect.bisect_left(
@@ -221,13 +228,13 @@ class Linter:
         try:
             line_pos = self.lines[line_index]
         except IndexError:
-            return None
-        if line_pos[0] <= index <= line_pos[1]:
-            return line_index
-        return None
+            raise IndexError(f"Position {index} is not in the string")
+        if not (line_pos[0] <= index <= line_pos[1]):
+            raise IndexError(f"Position {index} is inside a line separator")
+        return line_index
 
-    def _calculate_lines(self):
-        self.lines = []
+    def _calculate_lines(self) -> None:
+        self.lines: list[_PosType] = []
 
         line_begin = 0
         line_end = 0
@@ -259,14 +266,14 @@ class Linter:
 
 
 class ExecutionContext(contextlib.AbstractContextManager):
-    def __init__(self, args):
-        self.args = args
-        self.checks = []
+    def __init__(self, args: argparse.Namespace) -> None:
+        self.args: argparse.Namespace = args
+        self.checks: list[Callable[[Linter, argparse.Namespace], None]] = []
 
-    def add_check(self, check):
+    def add_check(self, check: Callable[[Linter, argparse.Namespace], None]) -> None:
         self.checks.append(check)
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
         if exc_type:
             return
 
@@ -304,12 +311,12 @@ class ExecutionContext(contextlib.AbstractContextManager):
 class LintMain:
     context_class = ExecutionContext
 
-    def __init__(self):
-        self.argparser = argparse.ArgumentParser()
+    def __init__(self) -> None:
+        self.argparser: argparse.ArgumentParser = argparse.ArgumentParser()
         self.argparser.add_argument(
             "--fix", action="store_true", help="automatically fix warnings"
         )
         self.argparser.add_argument("files", nargs="+", metavar="file")
 
-    def execute(self):
+    def execute(self) -> ExecutionContext:
         return self.context_class(self.argparser.parse_args())

@@ -14,7 +14,7 @@
 
 import contextlib
 import os.path
-import tempfile
+from textwrap import dedent
 from unittest.mock import Mock, call, patch
 
 import pytest
@@ -28,12 +28,13 @@ from rapids_pre_commit_hooks.lint import (
 
 
 class TestLinter:
+    LONG_CONTENTS = (
+        "line 1\nline 2\rline 3\r\nline 4\r\n\nline 6\r\n\r\nline 8\n\r\n"
+        "line 10\r\r\nline 12\r\n\rline 14\n\nline 16\r\rline 18\n\rline 20"
+    )
+
     def test_lines(self):
-        linter = Linter(
-            "test.txt",
-            "line 1\nline 2\rline 3\r\nline 4\r\n\nline 6\r\n\r\nline 8\n\r\n"
-            + "line 10\r\r\nline 12\r\n\rline 14\n\nline 16\r\rline 18\n\rline 20",
-        )
+        linter = Linter("test.txt", self.LONG_CONTENTS)
         assert linter.lines == [
             (0, 6),
             (7, 13),
@@ -74,26 +75,45 @@ class TestLinter:
             (0, 0),
         ]
 
-    def test_line_for_pos(self):
-        linter = Linter(
-            "test.txt",
-            "line 1\nline 2\rline 3\r\nline 4\r\n\nline 6\r\n\r\nline 8\n\r\n"
-            + "line 10\r\r\nline 12\r\n\rline 14\n\nline 16\r\rline 18\n\rline 20",
-        )
-        assert linter.line_for_pos(0) == 0
-        assert linter.line_for_pos(3) == 0
-        assert linter.line_for_pos(6) == 0
-        assert linter.line_for_pos(10) == 1
-        assert linter.line_for_pos(21) is None
-        assert linter.line_for_pos(34) == 5
-        assert linter.line_for_pos(97) == 19
-        assert linter.line_for_pos(104) == 19
-        assert linter.line_for_pos(200) is None
-
-        linter = Linter("test.txt", "line 1")
-        assert linter.line_for_pos(0) == 0
-        assert linter.line_for_pos(3) == 0
-        assert linter.line_for_pos(6) == 0
+    @pytest.mark.parametrize(
+        ["contents", "pos", "line", "raises"],
+        [
+            (LONG_CONTENTS, 0, 0, contextlib.nullcontext()),
+            (LONG_CONTENTS, 3, 0, contextlib.nullcontext()),
+            (LONG_CONTENTS, 6, 0, contextlib.nullcontext()),
+            (LONG_CONTENTS, 10, 1, contextlib.nullcontext()),
+            (
+                LONG_CONTENTS,
+                21,
+                None,
+                pytest.raises(
+                    IndexError, match="^Position 21 is inside a line separator$"
+                ),
+            ),
+            (LONG_CONTENTS, 34, 5, contextlib.nullcontext()),
+            (LONG_CONTENTS, 97, 19, contextlib.nullcontext()),
+            (LONG_CONTENTS, 104, 19, contextlib.nullcontext()),
+            (
+                LONG_CONTENTS,
+                200,
+                None,
+                pytest.raises(IndexError, match="^Position 200 is not in the string$"),
+            ),
+            ("line 1", 0, 0, contextlib.nullcontext()),
+            ("line 1", 3, 0, contextlib.nullcontext()),
+            ("line 1", 6, 0, contextlib.nullcontext()),
+        ],
+    )
+    def test_line_for_pos(
+        self,
+        contents,
+        pos,
+        line,
+        raises,
+    ):
+        linter = Linter("test.txt", contents)
+        with raises:
+            assert linter.line_for_pos(pos) == line
 
     def test_fix(self):
         linter = Linter("test.txt", "Hello world!")
@@ -121,42 +141,40 @@ class TestLinter:
 
 class TestLintMain:
     @pytest.fixture
-    def hello_world_file(self):
-        with tempfile.NamedTemporaryFile("w+") as f:
+    def hello_world_file(self, tmp_path):
+        with open(os.path.join(tmp_path, "hello_world.txt"), "w+") as f:
             f.write("Hello world!")
             f.flush()
             f.seek(0)
             yield f
 
     @pytest.fixture
-    def hello_file(self):
-        with tempfile.NamedTemporaryFile("w+") as f:
+    def hello_file(self, tmp_path):
+        with open(os.path.join(tmp_path, "hello.txt"), "w+") as f:
             f.write("Hello!")
             f.flush()
             f.seek(0)
             yield f
 
     @pytest.fixture
-    def binary_file(self):
-        with tempfile.NamedTemporaryFile("wb+") as f:
+    def binary_file(self, tmp_path):
+        with open(os.path.join(tmp_path, "binary.bin"), "wb+") as f:
             f.write(b"\xDE\xAD\xBE\xEF")
             f.flush()
             f.seek(0)
             yield f
 
     @pytest.fixture
-    def long_file(self):
-        with tempfile.NamedTemporaryFile("w+") as f:
+    def long_file(self, tmp_path):
+        with open(os.path.join(tmp_path, "long.txt"), "w+") as f:
             f.write("This is a long file\nIt has multiple lines\n")
             f.flush()
             f.seek(0)
             yield f
 
     @pytest.fixture
-    def bracket_file(self):
-        with tempfile.TemporaryDirectory() as d, open(
-            os.path.join(d, "file[with]brackets.txt"), "w+"
-        ) as f:
+    def bracket_file(self, tmp_path):
+        with open(os.path.join(tmp_path, "file[with]brackets.txt"), "w+") as f:
             f.write("This [file] [has] [brackets]\n")
             f.flush()
             f.seek(0)
@@ -365,11 +383,11 @@ class TestLintMain:
             with m.execute() as ctx:
                 ctx.add_check(self.long_file_check)
                 ctx.add_check(self.long_fix_check)
-        assert (
-            long_file.read()
-            == """This is a long file
-It has multiple lines
-"""
+        assert long_file.read() == dedent(
+            """\
+            This is a long file
+            It has multiple lines
+            """
         )
         assert console.mock_calls == [
             call(highlight=False),
@@ -402,11 +420,11 @@ It has multiple lines
             m = LintMain()
             with m.execute() as ctx:
                 ctx.add_check(self.long_delete_fix_check)
-        assert (
-            long_file.read()
-            == """This is a long file
-It has multiple lines
-"""
+        assert long_file.read() == dedent(
+            """\
+            This is a long file
+            It has multiple lines
+            """
         )
         assert console.mock_calls == [
             call(highlight=False),
@@ -437,12 +455,12 @@ It has multiple lines
             with m.execute() as ctx:
                 ctx.add_check(self.long_file_check)
                 ctx.add_check(self.long_fix_check)
-        assert (
-            long_file.read()
-            == """This is a long file
-It's even longer now
-It has multiple lines
-"""
+        assert long_file.read() == dedent(
+            """\
+            This is a long file
+            It's even longer now
+            It has multiple lines
+            """
         )
         assert console.mock_calls == [
             call(highlight=False),

@@ -12,30 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
+
 import bashlex
 
-from ..lint import ExecutionContext, LintMain
+from ..lint import ExecutionContext, Linter, LintMain, LintWarning
+
+_PosType = tuple[int, int]
 
 
 class LintVisitor(bashlex.ast.nodevisitor):
-    def __init__(self, linter, args):
-        self.linter = linter
-        self.args = args
+    def __init__(self, linter: Linter, args: argparse.Namespace) -> None:
+        self.linter: Linter = linter
+        self.args: argparse.Namespace = args
 
-    def add_warning(self, pos, msg):
+    def add_warning(self, pos: _PosType, msg: str) -> LintWarning:
         return self.linter.add_warning(pos, msg)
 
 
 class ShellExecutionContext(ExecutionContext):
-    def __init__(self, args):
+    def __init__(self, args: argparse.Namespace) -> None:
         super().__init__(args)
-        self.visitors = []
+        self.visitors: list[type] = []
         self.add_check(self.check_shell)
 
-    def add_visitor_class(self, cls):
+    def add_visitor_class(self, cls: type) -> None:
         self.visitors.append(cls)
 
-    def check_shell(self, linter, args):
+    def check_shell(self, linter: Linter, args: argparse.Namespace) -> None:
         parts = bashlex.parse(linter.content)
 
         for cls in self.visitors:

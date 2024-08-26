@@ -41,17 +41,19 @@ def set_cwd(cwd):
 
 
 @pytest.mark.parametrize(
-    ["version_file", "version_arg", "expected_version"],
+    ["version_file", "version_arg", "expected_version", "raises"],
     [
-        ("24.06", None, "24.06"),
-        ("24.06", "24.08", "24.08"),
-        ("24.08", "24.06", "24.06"),
-        (None, "24.06", "24.06"),
-        (None, "24.10", KeyError),
-        (None, None, FileNotFoundError),
+        ("24.06", None, "24.06", contextlib.nullcontext()),
+        ("24.06", "24.08", "24.08", contextlib.nullcontext()),
+        ("24.08", "24.06", "24.06", contextlib.nullcontext()),
+        (None, "24.06", "24.06", contextlib.nullcontext()),
+        (None, "24.10", None, pytest.raises(KeyError)),
+        (None, None, None, pytest.raises(FileNotFoundError)),
     ],
 )
-def test_get_rapids_version(tmp_path, version_file, version_arg, expected_version):
+def test_get_rapids_version(
+    tmp_path, version_file, version_arg, expected_version, raises
+):
     MOCK_METADATA = RAPIDSMetadata(
         versions={
             "24.06": RAPIDSVersion(
@@ -74,16 +76,10 @@ def test_get_rapids_version(tmp_path, version_file, version_arg, expected_versio
             with open("VERSION", "w") as f:
                 f.write(f"{version_file}\n")
         args = Mock(rapids_version=version_arg)
-        if isinstance(expected_version, type) and issubclass(
-            expected_version, BaseException
-        ):
-            with pytest.raises(expected_version):
-                alpha_spec.get_rapids_version(args)
-        else:
-            assert (
-                alpha_spec.get_rapids_version(args)
-                == MOCK_METADATA.versions[expected_version]
-            )
+        with raises:
+            version = alpha_spec.get_rapids_version(args)
+            if expected_version:
+                assert version == MOCK_METADATA.versions[expected_version]
 
 
 def test_anchor_preserving_loader():
@@ -128,7 +124,7 @@ def test_anchor_preserving_loader():
     Mock(return_value=latest_metadata),
 )
 def test_strip_cuda_suffix(name, stripped_name):
-    assert alpha_spec.strip_cuda_suffix(None, name) == stripped_name
+    assert alpha_spec.strip_cuda_suffix(Mock(), name) == stripped_name
 
 
 @pytest.mark.parametrize(
@@ -172,7 +168,11 @@ def test_strip_cuda_suffix(name, stripped_name):
     ],
 )
 def test_check_and_mark_anchor(
-    used_anchors_before, node_index, descend, anchor, used_anchors_after
+    used_anchors_before,
+    node_index,
+    descend,
+    anchor,
+    used_anchors_after,
 ):
     NODES = [Mock() for _ in range(3)]
     ANCHORS = {
@@ -521,7 +521,11 @@ def test_check_specific(content, indices):
         ),
     ],
 )
-def test_check_dependencies(content, common_indices, specific_indices):
+def test_check_dependencies(
+    content,
+    common_indices,
+    specific_indices,
+):
     with patch(
         "rapids_pre_commit_hooks.alpha_spec.check_common", Mock()
     ) as mock_check_common, patch(
