@@ -202,7 +202,7 @@ def get_target_branch_upstream_commit(
                 key=lambda commit: commit.committed_datetime,
             )
 
-    def try_get_ref(remote: git.Remote) -> Optional[git.Reference]:
+    def try_get_ref(remote: "git.Remote") -> Optional["git.Reference"]:
         try:
             return remote.refs[target_branch_name]
         except IndexError:
@@ -242,7 +242,7 @@ def get_changed_files(
             for filename in filenames
         }
 
-    changed_files: dict[Union[str, os.PathLike[str]], Optional[git.Blob]] = {
+    changed_files: dict[Union[str, os.PathLike[str]], Optional["git.Blob"]] = {
         f: None for f in repo.untracked_files
     }
     target_branch_upstream_commit = get_target_branch_upstream_commit(repo, args)

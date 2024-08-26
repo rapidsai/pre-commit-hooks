@@ -270,7 +270,7 @@ class AnchorPreservingLoader(yaml.SafeLoader):
         super().__init__(stream)
         self.document_anchors: list[dict[str, yaml.Node]] = []
 
-    def compose_document(self) -> yaml.Node:
+    def compose_document(self) -> "yaml.Node":
         # Drop the DOCUMENT-START event.
         self.get_event()
 
