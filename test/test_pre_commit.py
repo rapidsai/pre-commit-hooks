@@ -60,7 +60,7 @@ def git_repo(tmp_path: str) -> git.Repo:
 
 def run_pre_commit(
     git_repo: git.Repo, hook_name: str, expected_status: str, exc: Optional[type]
-):
+) -> None:
     assert git_repo.working_tree_dir is not None
 
     def list_files(top: str) -> Generator[str, None, None]:
@@ -110,7 +110,7 @@ def run_pre_commit(
     "hook_name",
     ALL_HOOKS,
 )
-def test_pre_commit_pass(git_repo: git.Repo, hook_name: str):
+def test_pre_commit_pass(git_repo: git.Repo, hook_name: str) -> None:
     run_pre_commit(git_repo, hook_name, "pass", None)
 
 
@@ -118,5 +118,5 @@ def test_pre_commit_pass(git_repo: git.Repo, hook_name: str):
     "hook_name",
     ALL_HOOKS,
 )
-def test_pre_commit_fail(git_repo: git.Repo, hook_name: str):
+def test_pre_commit_fail(git_repo: git.Repo, hook_name: str) -> None:
     run_pre_commit(git_repo, hook_name, "fail", subprocess.CalledProcessError)

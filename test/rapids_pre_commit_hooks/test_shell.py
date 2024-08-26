@@ -27,7 +27,7 @@ def run_shell_linter(content: str, cls: type) -> Linter:
     return linter
 
 
-def test_verify_conda_yes():
+def test_verify_conda_yes() -> None:
     CONTENT = r"""
 conda install -y pkg1
 conda install --yes pkg2 pkg3

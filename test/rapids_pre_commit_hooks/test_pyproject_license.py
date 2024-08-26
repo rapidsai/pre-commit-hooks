@@ -54,7 +54,7 @@ _LocType = tuple[int, int]
         ),
     ],
 )
-def test_find_value_location(key: tuple[str, ...], append: bool, loc: _LocType):
+def test_find_value_location(key: tuple[str, ...], append: bool, loc: _LocType) -> None:
     CONTENT = dedent(
         """\
         [table]
@@ -187,7 +187,7 @@ def test_check_pyproject_license(
     message: str,
     replacement_loc: _LocType,
     replacement_text: str,
-):
+) -> None:
     linter = Linter("pyproject.toml", document)
     pyproject_license.check_pyproject_license(linter, Mock())
 

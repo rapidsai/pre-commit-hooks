@@ -58,7 +58,9 @@ def strip_copyright(content: str, copyright_matches: list[re.Match]) -> list[str
     return lines
 
 
-def apply_copyright_revert(linter: Linter, old_match: re.Match, new_match: re.Match):
+def apply_copyright_revert(
+    linter: Linter, old_match: re.Match, new_match: re.Match
+) -> None:
     if old_match.group("years") == new_match.group("years"):
         warning_pos = new_match.span()
     else:
@@ -69,7 +71,7 @@ def apply_copyright_revert(linter: Linter, old_match: re.Match, new_match: re.Ma
     ).add_replacement(new_match.span(), old_match.group())
 
 
-def apply_copyright_update(linter: Linter, match: re.Match, year: int):
+def apply_copyright_update(linter: Linter, match: re.Match, year: int) -> None:
     linter.add_warning(match.span("years"), "copyright is out of date").add_replacement(
         match.span(),
         COPYRIGHT_REPLACEMENT.format(
@@ -79,7 +81,7 @@ def apply_copyright_update(linter: Linter, match: re.Match, year: int):
     )
 
 
-def apply_copyright_check(linter: Linter, old_content: str):
+def apply_copyright_check(linter: Linter, old_content: Optional[str]) -> None:
     if linter.content != old_content:
         current_year = datetime.datetime.now().year
         new_copyright_matches = match_copyright(linter.content)
@@ -266,14 +268,16 @@ def get_changed_files(
     return changed_files
 
 
-def normalize_git_filename(filename: Union[str, os.PathLike[str]]):
+def normalize_git_filename(filename: Union[str, os.PathLike[str]]) -> Optional[str]:
     relpath = os.path.relpath(filename)
     if re.search(r"^\.\.(/|$)", relpath):
         return None
     return relpath
 
 
-def find_blob(tree: git.Tree, filename: Union[str, os.PathLike[str]]):
+def find_blob(
+    tree: git.Tree, filename: Union[str, os.PathLike[str]]
+) -> Optional[git.Blob]:
     d1, d2 = os.path.split(filename)
     split = [d2]
     while d1:
@@ -322,7 +326,7 @@ def check_copyright(
     return the_check
 
 
-def main():
+def main() -> None:
     m = LintMain()
     m.argparser.description = (
         "Verify that all files have had their copyright notices updated. Each file "

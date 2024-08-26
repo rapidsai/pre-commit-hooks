@@ -18,7 +18,7 @@ import os.path
 import tempfile
 from io import BufferedReader
 from textwrap import dedent
-from typing import Any, TextIO, Union
+from typing import Any, Optional, TextIO, Union
 from unittest.mock import Mock, patch
 
 import git
@@ -29,7 +29,7 @@ from rapids_pre_commit_hooks import copyright
 from rapids_pre_commit_hooks.lint import Linter
 
 
-def test_match_copyright():
+def test_match_copyright() -> None:
     CONTENT = dedent(
         r"""
         Copyright (c) 2024 NVIDIA CORPORATION
@@ -70,7 +70,7 @@ def test_match_copyright():
     ]
 
 
-def test_strip_copyright():
+def test_strip_copyright() -> None:
     CONTENT = dedent(
         r"""
         This is a line before the first copyright statement
@@ -96,8 +96,10 @@ def test_strip_copyright():
 
 
 @freeze_time("2024-01-18")
-def test_apply_copyright_check():
-    def run_apply_copyright_check(old_content: str, new_content: str):
+def test_apply_copyright_check() -> None:
+    def run_apply_copyright_check(
+        old_content: Optional[str], new_content: str
+    ) -> Linter:
         linter = Linter("file.txt", new_content)
         copyright.apply_copyright_check(linter, old_content)
         return linter
@@ -184,7 +186,7 @@ def git_repo(tmp_path: os.PathLike[str]) -> git.Repo:
     return repo
 
 
-def test_get_target_branch(git_repo: git.Repo):
+def test_get_target_branch(git_repo: git.Repo) -> None:
     assert git_repo.working_tree_dir is not None
 
     with patch.dict("os.environ", {}, clear=True):
@@ -269,7 +271,7 @@ def test_get_target_branch(git_repo: git.Repo):
             assert copyright.get_target_branch(git_repo, args) == "master"
 
 
-def test_get_target_branch_upstream_commit(git_repo: git.Repo):
+def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
     def fn(repo: git.Repo, filename: str) -> str:
         assert repo.working_tree_dir is not None
         return os.path.join(repo.working_tree_dir, filename)
@@ -515,7 +517,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo):
             )
 
 
-def test_get_changed_files(git_repo: git.Repo):
+def test_get_changed_files(git_repo: git.Repo) -> None:
     f: Union[BufferedReader, TextIO]
 
     assert git_repo.working_tree_dir is not None
@@ -709,7 +711,7 @@ def test_get_changed_files(git_repo: git.Repo):
             assert changed_files[new].data_stream.read() == old_contents  # type: ignore
 
 
-def test_get_changed_files_multiple_merge_bases(git_repo: git.Repo):
+def test_get_changed_files_multiple_merge_bases(git_repo: git.Repo) -> None:
     def fn(filename: str) -> str:
         assert git_repo.working_tree_dir is not None
         return os.path.join(git_repo.working_tree_dir, filename)
@@ -789,7 +791,7 @@ def test_get_changed_files_multiple_merge_bases(git_repo: git.Repo):
     }
 
 
-def test_normalize_git_filename():
+def test_normalize_git_filename() -> None:
     assert copyright.normalize_git_filename("file.txt") == "file.txt"
     assert copyright.normalize_git_filename("sub/file.txt") == "sub/file.txt"
     assert copyright.normalize_git_filename("sub//file.txt") == "sub/file.txt"
@@ -808,7 +810,16 @@ def test_normalize_git_filename():
     )
 
 
-def test_find_blob(git_repo: git.Repo):
+@pytest.mark.parametrize(
+    ["path", "present"],
+    [
+        ("top.txt", True),
+        ("sub1/sub2/sub.txt", True),
+        ("nonexistent.txt", False),
+        ("nonexistent/sub.txt", False),
+    ],
+)
+def test_find_blob(git_repo: git.Repo, path: str, present: bool) -> None:
     assert git_repo.working_tree_dir is not None
 
     with open(os.path.join(git_repo.working_tree_dir, "top.txt"), "w"):
@@ -820,17 +831,16 @@ def test_find_blob(git_repo: git.Repo):
     git_repo.index.add(["top.txt", "sub1/sub2/sub.txt"])
     git_repo.index.commit("Initial commit")
 
-    assert copyright.find_blob(git_repo.head.commit.tree, "top.txt").path == "top.txt"
-    assert (
-        copyright.find_blob(git_repo.head.commit.tree, "sub1/sub2/sub.txt").path
-        == "sub1/sub2/sub.txt"
-    )
-    assert copyright.find_blob(git_repo.head.commit.tree, "nonexistent.txt") is None
-    assert copyright.find_blob(git_repo.head.commit.tree, "nonexistent/sub.txt") is None
+    blob = copyright.find_blob(git_repo.head.commit.tree, path)
+    if present:
+        assert blob is not None
+        assert blob.path == path
+    else:
+        assert blob is None
 
 
 @freeze_time("2024-01-18")
-def test_check_copyright(git_repo: git.Repo):
+def test_check_copyright(git_repo: git.Repo) -> None:
     def fn(filename: str) -> str:
         assert git_repo.working_tree_dir is not None
         return os.path.join(git_repo.working_tree_dir, filename)

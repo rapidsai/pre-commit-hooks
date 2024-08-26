@@ -16,6 +16,7 @@ import argparse
 import os
 import re
 from functools import cache, total_ordering
+from typing import Optional
 
 import yaml
 from packaging.requirements import InvalidRequirement, Requirement
@@ -39,7 +40,7 @@ def all_metadata() -> RAPIDSMetadata:
     return fetch_latest()
 
 
-def node_has_type(node: yaml.Node, tag_type: str):
+def node_has_type(node: yaml.Node, tag_type: str) -> bool:
     return node.tag == f"tag:yaml.org,2002:{tag_type}"
 
 
@@ -62,7 +63,7 @@ def strip_cuda_suffix(args: argparse.Namespace, name: str) -> str:
 
 def check_and_mark_anchor(
     anchors: dict[str, yaml.Node], used_anchors: set[str], node: yaml.Node
-):
+) -> tuple[bool, Optional[str]]:
     for key, value in anchors.items():
         if value == node:
             anchor = key
@@ -82,7 +83,7 @@ def check_package_spec(
     anchors: dict[str, yaml.Node],
     used_anchors: set[str],
     node: yaml.Node,
-):
+) -> None:
     @total_ordering
     class SpecPriority:
         def __init__(self, spec: str):
@@ -158,7 +159,7 @@ def check_packages(
     anchors: dict[str, yaml.Node],
     used_anchors: set[str],
     node: yaml.Node,
-):
+) -> None:
     if node_has_type(node, "seq"):
         descend, _ = check_and_mark_anchor(anchors, used_anchors, node)
         if descend:
@@ -172,7 +173,7 @@ def check_common(
     anchors: dict[str, yaml.Node],
     used_anchors: set[str],
     node: yaml.Node,
-):
+) -> None:
     if node_has_type(node, "seq"):
         for dependency_set in node.value:
             if node_has_type(dependency_set, "map"):
@@ -192,7 +193,7 @@ def check_matrices(
     anchors: dict[str, yaml.Node],
     used_anchors: set[str],
     node: yaml.Node,
-):
+) -> None:
     if node_has_type(node, "seq"):
         for item in node.value:
             if node_has_type(item, "map"):
@@ -212,7 +213,7 @@ def check_specific(
     anchors: dict[str, yaml.Node],
     used_anchors: set[str],
     node: yaml.Node,
-):
+) -> None:
     if node_has_type(node, "seq"):
         for matrix_matcher in node.value:
             if node_has_type(matrix_matcher, "map"):
@@ -232,7 +233,7 @@ def check_dependencies(
     anchors: dict[str, yaml.Node],
     used_anchors: set[str],
     node: yaml.Node,
-):
+) -> None:
     if node_has_type(node, "map"):
         for _, dependencies_value in node.value:
             if node_has_type(dependencies_value, "map"):
@@ -254,7 +255,7 @@ def check_root(
     anchors: dict[str, yaml.Node],
     used_anchors: set[str],
     node: yaml.Node,
-):
+) -> None:
     if node_has_type(node, "map"):
         for root_key, root_value in node.value:
             if node_has_type(root_key, "str") and root_key.value == "dependencies":
@@ -267,7 +268,7 @@ class AnchorPreservingLoader(yaml.SafeLoader):
     dictionary for each parsed document.
     """
 
-    def __init__(self, stream):
+    def __init__(self, stream) -> None:
         super().__init__(stream)
         self.document_anchors: list[dict[str, yaml.Node]] = []
 
@@ -287,7 +288,7 @@ class AnchorPreservingLoader(yaml.SafeLoader):
         return node
 
 
-def check_alpha_spec(linter: Linter, args: argparse.Namespace):
+def check_alpha_spec(linter: Linter, args: argparse.Namespace) -> None:
     loader = AnchorPreservingLoader(linter.content)
     try:
         root = loader.get_single_node()
@@ -297,7 +298,7 @@ def check_alpha_spec(linter: Linter, args: argparse.Namespace):
     check_root(linter, args, loader.document_anchors[0], set(), root)
 
 
-def main():
+def main() -> None:
     m = LintMain()
     m.argparser.description = (
         "Verify that RAPIDS packages in dependencies.yaml do (or do not) have "

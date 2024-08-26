@@ -15,6 +15,7 @@
 import argparse
 import contextlib
 import os.path
+from textwrap import dedent
 from typing import BinaryIO, Generator, TextIO
 from unittest.mock import Mock, call, patch
 
@@ -29,12 +30,12 @@ from rapids_pre_commit_hooks.lint import (
 
 
 class TestLinter:
-    LONG_CONTENTS = (
+    LONG_CONTENTS: str = (
         "line 1\nline 2\rline 3\r\nline 4\r\n\nline 6\r\n\r\nline 8\n\r\n"
         "line 10\r\r\nline 12\r\n\rline 14\n\nline 16\r\rline 18\n\rline 20"
     )
 
-    def test_lines(self):
+    def test_lines(self) -> None:
         linter = Linter("test.txt", self.LONG_CONTENTS)
         assert linter.lines == [
             (0, 6),
@@ -111,12 +112,12 @@ class TestLinter:
         pos: int,
         line: int,
         raises: contextlib.AbstractContextManager,
-    ):
+    ) -> None:
         linter = Linter("test.txt", contents)
         with raises:
             assert linter.line_for_pos(pos) == line
 
-    def test_fix(self):
+    def test_fix(self) -> None:
         linter = Linter("test.txt", "Hello world!")
         assert linter.fix() == "Hello world!"
 
@@ -182,14 +183,14 @@ class TestLintMain:
             yield f
 
     @contextlib.contextmanager
-    def mock_console(self):
+    def mock_console(self) -> Generator[Mock, None, None]:
         m = Mock()
         with patch("rich.console.Console", m), patch(
             "rapids_pre_commit_hooks.lint.Console", m
         ):
             yield m
 
-    def the_check(self, linter: Linter, args: argparse.Namespace):
+    def the_check(self, linter: Linter, args: argparse.Namespace) -> None:
         assert args.check_test
         linter.add_warning((0, 5), "say good bye instead").add_replacement(
             (0, 5), "Good bye"
@@ -197,25 +198,25 @@ class TestLintMain:
         if linter.content[5] != "!":
             linter.add_warning((5, 5), "use punctuation").add_replacement((5, 5), ",")
 
-    def long_file_check(self, linter: Linter, args: argparse.Namespace):
+    def long_file_check(self, linter: Linter, args: argparse.Namespace) -> None:
         linter.add_warning((0, len(linter.content)), "this is a long file")
 
-    def long_fix_check(self, linter: Linter, args: argparse.Namespace):
+    def long_fix_check(self, linter: Linter, args: argparse.Namespace) -> None:
         linter.add_warning((0, 19), "this is a long line").add_replacement(
             (0, 19), "This is a long file\nIt's even longer now"
         )
 
-    def long_delete_fix_check(self, linter: Linter, args: argparse.Namespace):
+    def long_delete_fix_check(self, linter: Linter, args: argparse.Namespace) -> None:
         linter.add_warning(
             (0, len(linter.content)), "this is a long file"
         ).add_replacement((0, len(linter.content)), "This is a short file now")
 
-    def bracket_check(self, linter: Linter, args: argparse.Namespace):
+    def bracket_check(self, linter: Linter, args: argparse.Namespace) -> None:
         linter.add_warning((0, 28), "this [file] has brackets").add_replacement(
             (12, 17), "[has more]"
         )
 
-    def test_no_warnings_no_fix(self, hello_world_file: TextIO):
+    def test_no_warnings_no_fix(self, hello_world_file: TextIO) -> None:
         with patch(
             "sys.argv", ["check-test", "--check-test", hello_world_file.name]
         ), self.mock_console() as console:
@@ -228,7 +229,7 @@ class TestLintMain:
             call(highlight=False),
         ]
 
-    def test_no_warnings_fix(self, hello_world_file: TextIO):
+    def test_no_warnings_fix(self, hello_world_file: TextIO) -> None:
         with patch(
             "sys.argv", ["check-test", "--check-test", "--fix", hello_world_file.name]
         ), self.mock_console() as console:
@@ -241,7 +242,7 @@ class TestLintMain:
             call(highlight=False),
         ]
 
-    def test_warnings_no_fix(self, hello_world_file: TextIO):
+    def test_warnings_no_fix(self, hello_world_file: TextIO) -> None:
         with patch(
             "sys.argv", ["check-test", "--check-test", hello_world_file.name]
         ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
@@ -272,7 +273,7 @@ class TestLintMain:
             call().print(),
         ]
 
-    def test_warnings_fix(self, hello_world_file: TextIO):
+    def test_warnings_fix(self, hello_world_file: TextIO) -> None:
         with patch(
             "sys.argv", ["check-test", "--check-test", "--fix", hello_world_file.name]
         ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
@@ -303,7 +304,7 @@ class TestLintMain:
             call().print(),
         ]
 
-    def test_multiple_files(self, hello_world_file: TextIO, hello_file: TextIO):
+    def test_multiple_files(self, hello_world_file: TextIO, hello_file: TextIO) -> None:
         with patch(
             "sys.argv",
             [
@@ -352,7 +353,7 @@ class TestLintMain:
             call().print(),
         ]
 
-    def test_binary_file(self, binary_file: BinaryIO):
+    def test_binary_file(self, binary_file: BinaryIO) -> None:
         mock_linter = Mock(wraps=Linter)
         with patch(
             "sys.argv",
@@ -372,7 +373,7 @@ class TestLintMain:
                 ctx.add_check(self.the_check)
         mock_linter.assert_not_called()
 
-    def test_long_file(self, long_file: TextIO):
+    def test_long_file(self, long_file: TextIO) -> None:
         with patch(
             "sys.argv",
             [
@@ -384,11 +385,11 @@ class TestLintMain:
             with m.execute() as ctx:
                 ctx.add_check(self.long_file_check)
                 ctx.add_check(self.long_fix_check)
-        assert (
-            long_file.read()
-            == """This is a long file
-It has multiple lines
-"""
+        assert long_file.read() == dedent(
+            """\
+            This is a long file
+            It has multiple lines
+            """
         )
         assert console.mock_calls == [
             call(highlight=False),
@@ -410,7 +411,7 @@ It has multiple lines
             call().print(),
         ]
 
-    def test_long_file_delete(self, long_file: TextIO):
+    def test_long_file_delete(self, long_file: TextIO) -> None:
         with patch(
             "sys.argv",
             [
@@ -421,11 +422,11 @@ It has multiple lines
             m = LintMain()
             with m.execute() as ctx:
                 ctx.add_check(self.long_delete_fix_check)
-        assert (
-            long_file.read()
-            == """This is a long file
-It has multiple lines
-"""
+        assert long_file.read() == dedent(
+            """\
+            This is a long file
+            It has multiple lines
+            """
         )
         assert console.mock_calls == [
             call(highlight=False),
@@ -443,7 +444,7 @@ It has multiple lines
             call().print(),
         ]
 
-    def test_long_file_fix(self, long_file: TextIO):
+    def test_long_file_fix(self, long_file: TextIO) -> None:
         with patch(
             "sys.argv",
             [
@@ -456,12 +457,12 @@ It has multiple lines
             with m.execute() as ctx:
                 ctx.add_check(self.long_file_check)
                 ctx.add_check(self.long_fix_check)
-        assert (
-            long_file.read()
-            == """This is a long file
-It's even longer now
-It has multiple lines
-"""
+        assert long_file.read() == dedent(
+            """\
+            This is a long file
+            It's even longer now
+            It has multiple lines
+            """
         )
         assert console.mock_calls == [
             call(highlight=False),
@@ -482,7 +483,7 @@ It has multiple lines
             call().print(),
         ]
 
-    def test_long_file_delete_fix(self, long_file: TextIO):
+    def test_long_file_delete_fix(self, long_file: TextIO) -> None:
         with patch(
             "sys.argv",
             [
@@ -510,7 +511,7 @@ It has multiple lines
             call().print(),
         ]
 
-    def test_bracket_file(self, bracket_file: TextIO):
+    def test_bracket_file(self, bracket_file: TextIO) -> None:
         with patch(
             "sys.argv",
             [

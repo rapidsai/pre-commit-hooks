@@ -48,7 +48,7 @@ class BinaryFileWarning(Warning):
 
 
 class Replacement:
-    def __init__(self, pos: _PosType, newtext: str):
+    def __init__(self, pos: _PosType, newtext: str) -> None:
         self.pos: _PosType = pos
         self.newtext: str = newtext
 
@@ -62,12 +62,12 @@ class Replacement:
 
 
 class LintWarning:
-    def __init__(self, pos: _PosType, msg: str):
+    def __init__(self, pos: _PosType, msg: str) -> None:
         self.pos: _PosType = pos
         self.msg: str = msg
         self.replacements: list[Replacement] = []
 
-    def add_replacement(self, pos: _PosType, newtext: str):
+    def add_replacement(self, pos: _PosType, newtext: str) -> None:
         self.replacements.append(Replacement(pos, newtext))
 
     def __eq__(self, other: object) -> bool:
@@ -89,16 +89,16 @@ class LintWarning:
 
 
 class Linter:
-    NEWLINE_RE = re.compile("[\r\n]")
+    NEWLINE_RE: re.Pattern = re.compile("[\r\n]")
 
-    def __init__(self, filename: str, content: str):
+    def __init__(self, filename: str, content: str) -> None:
         self.filename: str = filename
         self.content: str = content
         self.warnings: list[LintWarning] = []
         self.console: Console = Console(highlight=False)
         self._calculate_lines()
 
-    def add_warning(self, pos: _PosType, msg: str):
+    def add_warning(self, pos: _PosType, msg: str) -> LintWarning:
         w = LintWarning(pos, msg)
         self.warnings.append(w)
         return w
@@ -127,7 +127,7 @@ class Linter:
         replaced_content += self.content[cursor:]
         return replaced_content
 
-    def print_warnings(self, fix_applied: bool = False):
+    def print_warnings(self, fix_applied: bool = False) -> None:
         sorted_warnings = sorted(self.warnings, key=lambda warning: warning.pos)
 
         for warning in sorted_warnings:
@@ -176,7 +176,9 @@ class Linter:
                         self.console.print("[bold]note:[/bold] suggested fix")
                 self.console.print()
 
-    def print_highlighted_code(self, pos: _PosType, replacement: Optional[str] = None):
+    def print_highlighted_code(
+        self, pos: _PosType, replacement: Optional[str] = None
+    ) -> None:
         line_index = self.line_for_pos(pos[0])
         line_pos = self.lines[line_index]
         left = pos[0]
@@ -230,7 +232,7 @@ class Linter:
             raise IndexError(f"Position {index} is inside a line separator")
         return line_index
 
-    def _calculate_lines(self):
+    def _calculate_lines(self) -> None:
         self.lines: list[_PosType] = []
 
         line_begin = 0
@@ -263,14 +265,14 @@ class Linter:
 
 
 class ExecutionContext(contextlib.AbstractContextManager):
-    def __init__(self, args: argparse.Namespace):
+    def __init__(self, args: argparse.Namespace) -> None:
         self.args: argparse.Namespace = args
         self.checks: list[Callable[[Linter, argparse.Namespace], None]] = []
 
-    def add_check(self, check: Callable[[Linter, argparse.Namespace], None]):
+    def add_check(self, check: Callable[[Linter, argparse.Namespace], None]) -> None:
         self.checks.append(check)
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
         if exc_type:
             return
 
@@ -308,7 +310,7 @@ class ExecutionContext(contextlib.AbstractContextManager):
 class LintMain:
     context_class = ExecutionContext
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.argparser: argparse.ArgumentParser = argparse.ArgumentParser()
         self.argparser.add_argument(
             "--fix", action="store_true", help="automatically fix warnings"

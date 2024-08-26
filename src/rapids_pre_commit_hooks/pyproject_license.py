@@ -21,8 +21,8 @@ import tomlkit.exceptions
 
 from .lint import Linter, LintMain
 
-RAPIDS_LICENSE = "Apache 2.0"
-ACCEPTABLE_LICENSES = {
+RAPIDS_LICENSE: str = "Apache 2.0"
+ACCEPTABLE_LICENSES: set[str] = {
     RAPIDS_LICENSE,
     "BSD-3-Clause",
 }
@@ -60,7 +60,7 @@ def find_value_location(
     return begin_loc, end_loc
 
 
-def check_pyproject_license(linter: Linter, args: argparse.Namespace):
+def check_pyproject_license(linter: Linter, args: argparse.Namespace) -> None:
     document = tomlkit.loads(linter.content)
     try:
         add_project_table = True
@@ -93,7 +93,7 @@ def check_pyproject_license(linter: Linter, args: argparse.Namespace):
         linter.add_warning(loc, f'license should be "{RAPIDS_LICENSE}"')
 
 
-def main():
+def main() -> None:
     m = LintMain()
     m.argparser.description = (
         f'Verify that pyproject.toml has the correct license ("{RAPIDS_LICENSE}").'

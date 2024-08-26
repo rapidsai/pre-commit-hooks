@@ -58,7 +58,7 @@ def test_get_rapids_version(
     version_arg: Optional[str],
     expected_version: Optional[str],
     raises: contextlib.AbstractContextManager,
-):
+) -> None:
     MOCK_METADATA = RAPIDSMetadata(
         versions={
             "24.06": RAPIDSVersion(
@@ -87,10 +87,11 @@ def test_get_rapids_version(
                 assert version == MOCK_METADATA.versions[expected_version]
 
 
-def test_anchor_preserving_loader():
+def test_anchor_preserving_loader() -> None:
     loader = alpha_spec.AnchorPreservingLoader("- &a A\n- *a")
     try:
         root = loader.get_single_node()
+        assert root is not None
     finally:
         loader.dispose()
     assert loader.document_anchors == [{"a": root.value[0]}]
@@ -128,7 +129,7 @@ def test_anchor_preserving_loader():
     "rapids_pre_commit_hooks.alpha_spec.get_rapids_version",
     Mock(return_value=latest_metadata),
 )
-def test_strip_cuda_suffix(name: str, stripped_name: str):
+def test_strip_cuda_suffix(name: str, stripped_name: str) -> None:
     assert alpha_spec.strip_cuda_suffix(Mock(), name) == stripped_name
 
 
@@ -178,7 +179,7 @@ def test_check_and_mark_anchor(
     descend: bool,
     anchor: Optional[str],
     used_anchors_after: set[str],
-):
+) -> None:
     NODES = [Mock() for _ in range(3)]
     ANCHORS: dict[str, yaml.Node] = {
         "anchor1": NODES[0],
@@ -251,7 +252,9 @@ def test_check_and_mark_anchor(
     "rapids_pre_commit_hooks.alpha_spec.get_rapids_version",
     Mock(return_value=latest_metadata),
 )
-def test_check_package_spec(package: str, content: str, mode: str, replacement: str):
+def test_check_package_spec(
+    package: str, content: str, mode: str, replacement: str
+) -> None:
     args = Mock(mode=mode)
     linter = lint.Linter("dependencies.yaml", content)
     loader = alpha_spec.AnchorPreservingLoader(content)
@@ -281,7 +284,7 @@ def test_check_package_spec(package: str, content: str, mode: str, replacement: 
     "rapids_pre_commit_hooks.alpha_spec.get_rapids_version",
     Mock(return_value=latest_metadata),
 )
-def test_check_package_spec_anchor():
+def test_check_package_spec_anchor() -> None:
     CONTENT = dedent(
         """\
         - &cudf cudf>=24.04,<24.06
@@ -295,9 +298,10 @@ def test_check_package_spec_anchor():
     loader = alpha_spec.AnchorPreservingLoader(CONTENT)
     try:
         composed = loader.get_single_node()
+        assert composed is not None
     finally:
         loader.dispose()
-    used_anchors = set()
+    used_anchors: set[str] = set()
 
     expected_linter = lint.Linter("dependencies.yaml", CONTENT)
     expected_linter.add_warning(
@@ -355,7 +359,7 @@ def test_check_package_spec_anchor():
         ),
     ],
 )
-def test_check_packages(content: str, indices: list[int], use_anchor: bool):
+def test_check_packages(content: str, indices: list[int], use_anchor: bool) -> None:
     with patch(
         "rapids_pre_commit_hooks.alpha_spec.check_package_spec", Mock()
     ) as mock_check_package_spec:
@@ -393,7 +397,7 @@ def test_check_packages(content: str, indices: list[int], use_anchor: bool):
         ),
     ],
 )
-def test_check_common(content: str, indices: list[tuple[int, int]]):
+def test_check_common(content: str, indices: list[tuple[int, int]]) -> None:
     with patch(
         "rapids_pre_commit_hooks.alpha_spec.check_packages", Mock()
     ) as mock_check_packages:
@@ -428,7 +432,7 @@ def test_check_common(content: str, indices: list[tuple[int, int]]):
         ),
     ],
 )
-def test_check_matrices(content: str, indices: list[tuple[int, int]]):
+def test_check_matrices(content: str, indices: list[tuple[int, int]]) -> None:
     with patch(
         "rapids_pre_commit_hooks.alpha_spec.check_packages", Mock()
     ) as mock_check_packages:
@@ -474,7 +478,7 @@ def test_check_matrices(content: str, indices: list[tuple[int, int]]):
         ),
     ],
 )
-def test_check_specific(content: str, indices: list[tuple[int, int]]):
+def test_check_specific(content: str, indices: list[tuple[int, int]]) -> None:
     with patch(
         "rapids_pre_commit_hooks.alpha_spec.check_matrices", Mock()
     ) as mock_check_matrices:
@@ -531,7 +535,7 @@ def test_check_dependencies(
     content: str,
     common_indices: list[tuple[int, int]],
     specific_indices: list[tuple[int, int]],
-):
+) -> None:
     with patch(
         "rapids_pre_commit_hooks.alpha_spec.check_common", Mock()
     ) as mock_check_common, patch(
@@ -568,7 +572,7 @@ def test_check_dependencies(
         ),
     ],
 )
-def test_check_root(content: str, indices: list[int]):
+def test_check_root(content: str, indices: list[int]) -> None:
     with patch(
         "rapids_pre_commit_hooks.alpha_spec.check_dependencies", Mock()
     ) as mock_check_dependencies:
@@ -583,7 +587,7 @@ def test_check_root(content: str, indices: list[int]):
     ]
 
 
-def test_check_alpha_spec():
+def test_check_alpha_spec() -> None:
     CONTENT = "dependencies: []"
     with patch(
         "rapids_pre_commit_hooks.alpha_spec.check_root", Mock()
@@ -603,7 +607,7 @@ def test_check_alpha_spec():
     )
 
 
-def test_check_alpha_spec_integration(tmp_path: os.PathLike[str]):
+def test_check_alpha_spec_integration(tmp_path: os.PathLike[str]) -> None:
     CONTENT = dedent(
         """\
         dependencies:
