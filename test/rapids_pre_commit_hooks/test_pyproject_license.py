@@ -21,8 +21,6 @@ import tomlkit
 from rapids_pre_commit_hooks import pyproject_license
 from rapids_pre_commit_hooks.lint import Linter
 
-_LocType = tuple[int, int]
-
 
 @pytest.mark.parametrize(
     ["key", "append", "loc"],
@@ -54,7 +52,7 @@ _LocType = tuple[int, int]
         ),
     ],
 )
-def test_find_value_location(key: tuple[str, ...], append: bool, loc: _LocType) -> None:
+def test_find_value_location(key, append, loc):
     CONTENT = dedent(
         """\
         [table]
@@ -182,12 +180,12 @@ def test_find_value_location(key: tuple[str, ...], append: bool, loc: _LocType) 
     ],
 )
 def test_check_pyproject_license(
-    document: str,
-    loc: _LocType,
-    message: str,
-    replacement_loc: _LocType,
-    replacement_text: str,
-) -> None:
+    document,
+    loc,
+    message,
+    replacement_loc,
+    replacement_text,
+):
     linter = Linter("pyproject.toml", document)
     pyproject_license.check_pyproject_license(linter, Mock())
 

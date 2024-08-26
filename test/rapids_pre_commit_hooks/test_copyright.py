@@ -12,13 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import argparse
 import datetime
 import os.path
 import tempfile
-from io import BufferedReader
 from textwrap import dedent
-from typing import Any, Optional, TextIO, Union
 from unittest.mock import Mock, patch
 
 import git
@@ -29,7 +26,7 @@ from rapids_pre_commit_hooks import copyright
 from rapids_pre_commit_hooks.lint import Linter
 
 
-def test_match_copyright() -> None:
+def test_match_copyright():
     CONTENT = dedent(
         r"""
         Copyright (c) 2024 NVIDIA CORPORATION
@@ -70,7 +67,7 @@ def test_match_copyright() -> None:
     ]
 
 
-def test_strip_copyright() -> None:
+def test_strip_copyright():
     CONTENT = dedent(
         r"""
         This is a line before the first copyright statement
@@ -96,10 +93,8 @@ def test_strip_copyright() -> None:
 
 
 @freeze_time("2024-01-18")
-def test_apply_copyright_check() -> None:
-    def run_apply_copyright_check(
-        old_content: Optional[str], new_content: str
-    ) -> Linter:
+def test_apply_copyright_check():
+    def run_apply_copyright_check(old_content, new_content):
         linter = Linter("file.txt", new_content)
         copyright.apply_copyright_check(linter, old_content)
         return linter
@@ -178,7 +173,7 @@ def test_apply_copyright_check() -> None:
 
 
 @pytest.fixture
-def git_repo(tmp_path: os.PathLike[str]) -> git.Repo:
+def git_repo(tmp_path):
     repo = git.Repo.init(tmp_path)
     with repo.config_writer() as w:
         w.set_value("user", "name", "RAPIDS Test Fixtures")
@@ -186,9 +181,7 @@ def git_repo(tmp_path: os.PathLike[str]) -> git.Repo:
     return repo
 
 
-def test_get_target_branch(git_repo: git.Repo) -> None:
-    assert git_repo.working_tree_dir is not None
-
+def test_get_target_branch(git_repo):
     with patch.dict("os.environ", {}, clear=True):
         args = Mock(main_branch=None, target_branch=None)
 
@@ -271,16 +264,15 @@ def test_get_target_branch(git_repo: git.Repo) -> None:
             assert copyright.get_target_branch(git_repo, args) == "master"
 
 
-def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
-    def fn(repo: git.Repo, filename: str) -> str:
-        assert repo.working_tree_dir is not None
+def test_get_target_branch_upstream_commit(git_repo):
+    def fn(repo, filename):
         return os.path.join(repo.working_tree_dir, filename)
 
-    def write_file(repo: git.Repo, filename: str, contents: str):
+    def write_file(repo, filename, contents):
         with open(fn(repo, filename), "w") as f:
             f.write(contents)
 
-    def mock_target_branch(branch: Any):
+    def mock_target_branch(branch):
         return patch(
             "rapids_pre_commit_hooks.copyright.get_target_branch",
             Mock(return_value=branch),
@@ -318,7 +310,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         remote_1_branch_1 = remote_repo_1.create_head(
             "branch-1-renamed", remote_1_master.commit
         )
-        remote_repo_1.head.reference = remote_1_branch_1  # type: ignore[misc]
+        remote_repo_1.head.reference = remote_1_branch_1
         remote_repo_1.head.reset(index=True, working_tree=True)
         write_file(remote_repo_1, "file1.txt", "File 1 modified")
         remote_repo_1.index.add(["file1.txt"])
@@ -330,7 +322,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         remote_1_branch_2 = remote_repo_1.create_head(
             "branch-2", remote_1_master.commit
         )
-        remote_repo_1.head.reference = remote_1_branch_2  # type: ignore[misc]
+        remote_repo_1.head.reference = remote_1_branch_2
         remote_repo_1.head.reset(index=True, working_tree=True)
         write_file(remote_repo_1, "file2.txt", "File 2 modified")
         remote_repo_1.index.add(["file2.txt"])
@@ -339,7 +331,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         remote_1_branch_3 = remote_repo_1.create_head(
             "branch-3", remote_1_master.commit
         )
-        remote_repo_1.head.reference = remote_1_branch_3  # type: ignore[misc]
+        remote_repo_1.head.reference = remote_1_branch_3
         remote_repo_1.head.reset(index=True, working_tree=True)
         write_file(remote_repo_1, "file3.txt", "File 3 modified")
         remote_repo_1.index.add(["file3.txt"])
@@ -351,7 +343,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         remote_1_branch_4 = remote_repo_1.create_head(
             "branch-4", remote_1_master.commit
         )
-        remote_repo_1.head.reference = remote_1_branch_4  # type: ignore[misc]
+        remote_repo_1.head.reference = remote_1_branch_4
         remote_repo_1.head.reset(index=True, working_tree=True)
         write_file(remote_repo_1, "file4.txt", "File 4 modified")
         remote_repo_1.index.add(["file4.txt"])
@@ -363,7 +355,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         remote_1_branch_7 = remote_repo_1.create_head(
             "branch-7", remote_1_master.commit
         )
-        remote_repo_1.head.reference = remote_1_branch_7  # type: ignore[misc]
+        remote_repo_1.head.reference = remote_1_branch_7
         remote_repo_1.head.reset(index=True, working_tree=True)
         write_file(remote_repo_1, "file7.txt", "File 7 modified")
         remote_repo_1.index.add(["file7.txt"])
@@ -379,7 +371,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         remote_2_branch_3 = remote_repo_2.create_head(
             "branch-3", remote_2_master.commit
         )
-        remote_repo_2.head.reference = remote_2_branch_3  # type: ignore[misc]
+        remote_repo_2.head.reference = remote_2_branch_3
         remote_repo_2.head.reset(index=True, working_tree=True)
         write_file(remote_repo_2, "file3.txt", "File 3 modified")
         remote_repo_2.index.add(["file3.txt"])
@@ -391,7 +383,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         remote_2_branch_4 = remote_repo_2.create_head(
             "branch-4", remote_2_master.commit
         )
-        remote_repo_2.head.reference = remote_2_branch_4  # type: ignore[misc]
+        remote_repo_2.head.reference = remote_2_branch_4
         remote_repo_2.head.reset(index=True, working_tree=True)
         write_file(remote_repo_2, "file4.txt", "File 4 modified")
         remote_repo_2.index.add(["file4.txt"])
@@ -403,7 +395,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         remote_2_branch_5 = remote_repo_2.create_head(
             "branch-5", remote_2_master.commit
         )
-        remote_repo_2.head.reference = remote_2_branch_5  # type: ignore[misc]
+        remote_repo_2.head.reference = remote_2_branch_5
         remote_repo_2.head.reset(index=True, working_tree=True)
         write_file(remote_repo_2, "file5.txt", "File 5 modified")
         remote_repo_2.index.add(["file5.txt"])
@@ -433,7 +425,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         with branch_1.config_writer() as w:
             w.set_value("remote", "unconventional/remote/name/1")
             w.set_value("merge", "branch-1-renamed")
-        git_repo.head.reference = branch_1  # type: ignore[misc]
+        git_repo.head.reference = branch_1
         git_repo.head.reset(index=True, working_tree=True)
         git_repo.index.remove("file1.txt", working_tree=True)
         git_repo.index.commit(
@@ -442,7 +434,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         )
 
         branch_6 = git_repo.create_head("branch-6", remote_1.refs["master"])
-        git_repo.head.reference = branch_6  # type: ignore[misc]
+        git_repo.head.reference = branch_6
         git_repo.head.reset(index=True, working_tree=True)
         git_repo.index.remove(["file6.txt"], working_tree=True)
         git_repo.index.commit("Remove file6.txt")
@@ -451,7 +443,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         with branch_7.config_writer() as w:
             w.set_value("remote", "unconventional/remote/name/1")
             w.set_value("merge", "branch-7")
-        git_repo.head.reference = branch_7  # type: ignore[misc]
+        git_repo.head.reference = branch_7
         git_repo.head.reset(index=True, working_tree=True)
         git_repo.index.remove(["file7.txt"], working_tree=True)
         git_repo.index.commit(
@@ -459,7 +451,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
             commit_date=datetime.datetime(2024, 2, 1, tzinfo=datetime.timezone.utc),
         )
 
-        git_repo.head.reference = main  # type: ignore[misc]
+        git_repo.head.reference = main
         git_repo.head.reset(index=True, working_tree=True)
 
         with mock_target_branch("branch-1"):
@@ -517,12 +509,8 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
             )
 
 
-def test_get_changed_files(git_repo: git.Repo) -> None:
-    f: Union[BufferedReader, TextIO]
-
-    assert git_repo.working_tree_dir is not None
-
-    def mock_os_walk(top: Union[str, os.PathLike[str]]):
+def test_get_changed_files(git_repo):
+    def mock_os_walk(top):
         return patch(
             "os.walk",
             Mock(
@@ -553,15 +541,14 @@ def test_get_changed_files(git_repo: git.Repo) -> None:
             "subdir1/subdir2/sub.txt": None,
         }
 
-    def fn(filename: str) -> str:
-        assert git_repo.working_tree_dir is not None
+    def fn(filename):
         return os.path.join(git_repo.working_tree_dir, filename)
 
-    def write_file(filename: str, contents: str):
+    def write_file(filename, contents):
         with open(fn(filename), "w") as f:
             f.write(contents)
 
-    def file_contents(verbed: str) -> str:
+    def file_contents(verbed):
         return f"This file will be {verbed}\n" * 100
 
     write_file("untouched.txt", file_contents("untouched"))
@@ -614,7 +601,7 @@ def test_get_changed_files(git_repo: git.Repo) -> None:
     git_repo.index.commit("Remove modified.txt")
 
     pr_branch = git_repo.create_head("pr", "HEAD~")
-    git_repo.head.reference = pr_branch  # type: ignore[misc]
+    git_repo.head.reference = pr_branch
     git_repo.head.reset(index=True, working_tree=True)
 
     write_file("copied_2.txt", file_contents("copied"))
@@ -662,7 +649,7 @@ def test_get_changed_files(git_repo: git.Repo) -> None:
     target_branch = git_repo.heads["master"]
     merge_base = git_repo.merge_base(target_branch, "HEAD")[0]
     old_files = {
-        blob.path: blob  # type: ignore[union-attr]
+        blob.path: blob
         for blob in merge_base.tree.traverse(lambda b, _: isinstance(b, git.Blob))
     }
 
@@ -698,31 +685,24 @@ def test_get_changed_files(git_repo: git.Repo) -> None:
         if old:
             with open(fn(new), "rb") as f:
                 new_contents = f.read()
-            old_contents = old_files[old].data_stream.read()  # type: ignore[union-attr]
+            old_contents = old_files[old].data_stream.read()
             assert new_contents != old_contents
-            assert (
-                changed_files[new].data_stream.read()  # type: ignore[union-attr]
-                == old_contents
-            )
+            assert changed_files[new].data_stream.read() == old_contents
 
     for new, old in superfluous.items():
         if old:
             with open(fn(new), "rb") as f:
                 new_contents = f.read()
-            old_contents = old_files[old].data_stream.read()  # type: ignore[union-attr]
+            old_contents = old_files[old].data_stream.read()
             assert new_contents == old_contents
-            assert (
-                changed_files[new].data_stream.read()  # type: ignore[union-attr]
-                == old_contents
-            )
+            assert changed_files[new].data_stream.read() == old_contents
 
 
-def test_get_changed_files_multiple_merge_bases(git_repo: git.Repo) -> None:
-    def fn(filename: str) -> str:
-        assert git_repo.working_tree_dir is not None
+def test_get_changed_files_multiple_merge_bases(git_repo):
+    def fn(filename):
         return os.path.join(git_repo.working_tree_dir, filename)
 
-    def write_file(filename: str, contents: str):
+    def write_file(filename, contents):
         with open(fn(filename), "w") as f:
             f.write(contents)
 
@@ -733,7 +713,7 @@ def test_get_changed_files_multiple_merge_bases(git_repo: git.Repo) -> None:
     git_repo.index.commit("Initial commit")
 
     branch_1 = git_repo.create_head("branch-1", "master")
-    git_repo.head.reference = branch_1  # type: ignore[misc]
+    git_repo.head.reference = branch_1
     git_repo.index.reset(index=True, working_tree=True)
     write_file("file1.txt", "File 1 modified\n")
     git_repo.index.add("file1.txt")
@@ -743,7 +723,7 @@ def test_get_changed_files_multiple_merge_bases(git_repo: git.Repo) -> None:
     )
 
     branch_2 = git_repo.create_head("branch-2", "master")
-    git_repo.head.reference = branch_2  # type: ignore[misc]
+    git_repo.head.reference = branch_2
     git_repo.index.reset(index=True, working_tree=True)
     write_file("file2.txt", "File 2 modified\n")
     git_repo.index.add("file2.txt")
@@ -753,7 +733,7 @@ def test_get_changed_files_multiple_merge_bases(git_repo: git.Repo) -> None:
     )
 
     branch_1_2 = git_repo.create_head("branch-1-2", "master")
-    git_repo.head.reference = branch_1_2  # type: ignore[misc]
+    git_repo.head.reference = branch_1_2
     git_repo.index.reset(index=True, working_tree=True)
     write_file("file1.txt", "File 1 modified\n")
     write_file("file2.txt", "File 2 modified\n")
@@ -765,7 +745,7 @@ def test_get_changed_files_multiple_merge_bases(git_repo: git.Repo) -> None:
     )
 
     branch_3 = git_repo.create_head("branch-3", "master")
-    git_repo.head.reference = branch_3  # type: ignore[misc]
+    git_repo.head.reference = branch_3
     git_repo.index.reset(index=True, working_tree=True)
     write_file("file1.txt", "File 1 modified\n")
     write_file("file2.txt", "File 2 modified\n")
@@ -797,7 +777,7 @@ def test_get_changed_files_multiple_merge_bases(git_repo: git.Repo) -> None:
     }
 
 
-def test_normalize_git_filename() -> None:
+def test_normalize_git_filename():
     assert copyright.normalize_git_filename("file.txt") == "file.txt"
     assert copyright.normalize_git_filename("sub/file.txt") == "sub/file.txt"
     assert copyright.normalize_git_filename("sub//file.txt") == "sub/file.txt"
@@ -825,9 +805,7 @@ def test_normalize_git_filename() -> None:
         ("nonexistent/sub.txt", False),
     ],
 )
-def test_find_blob(git_repo: git.Repo, path: str, present: bool) -> None:
-    assert git_repo.working_tree_dir is not None
-
+def test_find_blob(git_repo, path, present):
     with open(os.path.join(git_repo.working_tree_dir, "top.txt"), "w"):
         pass
     os.mkdir(os.path.join(git_repo.working_tree_dir, "sub1"))
@@ -839,23 +817,21 @@ def test_find_blob(git_repo: git.Repo, path: str, present: bool) -> None:
 
     blob = copyright.find_blob(git_repo.head.commit.tree, path)
     if present:
-        assert blob is not None
         assert blob.path == path
     else:
         assert blob is None
 
 
 @freeze_time("2024-01-18")
-def test_check_copyright(git_repo: git.Repo) -> None:
-    def fn(filename: str) -> str:
-        assert git_repo.working_tree_dir is not None
+def test_check_copyright(git_repo):
+    def fn(filename):
         return os.path.join(git_repo.working_tree_dir, filename)
 
-    def write_file(filename: str, contents: str):
+    def write_file(filename, contents):
         with open(fn(filename), "w") as f:
             f.write(contents)
 
-    def file_contents(num: int) -> str:
+    def file_contents(num):
         return dedent(
             rf"""\
             Copyright (c) 2021-2023 NVIDIA CORPORATION
@@ -863,7 +839,7 @@ def test_check_copyright(git_repo: git.Repo) -> None:
             """
         )
 
-    def file_contents_modified(num: int) -> str:
+    def file_contents_modified(num):
         return dedent(
             rf"""\
             Copyright (c) 2021-2023 NVIDIA CORPORATION
@@ -879,21 +855,21 @@ def test_check_copyright(git_repo: git.Repo) -> None:
     git_repo.index.commit("Initial commit")
 
     branch_1 = git_repo.create_head("branch-1", "master")
-    git_repo.head.reference = branch_1  # type: ignore[misc]
+    git_repo.head.reference = branch_1
     git_repo.head.reset(index=True, working_tree=True)
     write_file("file1.txt", file_contents_modified(1))
     git_repo.index.add(["file1.txt"])
     git_repo.index.commit("Update file1.txt")
 
     branch_2 = git_repo.create_head("branch-2", "master")
-    git_repo.head.reference = branch_2  # type: ignore[misc]
+    git_repo.head.reference = branch_2
     git_repo.head.reset(index=True, working_tree=True)
     write_file("file2.txt", file_contents_modified(2))
     git_repo.index.add(["file2.txt"])
     git_repo.index.commit("Update file2.txt")
 
     pr = git_repo.create_head("pr", "branch-1")
-    git_repo.head.reference = pr  # type: ignore[misc]
+    git_repo.head.reference = pr
     git_repo.head.reset(index=True, working_tree=True)
     write_file("file3.txt", file_contents_modified(3))
     git_repo.index.add(["file3.txt"])
@@ -909,8 +885,8 @@ def test_check_copyright(git_repo: git.Repo) -> None:
     def mock_repo_cwd():
         return patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir))
 
-    def mock_target_branch_upstream_commit(target_branch: str):
-        def func(repo: git.Repo, args: argparse.Namespace) -> git.Commit:
+    def mock_target_branch_upstream_commit(target_branch):
+        def func(repo, args):
             assert target_branch == args.target_branch
             return repo.heads[target_branch].commit
 
