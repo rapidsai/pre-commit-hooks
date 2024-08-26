@@ -15,6 +15,7 @@
 import argparse
 import bisect
 import contextlib
+import dataclasses
 import functools
 import re
 import warnings
@@ -47,43 +48,32 @@ class BinaryFileWarning(Warning):
     pass
 
 
+@dataclasses.dataclass
 class Replacement:
-    def __init__(self, pos: _PosType, newtext: str) -> None:
-        self.pos: _PosType = pos
-        self.newtext: str = newtext
-
-    def __eq__(self, other: object) -> bool:
-        assert isinstance(other, Replacement)
-        return self.pos == other.pos and self.newtext == other.newtext
-
-    def __repr__(self) -> str:
-        return f"Replacement(pos={self.pos}, newtext={repr(self.newtext)})"
+    pos: _PosType
+    newtext: str
 
 
+@dataclasses.dataclass
+class Note:
+    pos: _PosType
+    msg: str
+
+
+@dataclasses.dataclass
 class LintWarning:
-    def __init__(self, pos: _PosType, msg: str) -> None:
-        self.pos: _PosType = pos
-        self.msg: str = msg
-        self.replacements: list[Replacement] = []
+    pos: _PosType
+    msg: str
+    replacements: list[Replacement] = dataclasses.field(
+        default_factory=list, init=False
+    )
+    notes: list[Note] = dataclasses.field(default_factory=list, init=False)
 
     def add_replacement(self, pos: _PosType, newtext: str) -> None:
         self.replacements.append(Replacement(pos, newtext))
 
-    def __eq__(self, other: object) -> bool:
-        assert isinstance(other, LintWarning)
-        return (
-            self.pos == other.pos
-            and self.msg == other.msg
-            and self.replacements == other.replacements
-        )
-
-    def __repr__(self) -> str:
-        return (
-            "LintWarning("
-            f"pos={self.pos}, "
-            f"msg={self.msg}, "
-            f"replacements={self.replacements})"
-        )
+    def add_note(self, pos: _PosType, msg: str) -> None:
+        self.notes.append(Note(pos, msg))
 
 
 class Linter:
@@ -125,22 +115,30 @@ class Linter:
         replaced_content += self.content[cursor:]
         return replaced_content
 
+    def _print_note(
+        self, note_type: str, pos: _PosType, msg: str, newtext: Optional[str] = None
+    ) -> None:
+        line_index = self._line_for_pos(pos[0])
+        line_pos = self.lines[line_index]
+        self.console.print(
+            f"In file [bold]{escape(self.filename)}:{line_index + 1}:"
+            f"{pos[0] - line_pos[0] + 1}[/bold]:"
+        )
+        self._print_highlighted_code(pos, newtext)
+        self.console.print(f"[bold]{note_type}:[/bold] {escape(msg)}")
+        self.console.print()
+
     def print_warnings(self, fix_applied: bool = False) -> None:
         sorted_warnings = sorted(self.warnings, key=lambda warning: warning.pos)
 
         for warning in sorted_warnings:
-            line_index = self.line_for_pos(warning.pos[0])
-            line_pos = self.lines[line_index]
-            self.console.print(
-                f"In file [bold]{escape(self.filename)}:{line_index + 1}:"
-                f"{warning.pos[0] - line_pos[0] + 1}[/bold]:"
-            )
-            self.print_highlighted_code(warning.pos)
-            self.console.print(f"[bold]warning:[/bold] {escape(warning.msg)}")
-            self.console.print()
+            self._print_note("warning", warning.pos, warning.msg)
+
+            for note in warning.notes:
+                self._print_note("note", note.pos, note.msg)
 
             for replacement in warning.replacements:
-                line_index = self.line_for_pos(replacement.pos[0])
+                line_index = self._line_for_pos(replacement.pos[0])
                 line_pos = self.lines[line_index]
                 newtext = replacement.newtext
                 if match := self.NEWLINE_RE.search(newtext):
@@ -151,37 +149,31 @@ class Linter:
                 if replacement.pos[1] > line_pos[1]:
                     long = True
 
-                self.console.print(
-                    f"In file [bold]{escape(self.filename)}:{line_index + 1}:"
-                    f"{replacement.pos[0] - line_pos[0] + 1}[/bold]:"
-                )
-                self.print_highlighted_code(replacement.pos, newtext)
                 if fix_applied:
                     if long:
-                        self.console.print(
-                            "[bold]note:[/bold] suggested fix applied but is too long "
-                            "to display"
+                        replacement_msg = (
+                            "suggested fix applied but is too long to display"
                         )
                     else:
-                        self.console.print("[bold]note:[/bold] suggested fix applied")
+                        replacement_msg = "suggested fix applied"
                 else:
                     if long:
-                        self.console.print(
-                            "[bold]note:[/bold] suggested fix is too long to display, "
-                            "use --fix to apply it"
+                        replacement_msg = (
+                            "suggested fix is too long to display, use --fix to apply "
+                            "it"
                         )
                     else:
-                        self.console.print("[bold]note:[/bold] suggested fix")
-                self.console.print()
+                        replacement_msg = "suggested fix"
+                self._print_note("note", replacement.pos, replacement_msg, newtext)
 
-    def print_highlighted_code(
+    def _print_highlighted_code(
         self, pos: _PosType, replacement: Optional[str] = None
     ) -> None:
-        line_index = self.line_for_pos(pos[0])
+        line_index = self._line_for_pos(pos[0])
         line_pos = self.lines[line_index]
         left = pos[0]
 
-        if self.line_for_pos(pos[1]) == line_index:
+        if self._line_for_pos(pos[1]) == line_index:
             right = pos[1]
         else:
             right = line_pos[1]
@@ -204,7 +196,7 @@ class Linter:
                 f"{escape(self.content[right:line_pos[1]])}[/green]"
             )
 
-    def line_for_pos(self, index: int) -> int:
+    def _line_for_pos(self, index: int) -> int:
         @functools.total_ordering
         class LineComparator:
             def __init__(self, pos: _PosType) -> None:

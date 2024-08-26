@@ -113,7 +113,7 @@ class TestLinter:
     ):
         linter = Linter("test.txt", contents)
         with raises:
-            assert linter.line_for_pos(pos) == line
+            assert linter._line_for_pos(pos) == line
 
     def test_fix(self):
         linter = Linter("test.txt", "Hello world!")
@@ -190,9 +190,10 @@ class TestLintMain:
 
     def the_check(self, linter, args):
         assert args.check_test
-        linter.add_warning((0, 5), "say good bye instead").add_replacement(
-            (0, 5), "Good bye"
-        )
+        w = linter.add_warning((0, 5), "say good bye instead")
+        w.add_replacement((0, 5), "Good bye")
+        if args.check_test_note:
+            w.add_note((6, 11), "it's a small world after all")
         if linter.content[5] != "!":
             linter.add_warning((5, 5), "use punctuation").add_replacement((5, 5), ",")
 
@@ -220,6 +221,7 @@ class TestLintMain:
         ), self.mock_console() as console:
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
+            m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute():
                 pass
         assert hello_world_file.read() == "Hello world!"
@@ -233,6 +235,7 @@ class TestLintMain:
         ), self.mock_console() as console:
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
+            m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute():
                 pass
         assert hello_world_file.read() == "Hello world!"
@@ -246,6 +249,7 @@ class TestLintMain:
         ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
+            m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute() as ctx:
                 ctx.add_check(self.the_check)
         assert hello_world_file.read() == "Hello world!"
@@ -277,6 +281,7 @@ class TestLintMain:
         ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
+            m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute() as ctx:
                 ctx.add_check(self.the_check)
         assert hello_world_file.read() == "Good bye, world!"
@@ -302,6 +307,43 @@ class TestLintMain:
             call().print(),
         ]
 
+    def test_warnings_note(self, hello_world_file):
+        with patch(
+            "sys.argv",
+            ["check-test", "--check-test", "--check-test-note", hello_world_file.name],
+        ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
+            m = LintMain()
+            m.argparser.add_argument("--check-test", action="store_true")
+            m.argparser.add_argument("--check-test-note", action="store_true")
+            with m.execute() as ctx:
+                ctx.add_check(self.the_check)
+        assert hello_world_file.read() == "Hello world!"
+        assert console.mock_calls == [
+            call(highlight=False),
+            call().print(f"In file [bold]{hello_world_file.name}:1:1[/bold]:"),
+            call().print(" [bold]Hello[/bold] world!"),
+            call().print("[bold]warning:[/bold] say good bye instead"),
+            call().print(),
+            call().print(f"In file [bold]{hello_world_file.name}:1:7[/bold]:"),
+            call().print(" Hello [bold]world[/bold]!"),
+            call().print("[bold]note:[/bold] it's a small world after all"),
+            call().print(),
+            call().print(f"In file [bold]{hello_world_file.name}:1:1[/bold]:"),
+            call().print("[red]-[bold]Hello[/bold] world![/red]"),
+            call().print("[green]+[bold]Good bye[/bold] world![/green]"),
+            call().print("[bold]note:[/bold] suggested fix"),
+            call().print(),
+            call().print(f"In file [bold]{hello_world_file.name}:1:6[/bold]:"),
+            call().print(" Hello[bold][/bold] world!"),
+            call().print("[bold]warning:[/bold] use punctuation"),
+            call().print(),
+            call().print(f"In file [bold]{hello_world_file.name}:1:6[/bold]:"),
+            call().print("[red]-Hello[bold][/bold] world![/red]"),
+            call().print("[green]+Hello[bold],[/bold] world![/green]"),
+            call().print("[bold]note:[/bold] suggested fix"),
+            call().print(),
+        ]
+
     def test_multiple_files(self, hello_world_file, hello_file):
         with patch(
             "sys.argv",
@@ -315,6 +357,7 @@ class TestLintMain:
         ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
+            m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute() as ctx:
                 ctx.add_check(self.the_check)
         assert hello_world_file.read() == "Good bye, world!"
@@ -367,6 +410,7 @@ class TestLintMain:
         ):
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
+            m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute() as ctx:
                 ctx.add_check(self.the_check)
         mock_linter.assert_not_called()
