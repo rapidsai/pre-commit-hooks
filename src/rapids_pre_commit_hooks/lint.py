@@ -53,8 +53,7 @@ class Replacement:
         self.newtext: str = newtext
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Replacement):
-            return False
+        assert isinstance(other, Replacement)
         return self.pos == other.pos and self.newtext == other.newtext
 
     def __repr__(self) -> str:
@@ -71,8 +70,7 @@ class LintWarning:
         self.replacements.append(Replacement(pos, newtext))
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, LintWarning):
-            return False
+        assert isinstance(other, LintWarning)
         return (
             self.pos == other.pos
             and self.msg == other.msg

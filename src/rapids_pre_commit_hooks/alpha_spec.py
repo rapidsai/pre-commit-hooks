@@ -90,13 +90,11 @@ def check_package_spec(
             self.spec: str = spec
 
         def __eq__(self, other: object) -> bool:
-            if not isinstance(other, SpecPriority):
-                return False
+            assert isinstance(other, SpecPriority)
             return self.spec == other.spec
 
         def __lt__(self, other: object) -> bool:
-            if not isinstance(other, SpecPriority):
-                return False
+            assert isinstance(other, SpecPriority)
             if self.spec == other.spec:
                 return False
             if self.spec == ALPHA_SPECIFIER:
