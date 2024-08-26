@@ -19,13 +19,11 @@ import shutil
 import subprocess
 import sys
 from functools import cache
-from typing import Generator, Optional, Union
 
 import git
 import pytest
 import yaml
 from packaging.version import Version
-from rapids_metadata.metadata import RAPIDSMetadata
 from rapids_metadata.remote import fetch_latest
 
 REPO_DIR = os.path.join(os.path.dirname(__file__), "..")
@@ -35,12 +33,12 @@ EXAMPLES_DIR = os.path.join(os.path.dirname(__file__), "examples")
 
 
 @cache
-def all_metadata() -> RAPIDSMetadata:
+def all_metadata():
     return fetch_latest()
 
 
 @contextlib.contextmanager
-def set_cwd(cwd: Union[str, os.PathLike[str]]) -> Generator:
+def set_cwd(cwd):
     old_cwd = os.getcwd()
     os.chdir(cwd)
     try:
@@ -50,7 +48,7 @@ def set_cwd(cwd: Union[str, os.PathLike[str]]) -> Generator:
 
 
 @pytest.fixture
-def git_repo(tmp_path: str) -> git.Repo:
+def git_repo(tmp_path):
     repo = git.Repo.init(tmp_path)
     with repo.config_writer() as w:
         w.set_value("user", "name", "RAPIDS Test Fixtures")
@@ -58,12 +56,8 @@ def git_repo(tmp_path: str) -> git.Repo:
     return repo
 
 
-def run_pre_commit(
-    git_repo: git.Repo, hook_name: str, expected_status: str, exc: Optional[type]
-) -> None:
-    assert git_repo.working_tree_dir is not None
-
-    def list_files(top: str) -> Generator[str, None, None]:
+def run_pre_commit(git_repo, hook_name, expected_status, exc):
+    def list_files(top):
         for dirpath, _, filenames in os.walk(top):
             for filename in filenames:
                 yield filename if top == dirpath else os.path.join(
@@ -110,7 +104,7 @@ def run_pre_commit(
     "hook_name",
     ALL_HOOKS,
 )
-def test_pre_commit_pass(git_repo: git.Repo, hook_name: str) -> None:
+def test_pre_commit_pass(git_repo, hook_name):
     run_pre_commit(git_repo, hook_name, "pass", None)
 
 
@@ -118,5 +112,5 @@ def test_pre_commit_pass(git_repo: git.Repo, hook_name: str) -> None:
     "hook_name",
     ALL_HOOKS,
 )
-def test_pre_commit_fail(git_repo: git.Repo, hook_name: str) -> None:
+def test_pre_commit_fail(git_repo, hook_name):
     run_pre_commit(git_repo, hook_name, "fail", subprocess.CalledProcessError)
