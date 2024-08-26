@@ -211,15 +211,15 @@ class Linter:
                 self.pos: _PosType = pos
 
             def __lt__(self, other: object) -> bool:
-                assert isinstance(other, LineComparator)
+                assert isinstance(other, int)
                 return self.pos[1] < other
 
             def __gt__(self, other: object) -> bool:
-                assert isinstance(other, LineComparator)
+                assert isinstance(other, int)
                 return self.pos[0] > other
 
             def __eq__(self, other: object) -> bool:
-                assert isinstance(other, LineComparator)
+                assert isinstance(other, int)
                 return self.pos[0] <= other <= self.pos[1]
 
         line_index = bisect.bisect_left(
