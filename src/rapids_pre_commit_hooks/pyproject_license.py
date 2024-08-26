@@ -32,7 +32,7 @@ _LocType = tuple[int, int]
 
 
 def find_value_location(
-    document: tomlkit.TOMLDocument, key: tuple[str, ...], append: bool
+    document: "tomlkit.TOMLDocument", key: tuple[str, ...], append: bool
 ) -> _LocType:
     copied_document = copy.deepcopy(document)
     placeholder = uuid.uuid4()

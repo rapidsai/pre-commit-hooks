@@ -93,7 +93,7 @@ class Linter:
         self.filename: str = filename
         self.content: str = content
         self.warnings: list[LintWarning] = []
-        self.console: Console = Console(highlight=False)
+        self.console: "Console" = Console(highlight=False)
         self._calculate_lines()
 
     def add_warning(self, pos: _PosType, msg: str) -> LintWarning:
@@ -207,16 +207,19 @@ class Linter:
     def line_for_pos(self, index: int) -> int:
         @functools.total_ordering
         class LineComparator:
-            def __init__(self, pos: _PosType):
+            def __init__(self, pos: _PosType) -> None:
                 self.pos: _PosType = pos
 
-            def __lt__(self, other):
+            def __lt__(self, other: object) -> bool:
+                assert isinstance(other, LineComparator)
                 return self.pos[1] < other
 
-            def __gt__(self, other):
+            def __gt__(self, other: object) -> bool:
+                assert isinstance(other, LineComparator)
                 return self.pos[0] > other
 
-            def __eq__(self, other):
+            def __eq__(self, other: object) -> bool:
+                assert isinstance(other, LineComparator)
                 return self.pos[0] <= other <= self.pos[1]
 
         line_index = bisect.bisect_left(

@@ -36,15 +36,15 @@ CUDA_SUFFIX_REGEX: re.Pattern = re.compile(r"^(?P<package>.*)-cu[0-9]{2}$")
 
 
 @cache
-def all_metadata() -> RAPIDSMetadata:
+def all_metadata() -> "RAPIDSMetadata":
     return fetch_latest()
 
 
-def node_has_type(node: yaml.Node, tag_type: str) -> bool:
+def node_has_type(node: "yaml.Node", tag_type: str) -> bool:
     return node.tag == f"tag:yaml.org,2002:{tag_type}"
 
 
-def get_rapids_version(args: argparse.Namespace) -> RAPIDSVersion:
+def get_rapids_version(args: argparse.Namespace) -> "RAPIDSVersion":
     md = all_metadata()
     return (
         md.versions[args.rapids_version]
@@ -62,7 +62,7 @@ def strip_cuda_suffix(args: argparse.Namespace, name: str) -> str:
 
 
 def check_and_mark_anchor(
-    anchors: dict[str, yaml.Node], used_anchors: set[str], node: yaml.Node
+    anchors: dict[str, "yaml.Node"], used_anchors: set[str], node: "yaml.Node"
 ) -> tuple[bool, Optional[str]]:
     for key, value in anchors.items():
         if value == node:
@@ -80,9 +80,9 @@ def check_and_mark_anchor(
 def check_package_spec(
     linter: Linter,
     args: argparse.Namespace,
-    anchors: dict[str, yaml.Node],
+    anchors: dict[str, "yaml.Node"],
     used_anchors: set[str],
-    node: yaml.Node,
+    node: "yaml.Node",
 ) -> None:
     @total_ordering
     class SpecPriority:
@@ -154,9 +154,9 @@ def check_package_spec(
 def check_packages(
     linter: Linter,
     args: argparse.Namespace,
-    anchors: dict[str, yaml.Node],
+    anchors: dict[str, "yaml.Node"],
     used_anchors: set[str],
-    node: yaml.Node,
+    node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "seq"):
         descend, _ = check_and_mark_anchor(anchors, used_anchors, node)
@@ -168,9 +168,9 @@ def check_packages(
 def check_common(
     linter: Linter,
     args: argparse.Namespace,
-    anchors: dict[str, yaml.Node],
+    anchors: dict[str, "yaml.Node"],
     used_anchors: set[str],
-    node: yaml.Node,
+    node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "seq"):
         for dependency_set in node.value:
@@ -188,9 +188,9 @@ def check_common(
 def check_matrices(
     linter: Linter,
     args: argparse.Namespace,
-    anchors: dict[str, yaml.Node],
+    anchors: dict[str, "yaml.Node"],
     used_anchors: set[str],
-    node: yaml.Node,
+    node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "seq"):
         for item in node.value:
@@ -208,9 +208,9 @@ def check_matrices(
 def check_specific(
     linter: Linter,
     args: argparse.Namespace,
-    anchors: dict[str, yaml.Node],
+    anchors: dict[str, "yaml.Node"],
     used_anchors: set[str],
-    node: yaml.Node,
+    node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "seq"):
         for matrix_matcher in node.value:
@@ -228,9 +228,9 @@ def check_specific(
 def check_dependencies(
     linter: Linter,
     args: argparse.Namespace,
-    anchors: dict[str, yaml.Node],
+    anchors: dict[str, "yaml.Node"],
     used_anchors: set[str],
-    node: yaml.Node,
+    node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "map"):
         for _, dependencies_value in node.value:
@@ -250,9 +250,9 @@ def check_dependencies(
 def check_root(
     linter: Linter,
     args: argparse.Namespace,
-    anchors: dict[str, yaml.Node],
+    anchors: dict[str, "yaml.Node"],
     used_anchors: set[str],
-    node: yaml.Node,
+    node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "map"):
         for root_key, root_value in node.value:

@@ -108,7 +108,7 @@ def apply_copyright_check(linter: Linter, old_content: Optional[str]) -> None:
             linter.add_warning((0, 0), "no copyright notice found")
 
 
-def get_target_branch(repo: git.Repo, args: argparse.Namespace) -> Optional[str]:
+def get_target_branch(repo: "git.Repo", args: argparse.Namespace) -> Optional[str]:
     """Determine which branch is the "target" branch.
 
     The target branch is determined in the following order:
@@ -175,7 +175,7 @@ def get_target_branch(repo: git.Repo, args: argparse.Namespace) -> Optional[str]
 
 
 def get_target_branch_upstream_commit(
-    repo: git.Repo, args: argparse.Namespace
+    repo: "git.Repo", args: argparse.Namespace
 ) -> Optional[git.Commit]:
     # If no target branch can be determined, use HEAD if it exists
     target_branch_name = get_target_branch(repo, args)
@@ -232,7 +232,7 @@ def get_target_branch_upstream_commit(
 
 def get_changed_files(
     args: argparse.Namespace,
-) -> dict[Union[str, os.PathLike[str]], Optional[git.Blob]]:
+) -> dict[Union[str, os.PathLike[str]], Optional["git.Blob"]]:
     try:
         repo = git.Repo()
     except git.InvalidGitRepositoryError:
@@ -276,8 +276,8 @@ def normalize_git_filename(filename: Union[str, os.PathLike[str]]) -> Optional[s
 
 
 def find_blob(
-    tree: git.Tree, filename: Union[str, os.PathLike[str]]
-) -> Optional[git.Blob]:
+    tree: "git.Tree", filename: Union[str, os.PathLike[str]]
+) -> Optional["git.Blob"]:
     d1, d2 = os.path.split(filename)
     split = [d2]
     while d1:
