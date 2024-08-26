@@ -19,23 +19,11 @@ import dataclasses
 import functools
 import re
 import warnings
-from typing import Callable, Generator, Iterable, Optional
+from itertools import pairwise
+from typing import Callable, Optional
 
 from rich.console import Console
 from rich.markup import escape
-
-
-# Taken from Python docs
-# (https://docs.python.org/3.12/library/itertools.html#itertools.pairwise)
-# Replace with itertools.pairwise after dropping Python 3.9 support
-def _pairwise(iterable: Iterable) -> Generator:
-    # pairwise('ABCDEFG') → AB BC CD DE EF FG
-    iterator = iter(iterable)
-    a = next(iterator, None)
-    for b in iterator:
-        yield a, b
-        a = b
-
 
 _PosType = tuple[int, int]
 
@@ -101,7 +89,7 @@ class Linter:
             key=lambda replacement: replacement.pos,
         )
 
-        for r1, r2 in _pairwise(sorted_replacements):
+        for r1, r2 in pairwise(sorted_replacements):
             if r1.pos[1] > r2.pos[0]:
                 raise OverlappingReplacementsError(f"{r1} overlaps with {r2}")
 
