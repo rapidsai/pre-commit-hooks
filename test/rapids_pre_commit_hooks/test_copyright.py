@@ -879,23 +879,23 @@ def test_get_changed_files(git_repo):
     ):
         changed_files = copyright.get_changed_files(Mock())
     assert {
-        path: (old_blob[0], old_blob[1].path if old_blob[1] else None)
-        for path, old_blob in changed_files.items()
+        path: (change_type, old_blob.path if old_blob else None)
+        for path, (change_type, old_blob) in changed_files.items()
     } == changed | superfluous
 
-    for new, old in changed.items():
-        if old[1]:
+    for new, (_, old) in changed.items():
+        if old:
             with open(fn(new), "rb") as f:
                 new_contents = f.read()
-            old_contents = old_files[old[1]].data_stream.read()
+            old_contents = old_files[old].data_stream.read()
             assert new_contents != old_contents
             assert changed_files[new][1].data_stream.read() == old_contents
 
-    for new, old in superfluous.items():
-        if old[1]:
+    for new, (_, old) in superfluous.items():
+        if old:
             with open(fn(new), "rb") as f:
                 new_contents = f.read()
-            old_contents = old_files[old[1]].data_stream.read()
+            old_contents = old_files[old].data_stream.read()
             assert new_contents == old_contents
             assert changed_files[new][1].data_stream.read() == old_contents
 
@@ -970,8 +970,8 @@ def test_get_changed_files_multiple_merge_bases(git_repo):
     ):
         changed_files = copyright.get_changed_files(Mock())
     assert {
-        path: (old_blob[0], old_blob[1].path if old_blob[1] else None)
-        for path, old_blob in changed_files.items()
+        path: (change_type, old_blob.path if old_blob else None)
+        for path, (change_type, old_blob) in changed_files.items()
     } == {
         "file1.txt": ("M", "file1.txt"),
         "file2.txt": ("M", "file2.txt"),
