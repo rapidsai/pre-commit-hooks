@@ -44,7 +44,7 @@ def find_value_location(
     # look for that in the new document.
     node = copied_document
     while len(key) > (0 if append else 1):
-        node = node[key[0]]  # type: ignore
+        node = node[key[0]]  # type: ignore[assignment]
         key = key[1:]
     if append:
         node.add(str(placeholder), placeholder_toml)
@@ -65,8 +65,8 @@ def check_pyproject_license(linter: Linter, args: argparse.Namespace) -> None:
     try:
         add_project_table = True
         project_table = document["project"]
-        add_project_table = project_table.is_super_table()  # type: ignore
-        license_value = project_table["license"]["text"]  # type: ignore
+        add_project_table = project_table.is_super_table()  # type: ignore[union-attr]
+        license_value = project_table["license"]["text"]  # type: ignore[index]
     except tomlkit.exceptions.NonExistentKey:
         if add_project_table:
             loc = (len(linter.content), len(linter.content))

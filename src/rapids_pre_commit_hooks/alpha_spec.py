@@ -275,7 +275,7 @@ class AnchorPreservingLoader(yaml.SafeLoader):
         self.get_event()
 
         # Compose the root node.
-        node = self.compose_node(None, None)  # type: ignore
+        node = self.compose_node(None, None)  # type: ignore[arg-type]
 
         # Drop the DOCUMENT-END event.
         self.get_event()

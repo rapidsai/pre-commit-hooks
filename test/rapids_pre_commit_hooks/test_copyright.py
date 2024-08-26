@@ -318,7 +318,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         remote_1_branch_1 = remote_repo_1.create_head(
             "branch-1-renamed", remote_1_master.commit
         )
-        remote_repo_1.head.reference = remote_1_branch_1  # type: ignore
+        remote_repo_1.head.reference = remote_1_branch_1  # type: ignore[misc]
         remote_repo_1.head.reset(index=True, working_tree=True)
         write_file(remote_repo_1, "file1.txt", "File 1 modified")
         remote_repo_1.index.add(["file1.txt"])
@@ -330,7 +330,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         remote_1_branch_2 = remote_repo_1.create_head(
             "branch-2", remote_1_master.commit
         )
-        remote_repo_1.head.reference = remote_1_branch_2  # type: ignore
+        remote_repo_1.head.reference = remote_1_branch_2  # type: ignore[misc]
         remote_repo_1.head.reset(index=True, working_tree=True)
         write_file(remote_repo_1, "file2.txt", "File 2 modified")
         remote_repo_1.index.add(["file2.txt"])
@@ -339,7 +339,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         remote_1_branch_3 = remote_repo_1.create_head(
             "branch-3", remote_1_master.commit
         )
-        remote_repo_1.head.reference = remote_1_branch_3  # type: ignore
+        remote_repo_1.head.reference = remote_1_branch_3  # type: ignore[misc]
         remote_repo_1.head.reset(index=True, working_tree=True)
         write_file(remote_repo_1, "file3.txt", "File 3 modified")
         remote_repo_1.index.add(["file3.txt"])
@@ -351,7 +351,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         remote_1_branch_4 = remote_repo_1.create_head(
             "branch-4", remote_1_master.commit
         )
-        remote_repo_1.head.reference = remote_1_branch_4  # type: ignore
+        remote_repo_1.head.reference = remote_1_branch_4  # type: ignore[misc]
         remote_repo_1.head.reset(index=True, working_tree=True)
         write_file(remote_repo_1, "file4.txt", "File 4 modified")
         remote_repo_1.index.add(["file4.txt"])
@@ -363,7 +363,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         remote_1_branch_7 = remote_repo_1.create_head(
             "branch-7", remote_1_master.commit
         )
-        remote_repo_1.head.reference = remote_1_branch_7  # type: ignore
+        remote_repo_1.head.reference = remote_1_branch_7  # type: ignore[misc]
         remote_repo_1.head.reset(index=True, working_tree=True)
         write_file(remote_repo_1, "file7.txt", "File 7 modified")
         remote_repo_1.index.add(["file7.txt"])
@@ -379,7 +379,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         remote_2_branch_3 = remote_repo_2.create_head(
             "branch-3", remote_2_master.commit
         )
-        remote_repo_2.head.reference = remote_2_branch_3  # type: ignore
+        remote_repo_2.head.reference = remote_2_branch_3  # type: ignore[misc]
         remote_repo_2.head.reset(index=True, working_tree=True)
         write_file(remote_repo_2, "file3.txt", "File 3 modified")
         remote_repo_2.index.add(["file3.txt"])
@@ -391,7 +391,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         remote_2_branch_4 = remote_repo_2.create_head(
             "branch-4", remote_2_master.commit
         )
-        remote_repo_2.head.reference = remote_2_branch_4  # type: ignore
+        remote_repo_2.head.reference = remote_2_branch_4  # type: ignore[misc]
         remote_repo_2.head.reset(index=True, working_tree=True)
         write_file(remote_repo_2, "file4.txt", "File 4 modified")
         remote_repo_2.index.add(["file4.txt"])
@@ -403,7 +403,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         remote_2_branch_5 = remote_repo_2.create_head(
             "branch-5", remote_2_master.commit
         )
-        remote_repo_2.head.reference = remote_2_branch_5  # type: ignore
+        remote_repo_2.head.reference = remote_2_branch_5  # type: ignore[misc]
         remote_repo_2.head.reset(index=True, working_tree=True)
         write_file(remote_repo_2, "file5.txt", "File 5 modified")
         remote_repo_2.index.add(["file5.txt"])
@@ -433,7 +433,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         with branch_1.config_writer() as w:
             w.set_value("remote", "unconventional/remote/name/1")
             w.set_value("merge", "branch-1-renamed")
-        git_repo.head.reference = branch_1  # type: ignore
+        git_repo.head.reference = branch_1  # type: ignore[misc]
         git_repo.head.reset(index=True, working_tree=True)
         git_repo.index.remove("file1.txt", working_tree=True)
         git_repo.index.commit(
@@ -442,7 +442,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         )
 
         branch_6 = git_repo.create_head("branch-6", remote_1.refs["master"])
-        git_repo.head.reference = branch_6  # type: ignore
+        git_repo.head.reference = branch_6  # type: ignore[misc]
         git_repo.head.reset(index=True, working_tree=True)
         git_repo.index.remove(["file6.txt"], working_tree=True)
         git_repo.index.commit("Remove file6.txt")
@@ -451,7 +451,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
         with branch_7.config_writer() as w:
             w.set_value("remote", "unconventional/remote/name/1")
             w.set_value("merge", "branch-7")
-        git_repo.head.reference = branch_7  # type: ignore
+        git_repo.head.reference = branch_7  # type: ignore[misc]
         git_repo.head.reset(index=True, working_tree=True)
         git_repo.index.remove(["file7.txt"], working_tree=True)
         git_repo.index.commit(
@@ -459,7 +459,7 @@ def test_get_target_branch_upstream_commit(git_repo: git.Repo) -> None:
             commit_date=datetime.datetime(2024, 2, 1, tzinfo=datetime.timezone.utc),
         )
 
-        git_repo.head.reference = main  # type: ignore
+        git_repo.head.reference = main  # type: ignore[misc]
         git_repo.head.reset(index=True, working_tree=True)
 
         with mock_target_branch("branch-1"):
@@ -614,7 +614,7 @@ def test_get_changed_files(git_repo: git.Repo) -> None:
     git_repo.index.commit("Remove modified.txt")
 
     pr_branch = git_repo.create_head("pr", "HEAD~")
-    git_repo.head.reference = pr_branch  # type: ignore
+    git_repo.head.reference = pr_branch  # type: ignore[misc]
     git_repo.head.reset(index=True, working_tree=True)
 
     write_file("copied_2.txt", file_contents("copied"))
@@ -662,7 +662,7 @@ def test_get_changed_files(git_repo: git.Repo) -> None:
     target_branch = git_repo.heads["master"]
     merge_base = git_repo.merge_base(target_branch, "HEAD")[0]
     old_files = {
-        blob.path: blob  # type: ignore
+        blob.path: blob  # type: ignore[union-attr]
         for blob in merge_base.tree.traverse(lambda b, _: isinstance(b, git.Blob))
     }
 
@@ -698,17 +698,23 @@ def test_get_changed_files(git_repo: git.Repo) -> None:
         if old:
             with open(fn(new), "rb") as f:
                 new_contents = f.read()
-            old_contents = old_files[old].data_stream.read()  # type: ignore
+            old_contents = old_files[old].data_stream.read()  # type: ignore[union-attr]
             assert new_contents != old_contents
-            assert changed_files[new].data_stream.read() == old_contents  # type: ignore
+            assert (
+                changed_files[new].data_stream.read()  # type: ignore[union-attr]
+                == old_contents
+            )
 
     for new, old in superfluous.items():
         if old:
             with open(fn(new), "rb") as f:
                 new_contents = f.read()
-            old_contents = old_files[old].data_stream.read()  # type: ignore
+            old_contents = old_files[old].data_stream.read()  # type: ignore[union-attr]
             assert new_contents == old_contents
-            assert changed_files[new].data_stream.read() == old_contents  # type: ignore
+            assert (
+                changed_files[new].data_stream.read()  # type: ignore[union-attr]
+                == old_contents
+            )
 
 
 def test_get_changed_files_multiple_merge_bases(git_repo: git.Repo) -> None:
@@ -727,7 +733,7 @@ def test_get_changed_files_multiple_merge_bases(git_repo: git.Repo) -> None:
     git_repo.index.commit("Initial commit")
 
     branch_1 = git_repo.create_head("branch-1", "master")
-    git_repo.head.reference = branch_1  # type: ignore
+    git_repo.head.reference = branch_1  # type: ignore[misc]
     git_repo.index.reset(index=True, working_tree=True)
     write_file("file1.txt", "File 1 modified\n")
     git_repo.index.add("file1.txt")
@@ -737,7 +743,7 @@ def test_get_changed_files_multiple_merge_bases(git_repo: git.Repo) -> None:
     )
 
     branch_2 = git_repo.create_head("branch-2", "master")
-    git_repo.head.reference = branch_2  # type: ignore
+    git_repo.head.reference = branch_2  # type: ignore[misc]
     git_repo.index.reset(index=True, working_tree=True)
     write_file("file2.txt", "File 2 modified\n")
     git_repo.index.add("file2.txt")
@@ -747,7 +753,7 @@ def test_get_changed_files_multiple_merge_bases(git_repo: git.Repo) -> None:
     )
 
     branch_1_2 = git_repo.create_head("branch-1-2", "master")
-    git_repo.head.reference = branch_1_2  # type: ignore
+    git_repo.head.reference = branch_1_2  # type: ignore[misc]
     git_repo.index.reset(index=True, working_tree=True)
     write_file("file1.txt", "File 1 modified\n")
     write_file("file2.txt", "File 2 modified\n")
@@ -759,7 +765,7 @@ def test_get_changed_files_multiple_merge_bases(git_repo: git.Repo) -> None:
     )
 
     branch_3 = git_repo.create_head("branch-3", "master")
-    git_repo.head.reference = branch_3  # type: ignore
+    git_repo.head.reference = branch_3  # type: ignore[misc]
     git_repo.index.reset(index=True, working_tree=True)
     write_file("file1.txt", "File 1 modified\n")
     write_file("file2.txt", "File 2 modified\n")
@@ -873,21 +879,21 @@ def test_check_copyright(git_repo: git.Repo) -> None:
     git_repo.index.commit("Initial commit")
 
     branch_1 = git_repo.create_head("branch-1", "master")
-    git_repo.head.reference = branch_1  # type: ignore
+    git_repo.head.reference = branch_1  # type: ignore[misc]
     git_repo.head.reset(index=True, working_tree=True)
     write_file("file1.txt", file_contents_modified(1))
     git_repo.index.add(["file1.txt"])
     git_repo.index.commit("Update file1.txt")
 
     branch_2 = git_repo.create_head("branch-2", "master")
-    git_repo.head.reference = branch_2  # type: ignore
+    git_repo.head.reference = branch_2  # type: ignore[misc]
     git_repo.head.reset(index=True, working_tree=True)
     write_file("file2.txt", file_contents_modified(2))
     git_repo.index.add(["file2.txt"])
     git_repo.index.commit("Update file2.txt")
 
     pr = git_repo.create_head("pr", "branch-1")
-    git_repo.head.reference = pr  # type: ignore
+    git_repo.head.reference = pr  # type: ignore[misc]
     git_repo.head.reset(index=True, working_tree=True)
     write_file("file3.txt", file_contents_modified(3))
     git_repo.index.add(["file3.txt"])
