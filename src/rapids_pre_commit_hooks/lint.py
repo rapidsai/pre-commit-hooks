@@ -65,9 +65,9 @@ class LintWarning:
     pos: _PosType
     msg: str
     replacements: list[Replacement] = dataclasses.field(
-        default_factory=list, init=False
+        default_factory=list, kw_only=True
     )
-    notes: list[Note] = dataclasses.field(default_factory=list, init=False)
+    notes: list[Note] = dataclasses.field(default_factory=list, kw_only=True)
 
     def add_replacement(self, pos: _PosType, newtext: str) -> None:
         self.replacements.append(Replacement(pos, newtext))
