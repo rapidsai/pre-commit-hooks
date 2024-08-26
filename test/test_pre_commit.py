@@ -80,9 +80,7 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
 
     branch_dir = os.path.join(example_dir, "branch")
     if os.path.exists(branch_dir):
-        git_repo.head.reference = git_repo.create_head(  # type: ignore[misc]
-            "branch", git_repo.head.commit
-        )
+        git_repo.head.reference = git_repo.create_head("branch", git_repo.head.commit)
         git_repo.index.remove(list(list_files(master_dir)), working_tree=True)
         shutil.copytree(branch_dir, git_repo.working_tree_dir, dirs_exist_ok=True)
         git_repo.index.add(list(list_files(branch_dir)))
