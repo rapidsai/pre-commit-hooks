@@ -23,7 +23,7 @@ import pytest
 from freezegun import freeze_time
 
 from rapids_pre_commit_hooks import copyright
-from rapids_pre_commit_hooks.lint import Linter, LintWarning, Replacement
+from rapids_pre_commit_hooks.lint import Linter, LintWarning, Note, Replacement
 
 
 def test_match_copyright():
@@ -260,6 +260,104 @@ def test_strip_copyright():
                     replacements=[
                         Replacement(
                             (120, 157), "Copyright (c) 2025 NVIDIA CORPORATION"
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        (
+            "R",
+            "file1.txt",
+            dedent(
+                r"""
+                Copyright (c) 2021-2023 NVIDIA CORPORATION
+                Copyright (c) 2023 NVIDIA CORPORATION
+                Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) 2025 NVIDIA CORPORATION
+                This file has not been changed
+                """
+            ),
+            "file2.txt",
+            dedent(
+                r"""
+                Copyright (c) 2021-2023 NVIDIA CORPORATION
+                Copyright (c) 2023 NVIDIA CORPORATION
+                Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) 2025 NVIDIA CORPORATION
+                This file has been changed
+                """
+            ),
+            [
+                LintWarning(
+                    (15, 24),
+                    "copyright is out of date",
+                    notes=[
+                        Note((0, 185), "file was renamed from 'file1.txt'"),
+                    ],
+                    replacements=[
+                        Replacement(
+                            (1, 43), "Copyright (c) 2021-2024, NVIDIA CORPORATION"
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (58, 62),
+                    "copyright is out of date",
+                    notes=[
+                        Note((0, 185), "file was renamed from 'file1.txt'"),
+                    ],
+                    replacements=[
+                        Replacement(
+                            (44, 81), "Copyright (c) 2023-2024, NVIDIA CORPORATION"
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        (
+            "C",
+            "file1.txt",
+            dedent(
+                r"""
+                Copyright (c) 2021-2023 NVIDIA CORPORATION
+                Copyright (c) 2023 NVIDIA CORPORATION
+                Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) 2025 NVIDIA CORPORATION
+                This file has not been changed
+                """
+            ),
+            "file2.txt",
+            dedent(
+                r"""
+                Copyright (c) 2021-2023 NVIDIA CORPORATION
+                Copyright (c) 2023 NVIDIA CORPORATION
+                Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) 2025 NVIDIA CORPORATION
+                This file has been changed
+                """
+            ),
+            [
+                LintWarning(
+                    (15, 24),
+                    "copyright is out of date",
+                    notes=[
+                        Note((0, 185), "file was copied from 'file1.txt'"),
+                    ],
+                    replacements=[
+                        Replacement(
+                            (1, 43), "Copyright (c) 2021-2024, NVIDIA CORPORATION"
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (58, 62),
+                    "copyright is out of date",
+                    notes=[
+                        Note((0, 185), "file was copied from 'file1.txt'"),
+                    ],
+                    replacements=[
+                        Replacement(
+                            (44, 81), "Copyright (c) 2023-2024, NVIDIA CORPORATION"
                         ),
                     ],
                 ),

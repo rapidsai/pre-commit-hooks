@@ -71,14 +71,33 @@ def apply_copyright_revert(
     ).add_replacement(new_match.span(), old_match.group())
 
 
-def apply_copyright_update(linter: Linter, match: re.Match, year: int) -> None:
-    linter.add_warning(match.span("years"), "copyright is out of date").add_replacement(
+def apply_copyright_update(
+    linter: Linter,
+    change_type: str,
+    old_filename: Optional[str],
+    match: re.Match,
+    year: int,
+) -> None:
+    CHANGE_VERBS = {
+        "C": "copied",
+        "R": "renamed",
+    }
+    w = linter.add_warning(match.span("years"), "copyright is out of date")
+    w.add_replacement(
         match.span(),
         COPYRIGHT_REPLACEMENT.format(
             first_year=match.group("first_year"),
             last_year=year,
         ),
     )
+    try:
+        change_verb = CHANGE_VERBS[change_type]
+    except KeyError:
+        pass
+    else:
+        w.add_note(
+            (0, len(linter.content)), f"file was {change_verb} from '{old_filename}'"
+        )
 
 
 def apply_copyright_check(
@@ -108,7 +127,9 @@ def apply_copyright_check(
                     int(match.group("last_year") or match.group("first_year"))
                     < current_year
                 ):
-                    apply_copyright_update(linter, match, current_year)
+                    apply_copyright_update(
+                        linter, change_type, old_filename, match, current_year
+                    )
         else:
             linter.add_warning((0, 0), "no copyright notice found")
 
