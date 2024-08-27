@@ -19,8 +19,9 @@ import dataclasses
 import functools
 import re
 import warnings
+from collections.abc import Callable
 from itertools import pairwise
-from typing import Callable, Optional
+from typing import Optional
 
 from rich.console import Console
 from rich.markup import escape
