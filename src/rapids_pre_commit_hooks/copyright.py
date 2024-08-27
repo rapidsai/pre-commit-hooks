@@ -23,7 +23,7 @@ from typing import Optional, Union
 
 import git
 
-from .lint import Linter, LintMain
+from .lint import Linter, LintMain, LintWarning
 
 COPYRIGHT_RE: re.Pattern = re.compile(
     r"Copyright *(?:\(c\))? *(?P<years>(?P<first_year>\d{4})(-(?P<last_year>\d{4}))?),?"
@@ -59,17 +59,40 @@ def strip_copyright(content: str, copyright_matches: list[re.Match]) -> list[str
     return lines
 
 
+def add_copy_rename_note(
+    linter: Linter, warning: LintWarning, change_type: str, old_filename: Optional[str]
+):
+    CHANGE_VERBS = {
+        "C": "copied",
+        "R": "renamed",
+    }
+    try:
+        change_verb = CHANGE_VERBS[change_type]
+    except KeyError:
+        pass
+    else:
+        warning.add_note(
+            (0, len(linter.content)), f"file was {change_verb} from '{old_filename}'"
+        )
+
+
 def apply_copyright_revert(
-    linter: Linter, old_match: re.Match, new_match: re.Match
+    linter: Linter,
+    change_type: str,
+    old_filename: Optional[str],
+    old_match: re.Match,
+    new_match: re.Match,
 ) -> None:
     if old_match.group("years") == new_match.group("years"):
         warning_pos = new_match.span()
     else:
         warning_pos = new_match.span("years")
-    linter.add_warning(
+    w = linter.add_warning(
         warning_pos,
         "copyright is not out of date and should not be updated",
-    ).add_replacement(new_match.span(), old_match.group())
+    )
+    w.add_replacement(new_match.span(), old_match.group())
+    add_copy_rename_note(linter, w, change_type, old_filename)
 
 
 def apply_copyright_update(
@@ -79,10 +102,6 @@ def apply_copyright_update(
     match: re.Match,
     year: int,
 ) -> None:
-    CHANGE_VERBS = {
-        "C": "copied",
-        "R": "renamed",
-    }
     w = linter.add_warning(match.span("years"), "copyright is out of date")
     w.add_replacement(
         match.span(),
@@ -91,14 +110,7 @@ def apply_copyright_update(
             last_year=year,
         ),
     )
-    try:
-        change_verb = CHANGE_VERBS[change_type]
-    except KeyError:
-        pass
-    else:
-        w.add_note(
-            (0, len(linter.content)), f"file was {change_verb} from '{old_filename}'"
-        )
+    add_copy_rename_note(linter, w, change_type, old_filename)
 
 
 def apply_copyright_check(
@@ -121,7 +133,9 @@ def apply_copyright_check(
                 old_copyright_matches, new_copyright_matches
             ):
                 if old_match.group() != new_match.group():
-                    apply_copyright_revert(linter, old_match, new_match)
+                    apply_copyright_revert(
+                        linter, change_type, old_filename, old_match, new_match
+                    )
         elif new_copyright_matches:
             for match in new_copyright_matches:
                 if (

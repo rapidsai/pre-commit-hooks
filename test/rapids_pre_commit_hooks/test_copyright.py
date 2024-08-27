@@ -363,6 +363,104 @@ def test_strip_copyright():
                 ),
             ],
         ),
+        (
+            "R",
+            "file1.txt",
+            dedent(
+                r"""
+                Copyright (c) 2021-2023 NVIDIA CORPORATION
+                Copyright (c) 2023 NVIDIA CORPORATION
+                Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) 2025 NVIDIA CORPORATION
+                This file has not been changed
+                """
+            ),
+            "file2.txt",
+            dedent(
+                r"""
+                Copyright (c) 2021-2024 NVIDIA CORPORATION
+                Copyright (c) 2023 NVIDIA CORPORATION
+                Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) 2025 NVIDIA Corporation
+                This file has not been changed
+                """
+            ),
+            [
+                LintWarning(
+                    (15, 24),
+                    "copyright is not out of date and should not be updated",
+                    notes=[
+                        Note((0, 189), "file was renamed from 'file1.txt'"),
+                    ],
+                    replacements=[
+                        Replacement(
+                            (1, 43), "Copyright (c) 2021-2023 NVIDIA CORPORATION"
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (120, 157),
+                    "copyright is not out of date and should not be updated",
+                    notes=[
+                        Note((0, 189), "file was renamed from 'file1.txt'"),
+                    ],
+                    replacements=[
+                        Replacement(
+                            (120, 157), "Copyright (c) 2025 NVIDIA CORPORATION"
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        (
+            "C",
+            "file1.txt",
+            dedent(
+                r"""
+                Copyright (c) 2021-2023 NVIDIA CORPORATION
+                Copyright (c) 2023 NVIDIA CORPORATION
+                Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) 2025 NVIDIA CORPORATION
+                This file has not been changed
+                """
+            ),
+            "file2.txt",
+            dedent(
+                r"""
+                Copyright (c) 2021-2024 NVIDIA CORPORATION
+                Copyright (c) 2023 NVIDIA CORPORATION
+                Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) 2025 NVIDIA Corporation
+                This file has not been changed
+                """
+            ),
+            [
+                LintWarning(
+                    (15, 24),
+                    "copyright is not out of date and should not be updated",
+                    notes=[
+                        Note((0, 189), "file was copied from 'file1.txt'"),
+                    ],
+                    replacements=[
+                        Replacement(
+                            (1, 43), "Copyright (c) 2021-2023 NVIDIA CORPORATION"
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (120, 157),
+                    "copyright is not out of date and should not be updated",
+                    notes=[
+                        Note((0, 189), "file was copied from 'file1.txt'"),
+                    ],
+                    replacements=[
+                        Replacement(
+                            (120, 157), "Copyright (c) 2025 NVIDIA CORPORATION"
+                        ),
+                    ],
+                ),
+            ],
+        ),
     ],
 )
 @freeze_time("2024-01-18")
