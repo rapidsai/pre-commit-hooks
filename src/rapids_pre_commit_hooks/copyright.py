@@ -23,7 +23,7 @@ from typing import Optional, Union
 
 import git
 
-from .lint import Linter, LintMain
+from .lint import Linter, LintMain, LintWarning
 
 COPYRIGHT_RE: re.Pattern = re.compile(
     r"Copyright *(?:\(c\))? *(?P<years>(?P<first_year>\d{4})(-(?P<last_year>\d{4}))?),?"
@@ -59,21 +59,59 @@ def strip_copyright(content: str, copyright_matches: list[re.Match]) -> list[str
     return lines
 
 
+def add_copy_rename_note(
+    linter: Linter,
+    warning: LintWarning,
+    change_type: str,
+    old_filename: Optional[Union[str, os.PathLike[str]]],
+):
+    CHANGE_VERBS = {
+        "C": "copied",
+        "R": "renamed",
+    }
+    try:
+        change_verb = CHANGE_VERBS[change_type]
+    except KeyError:
+        pass
+    else:
+        warning.add_note(
+            (0, len(linter.content)),
+            f"file was {change_verb} from '{old_filename}' and is assumed to share "
+            "history with it",
+        )
+        warning.add_note(
+            (0, len(linter.content)),
+            "change file contents if you want its copyright dates to only be "
+            "determined by its own edit history",
+        )
+
+
 def apply_copyright_revert(
-    linter: Linter, old_match: re.Match, new_match: re.Match
+    linter: Linter,
+    change_type: str,
+    old_filename: Optional[Union[str, os.PathLike[str]]],
+    old_match: re.Match,
+    new_match: re.Match,
 ) -> None:
     if old_match.group("years") == new_match.group("years"):
         warning_pos = new_match.span()
     else:
         warning_pos = new_match.span("years")
-    linter.add_warning(
+    w = linter.add_warning(
         warning_pos,
         "copyright is not out of date and should not be updated",
-    ).add_replacement(new_match.span(), old_match.group())
+    )
+    w.add_replacement(new_match.span(), old_match.group())
+    add_copy_rename_note(linter, w, change_type, old_filename)
 
 
-def apply_copyright_update(linter: Linter, match: re.Match, year: int) -> None:
-    linter.add_warning(match.span("years"), "copyright is out of date").add_replacement(
+def apply_copyright_update(
+    linter: Linter,
+    match: re.Match,
+    year: int,
+) -> None:
+    w = linter.add_warning(match.span("years"), "copyright is out of date")
+    w.add_replacement(
         match.span(),
         COPYRIGHT_REPLACEMENT.format(
             first_year=match.group("first_year"),
@@ -82,7 +120,12 @@ def apply_copyright_update(linter: Linter, match: re.Match, year: int) -> None:
     )
 
 
-def apply_copyright_check(linter: Linter, old_content: Optional[str]) -> None:
+def apply_copyright_check(
+    linter: Linter,
+    change_type: str,
+    old_filename: Optional[Union[str, os.PathLike[str]]],
+    old_content: Optional[str],
+) -> None:
     if linter.content != old_content:
         current_year = datetime.datetime.now().year
         new_copyright_matches = match_copyright(linter.content)
@@ -97,7 +140,9 @@ def apply_copyright_check(linter: Linter, old_content: Optional[str]) -> None:
                 old_copyright_matches, new_copyright_matches
             ):
                 if old_match.group() != new_match.group():
-                    apply_copyright_revert(linter, old_match, new_match)
+                    apply_copyright_revert(
+                        linter, change_type, old_filename, old_match, new_match
+                    )
         elif new_copyright_matches:
             for match in new_copyright_matches:
                 if (
@@ -233,22 +278,24 @@ def get_target_branch_upstream_commit(
 
 def get_changed_files(
     args: argparse.Namespace,
-) -> dict[Union[str, os.PathLike[str]], Optional["git.Blob"]]:
+) -> dict[Union[str, os.PathLike[str]], tuple[str, Optional["git.Blob"]]]:
     try:
         repo = git.Repo()
     except git.InvalidGitRepositoryError:
         return {
-            os.path.relpath(os.path.join(dirpath, filename), "."): None
+            os.path.relpath(os.path.join(dirpath, filename), "."): ("A", None)
             for dirpath, dirnames, filenames in os.walk(".")
             for filename in filenames
         }
 
-    changed_files: dict[Union[str, os.PathLike[str]], Optional["git.Blob"]] = {
-        f: None for f in repo.untracked_files
-    }
+    changed_files: dict[
+        Union[str, os.PathLike[str]], tuple[str, Optional["git.Blob"]]
+    ] = {f: ("A", None) for f in repo.untracked_files}
     target_branch_upstream_commit = get_target_branch_upstream_commit(repo, args)
     if target_branch_upstream_commit is None:
-        changed_files.update({blob.path: None for _, blob in repo.index.iter_blobs()})
+        changed_files.update(
+            {blob.path: ("A", None) for _, blob in repo.index.iter_blobs()}
+        )
         return changed_files
 
     for merge_base in repo.merge_base(
@@ -262,9 +309,9 @@ def get_changed_files(
         )
         for diff in diffs:
             if diff.change_type == "A":
-                changed_files[diff.b_path] = None
+                changed_files[diff.b_path] = (diff.change_type, None)
             elif diff.change_type != "D":
-                changed_files[diff.b_path] = diff.a_blob
+                changed_files[diff.b_path] = (diff.change_type, diff.a_blob)
 
     return changed_files
 
@@ -313,16 +360,17 @@ def check_copyright(
             return
 
         try:
-            changed_file = changed_files[git_filename]
+            change_type, changed_file = changed_files[git_filename]
         except KeyError:
             return
 
-        old_content = (
-            changed_file.data_stream.read().decode()
-            if changed_file is not None
-            else None
-        )
-        apply_copyright_check(linter, old_content)
+        if changed_file is None:
+            old_filename = None
+            old_content = None
+        else:
+            old_filename = changed_file.path
+            old_content = changed_file.data_stream.read().decode()
+        apply_copyright_check(linter, change_type, old_filename, old_content)
 
     return the_check
 
