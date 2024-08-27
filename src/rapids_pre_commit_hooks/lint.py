@@ -19,7 +19,8 @@ import dataclasses
 import functools
 import re
 import warnings
-from typing import Callable, Generator, Iterable, Optional
+from collections.abc import Callable
+from typing import Generator, Iterable, Optional
 
 from rich.console import Console
 from rich.markup import escape
