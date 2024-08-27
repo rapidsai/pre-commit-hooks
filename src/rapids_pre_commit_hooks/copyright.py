@@ -60,7 +60,10 @@ def strip_copyright(content: str, copyright_matches: list[re.Match]) -> list[str
 
 
 def add_copy_rename_note(
-    linter: Linter, warning: LintWarning, change_type: str, old_filename: Optional[str]
+    linter: Linter,
+    warning: LintWarning,
+    change_type: str,
+    old_filename: Optional[Union[str, os.PathLike[str]]],
 ):
     CHANGE_VERBS = {
         "C": "copied",
@@ -79,7 +82,7 @@ def add_copy_rename_note(
 def apply_copyright_revert(
     linter: Linter,
     change_type: str,
-    old_filename: Optional[str],
+    old_filename: Optional[Union[str, os.PathLike[str]]],
     old_match: re.Match,
     new_match: re.Match,
 ) -> None:
@@ -98,7 +101,7 @@ def apply_copyright_revert(
 def apply_copyright_update(
     linter: Linter,
     change_type: str,
-    old_filename: Optional[str],
+    old_filename: Optional[Union[str, os.PathLike[str]]],
     match: re.Match,
     year: int,
 ) -> None:
@@ -116,7 +119,7 @@ def apply_copyright_update(
 def apply_copyright_check(
     linter: Linter,
     change_type: str,
-    old_filename: Optional[str],
+    old_filename: Optional[Union[str, os.PathLike[str]]],
     old_content: Optional[str],
 ) -> None:
     if linter.content != old_content:
@@ -363,7 +366,7 @@ def check_copyright(
             old_filename = None
             old_content = None
         else:
-            old_filename = changed_file.name
+            old_filename = changed_file.path
             old_content = changed_file.data_stream.read().decode()
         apply_copyright_check(linter, change_type, old_filename, old_content)
 

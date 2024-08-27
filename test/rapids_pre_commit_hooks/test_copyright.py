@@ -1147,11 +1147,12 @@ def test_check_copyright(git_repo):
             """
         )
 
+    os.mkdir(os.path.join(git_repo.working_tree_dir, "dir"))
     write_file("file1.txt", file_contents(1))
-    write_file("file2.txt", file_contents(2))
+    write_file("dir/file2.txt", file_contents(2))
     write_file("file3.txt", file_contents(3))
     write_file("file4.txt", file_contents(4))
-    git_repo.index.add(["file1.txt", "file2.txt", "file3.txt", "file4.txt"])
+    git_repo.index.add(["file1.txt", "dir/file2.txt", "file3.txt", "file4.txt"])
     git_repo.index.commit("Initial commit")
 
     branch_1 = git_repo.create_head("branch-1", "master")
@@ -1164,8 +1165,8 @@ def test_check_copyright(git_repo):
     branch_2 = git_repo.create_head("branch-2", "master")
     git_repo.head.reference = branch_2
     git_repo.head.reset(index=True, working_tree=True)
-    write_file("file2.txt", file_contents_modified(2))
-    git_repo.index.add(["file2.txt"])
+    write_file("dir/file2.txt", file_contents_modified(2))
+    git_repo.index.add(["dir/file2.txt"])
     git_repo.index.commit("Update file2.txt")
 
     pr = git_repo.create_head("pr", "branch-1")
@@ -1177,7 +1178,7 @@ def test_check_copyright(git_repo):
     write_file("file4.txt", file_contents_modified(4))
     git_repo.index.add(["file4.txt"])
     git_repo.index.commit("Update file4.txt")
-    git_repo.index.move(["file2.txt", "file5.txt"])
+    git_repo.index.move(["dir/file2.txt", "file5.txt"])
     git_repo.index.commit("Rename file2.txt to file5.txt")
 
     write_file("file6.txt", file_contents(6))
@@ -1215,7 +1216,7 @@ def test_check_copyright(git_repo):
     with mock_apply_copyright_check() as apply_copyright_check:
         copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(
-            linter, "R", "file2.txt", file_contents(2)
+            linter, "R", "dir/file2.txt", file_contents(2)
         )
 
     linter = Linter("file3.txt", file_contents_modified(3))
@@ -1274,7 +1275,7 @@ def test_check_copyright(git_repo):
     with mock_apply_copyright_check() as apply_copyright_check:
         copyright_checker(linter, mock_args)
         apply_copyright_check.assert_called_once_with(
-            linter, "R", "file2.txt", file_contents(2)
+            linter, "R", "dir/file2.txt", file_contents(2)
         )
 
     linter = Linter("file3.txt", file_contents_modified(3))
