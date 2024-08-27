@@ -75,7 +75,14 @@ def add_copy_rename_note(
         pass
     else:
         warning.add_note(
-            (0, len(linter.content)), f"file was {change_verb} from '{old_filename}'"
+            (0, len(linter.content)),
+            f"file was {change_verb} from '{old_filename}' and is assumed to share "
+            "history with it",
+        )
+        warning.add_note(
+            (0, len(linter.content)),
+            "change file contents if you want its copyright dates to only be "
+            "determined by its own edit history",
         )
 
 
@@ -100,8 +107,6 @@ def apply_copyright_revert(
 
 def apply_copyright_update(
     linter: Linter,
-    change_type: str,
-    old_filename: Optional[Union[str, os.PathLike[str]]],
     match: re.Match,
     year: int,
 ) -> None:
@@ -113,7 +118,6 @@ def apply_copyright_update(
             last_year=year,
         ),
     )
-    add_copy_rename_note(linter, w, change_type, old_filename)
 
 
 def apply_copyright_check(
@@ -145,9 +149,7 @@ def apply_copyright_check(
                     int(match.group("last_year") or match.group("first_year"))
                     < current_year
                 ):
-                    apply_copyright_update(
-                        linter, change_type, old_filename, match, current_year
-                    )
+                    apply_copyright_update(linter, match, current_year)
         else:
             linter.add_warning((0, 0), "no copyright notice found")
 

@@ -291,9 +291,6 @@ def test_strip_copyright():
                 LintWarning(
                     (15, 24),
                     "copyright is out of date",
-                    notes=[
-                        Note((0, 185), "file was renamed from 'file1.txt'"),
-                    ],
                     replacements=[
                         Replacement(
                             (1, 43), "Copyright (c) 2021-2024, NVIDIA CORPORATION"
@@ -303,9 +300,6 @@ def test_strip_copyright():
                 LintWarning(
                     (58, 62),
                     "copyright is out of date",
-                    notes=[
-                        Note((0, 185), "file was renamed from 'file1.txt'"),
-                    ],
                     replacements=[
                         Replacement(
                             (44, 81), "Copyright (c) 2023-2024, NVIDIA CORPORATION"
@@ -340,9 +334,6 @@ def test_strip_copyright():
                 LintWarning(
                     (15, 24),
                     "copyright is out of date",
-                    notes=[
-                        Note((0, 185), "file was copied from 'file1.txt'"),
-                    ],
                     replacements=[
                         Replacement(
                             (1, 43), "Copyright (c) 2021-2024, NVIDIA CORPORATION"
@@ -352,9 +343,6 @@ def test_strip_copyright():
                 LintWarning(
                     (58, 62),
                     "copyright is out of date",
-                    notes=[
-                        Note((0, 185), "file was copied from 'file1.txt'"),
-                    ],
                     replacements=[
                         Replacement(
                             (44, 81), "Copyright (c) 2023-2024, NVIDIA CORPORATION"
@@ -362,6 +350,54 @@ def test_strip_copyright():
                     ],
                 ),
             ],
+        ),
+        (
+            "R",
+            "file1.txt",
+            dedent(
+                r"""
+                Copyright (c) 2021-2023 NVIDIA CORPORATION
+                Copyright (c) 2023 NVIDIA CORPORATION
+                Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) 2025 NVIDIA CORPORATION
+                This file has not been changed
+                """
+            ),
+            "file2.txt",
+            dedent(
+                r"""
+                Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) 2023-2024 NVIDIA CORPORATION
+                Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) 2025 NVIDIA CORPORATION
+                This file has been changed
+                """
+            ),
+            [],
+        ),
+        (
+            "C",
+            "file1.txt",
+            dedent(
+                r"""
+                Copyright (c) 2021-2023 NVIDIA CORPORATION
+                Copyright (c) 2023 NVIDIA CORPORATION
+                Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) 2025 NVIDIA CORPORATION
+                This file has not been changed
+                """
+            ),
+            "file2.txt",
+            dedent(
+                r"""
+                Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) 2023-2024 NVIDIA CORPORATION
+                Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) 2025 NVIDIA CORPORATION
+                This file has been changed
+                """
+            ),
+            [],
         ),
         (
             "R",
@@ -390,7 +426,16 @@ def test_strip_copyright():
                     (15, 24),
                     "copyright is not out of date and should not be updated",
                     notes=[
-                        Note((0, 189), "file was renamed from 'file1.txt'"),
+                        Note(
+                            (0, 189),
+                            "file was renamed from 'file1.txt' and is assumed to "
+                            "share history with it",
+                        ),
+                        Note(
+                            (0, 189),
+                            "change file contents if you want its copyright dates to "
+                            "only be determined by its own edit history",
+                        ),
                     ],
                     replacements=[
                         Replacement(
@@ -402,7 +447,16 @@ def test_strip_copyright():
                     (120, 157),
                     "copyright is not out of date and should not be updated",
                     notes=[
-                        Note((0, 189), "file was renamed from 'file1.txt'"),
+                        Note(
+                            (0, 189),
+                            "file was renamed from 'file1.txt' and is assumed to "
+                            "share history with it",
+                        ),
+                        Note(
+                            (0, 189),
+                            "change file contents if you want its copyright dates to "
+                            "only be determined by its own edit history",
+                        ),
                     ],
                     replacements=[
                         Replacement(
@@ -439,7 +493,16 @@ def test_strip_copyright():
                     (15, 24),
                     "copyright is not out of date and should not be updated",
                     notes=[
-                        Note((0, 189), "file was copied from 'file1.txt'"),
+                        Note(
+                            (0, 189),
+                            "file was copied from 'file1.txt' and is assumed to share "
+                            "history with it",
+                        ),
+                        Note(
+                            (0, 189),
+                            "change file contents if you want its copyright dates to "
+                            "only be determined by its own edit history",
+                        ),
                     ],
                     replacements=[
                         Replacement(
@@ -451,7 +514,16 @@ def test_strip_copyright():
                     (120, 157),
                     "copyright is not out of date and should not be updated",
                     notes=[
-                        Note((0, 189), "file was copied from 'file1.txt'"),
+                        Note(
+                            (0, 189),
+                            "file was copied from 'file1.txt' and is assumed to share "
+                            "history with it",
+                        ),
+                        Note(
+                            (0, 189),
+                            "change file contents if you want its copyright dates to "
+                            "only be determined by its own edit history",
+                        ),
                     ],
                     replacements=[
                         Replacement(
