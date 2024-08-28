@@ -183,8 +183,9 @@ class TestLintMain:
     @contextlib.contextmanager
     def mock_console(self):
         m = Mock()
-        with patch("rich.console.Console", m), patch(
-            "rapids_pre_commit_hooks.lint.Console", m
+        with (
+            patch("rich.console.Console", m),
+            patch("rapids_pre_commit_hooks.lint.Console", m),
         ):
             yield m
 
@@ -216,9 +217,10 @@ class TestLintMain:
         )
 
     def test_no_warnings_no_fix(self, hello_world_file):
-        with patch(
-            "sys.argv", ["check-test", "--check-test", hello_world_file.name]
-        ), self.mock_console() as console:
+        with (
+            patch("sys.argv", ["check-test", "--check-test", hello_world_file.name]),
+            self.mock_console() as console,
+        ):
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
             m.argparser.add_argument("--check-test-note", action="store_true")
@@ -230,9 +232,13 @@ class TestLintMain:
         ]
 
     def test_no_warnings_fix(self, hello_world_file):
-        with patch(
-            "sys.argv", ["check-test", "--check-test", "--fix", hello_world_file.name]
-        ), self.mock_console() as console:
+        with (
+            patch(
+                "sys.argv",
+                ["check-test", "--check-test", "--fix", hello_world_file.name],
+            ),
+            self.mock_console() as console,
+        ):
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
             m.argparser.add_argument("--check-test-note", action="store_true")
@@ -244,9 +250,11 @@ class TestLintMain:
         ]
 
     def test_warnings_no_fix(self, hello_world_file):
-        with patch(
-            "sys.argv", ["check-test", "--check-test", hello_world_file.name]
-        ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
+        with (
+            patch("sys.argv", ["check-test", "--check-test", hello_world_file.name]),
+            self.mock_console() as console,
+            pytest.raises(SystemExit, match=r"^1$"),
+        ):
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
             m.argparser.add_argument("--check-test-note", action="store_true")
@@ -276,9 +284,14 @@ class TestLintMain:
         ]
 
     def test_warnings_fix(self, hello_world_file):
-        with patch(
-            "sys.argv", ["check-test", "--check-test", "--fix", hello_world_file.name]
-        ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
+        with (
+            patch(
+                "sys.argv",
+                ["check-test", "--check-test", "--fix", hello_world_file.name],
+            ),
+            self.mock_console() as console,
+            pytest.raises(SystemExit, match=r"^1$"),
+        ):
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
             m.argparser.add_argument("--check-test-note", action="store_true")
@@ -308,10 +321,19 @@ class TestLintMain:
         ]
 
     def test_warnings_note(self, hello_world_file):
-        with patch(
-            "sys.argv",
-            ["check-test", "--check-test", "--check-test-note", hello_world_file.name],
-        ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "check-test",
+                    "--check-test",
+                    "--check-test-note",
+                    hello_world_file.name,
+                ],
+            ),
+            self.mock_console() as console,
+            pytest.raises(SystemExit, match=r"^1$"),
+        ):
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
             m.argparser.add_argument("--check-test-note", action="store_true")
@@ -345,16 +367,20 @@ class TestLintMain:
         ]
 
     def test_multiple_files(self, hello_world_file, hello_file):
-        with patch(
-            "sys.argv",
-            [
-                "check-test",
-                "--check-test",
-                "--fix",
-                hello_world_file.name,
-                hello_file.name,
-            ],
-        ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "check-test",
+                    "--check-test",
+                    "--fix",
+                    hello_world_file.name,
+                    hello_file.name,
+                ],
+            ),
+            self.mock_console() as console,
+            pytest.raises(SystemExit, match=r"^1$"),
+        ):
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
             m.argparser.add_argument("--check-test-note", action="store_true")
@@ -396,17 +422,21 @@ class TestLintMain:
 
     def test_binary_file(self, binary_file):
         mock_linter = Mock(wraps=Linter)
-        with patch(
-            "sys.argv",
-            [
-                "check-test",
-                "--check-test",
-                "--fix",
-                binary_file.name,
-            ],
-        ), patch("rapids_pre_commit_hooks.lint.Linter", mock_linter), pytest.warns(
-            BinaryFileWarning,
-            match=r"^Refusing to run text linter on binary file .*\.$",
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "check-test",
+                    "--check-test",
+                    "--fix",
+                    binary_file.name,
+                ],
+            ),
+            patch("rapids_pre_commit_hooks.lint.Linter", mock_linter),
+            pytest.warns(
+                BinaryFileWarning,
+                match=r"^Refusing to run text linter on binary file .*\.$",
+            ),
         ):
             m = LintMain()
             m.argparser.add_argument("--check-test", action="store_true")
@@ -416,13 +446,17 @@ class TestLintMain:
         mock_linter.assert_not_called()
 
     def test_long_file(self, long_file):
-        with patch(
-            "sys.argv",
-            [
-                "check-test",
-                long_file.name,
-            ],
-        ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "check-test",
+                    long_file.name,
+                ],
+            ),
+            self.mock_console() as console,
+            pytest.raises(SystemExit, match=r"^1$"),
+        ):
             m = LintMain()
             with m.execute() as ctx:
                 ctx.add_check(self.long_file_check)
@@ -454,13 +488,17 @@ class TestLintMain:
         ]
 
     def test_long_file_delete(self, long_file):
-        with patch(
-            "sys.argv",
-            [
-                "check-test",
-                long_file.name,
-            ],
-        ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "check-test",
+                    long_file.name,
+                ],
+            ),
+            self.mock_console() as console,
+            pytest.raises(SystemExit, match=r"^1$"),
+        ):
             m = LintMain()
             with m.execute() as ctx:
                 ctx.add_check(self.long_delete_fix_check)
@@ -487,14 +525,18 @@ class TestLintMain:
         ]
 
     def test_long_file_fix(self, long_file):
-        with patch(
-            "sys.argv",
-            [
-                "check-test",
-                "--fix",
-                long_file.name,
-            ],
-        ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "check-test",
+                    "--fix",
+                    long_file.name,
+                ],
+            ),
+            self.mock_console() as console,
+            pytest.raises(SystemExit, match=r"^1$"),
+        ):
             m = LintMain()
             with m.execute() as ctx:
                 ctx.add_check(self.long_file_check)
@@ -526,14 +568,18 @@ class TestLintMain:
         ]
 
     def test_long_file_delete_fix(self, long_file):
-        with patch(
-            "sys.argv",
-            [
-                "check-test",
-                "--fix",
-                long_file.name,
-            ],
-        ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "check-test",
+                    "--fix",
+                    long_file.name,
+                ],
+            ),
+            self.mock_console() as console,
+            pytest.raises(SystemExit, match=r"^1$"),
+        ):
             m = LintMain()
             with m.execute() as ctx:
                 ctx.add_check(self.long_delete_fix_check)
@@ -554,14 +600,18 @@ class TestLintMain:
         ]
 
     def test_bracket_file(self, bracket_file):
-        with patch(
-            "sys.argv",
-            [
-                "check-test",
-                "--fix",
-                bracket_file.name,
-            ],
-        ), self.mock_console() as console, pytest.raises(SystemExit, match=r"^1$"):
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "check-test",
+                    "--fix",
+                    bracket_file.name,
+                ],
+            ),
+            self.mock_console() as console,
+            pytest.raises(SystemExit, match=r"^1$"),
+        ):
             m = LintMain()
             with m.execute() as ctx:
                 ctx.add_check(self.bracket_check)

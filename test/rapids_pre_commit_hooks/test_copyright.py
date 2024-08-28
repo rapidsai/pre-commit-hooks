@@ -888,9 +888,11 @@ def test_get_changed_files(git_repo):
             Mock(
                 return_value=(
                     (
-                        "."
-                        if (rel := os.path.relpath(dirpath, top)) == "."
-                        else os.path.join(".", rel),
+                        (
+                            "."
+                            if (rel := os.path.relpath(dirpath, top)) == "."
+                            else os.path.join(".", rel)
+                        ),
                         dirnames,
                         filenames,
                     )
@@ -899,9 +901,11 @@ def test_get_changed_files(git_repo):
             ),
         )
 
-    with tempfile.TemporaryDirectory() as non_git_dir, patch(
-        "os.getcwd", Mock(return_value=non_git_dir)
-    ), mock_os_walk(non_git_dir):
+    with (
+        tempfile.TemporaryDirectory() as non_git_dir,
+        patch("os.getcwd", Mock(return_value=non_git_dir)),
+        mock_os_walk(non_git_dir),
+    ):
         with open(os.path.join(non_git_dir, "top.txt"), "w") as f:
             f.write("Top file\n")
         os.mkdir(os.path.join(non_git_dir, "subdir1"))
@@ -947,11 +951,13 @@ def test_get_changed_files(git_repo):
         ]
     )
 
-    with patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir)), mock_os_walk(
-        git_repo.working_tree_dir
-    ), patch(
-        "rapids_pre_commit_hooks.copyright.get_target_branch_upstream_commit",
-        Mock(return_value=None),
+    with (
+        patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir)),
+        mock_os_walk(git_repo.working_tree_dir),
+        patch(
+            "rapids_pre_commit_hooks.copyright.get_target_branch_upstream_commit",
+            Mock(return_value=None),
+        ),
     ):
         assert copyright.get_changed_files(Mock()) == {
             "untouched.txt": ("A", None),
@@ -1043,9 +1049,12 @@ def test_get_changed_files(git_repo):
         "renamed_2.txt": ("R", "renamed.txt"),
     }
 
-    with patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir)), patch(
-        "rapids_pre_commit_hooks.copyright.get_target_branch_upstream_commit",
-        Mock(return_value=target_branch.commit),
+    with (
+        patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir)),
+        patch(
+            "rapids_pre_commit_hooks.copyright.get_target_branch_upstream_commit",
+            Mock(return_value=target_branch.commit),
+        ),
     ):
         changed_files = copyright.get_changed_files(Mock())
     assert {
@@ -1134,9 +1143,12 @@ def test_get_changed_files_multiple_merge_bases(git_repo):
         commit_date=datetime.datetime(2024, 5, 1, tzinfo=datetime.timezone.utc),
     )
 
-    with patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir)), patch(
-        "rapids_pre_commit_hooks.copyright.get_target_branch",
-        Mock(return_value="branch-1-2"),
+    with (
+        patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir)),
+        patch(
+            "rapids_pre_commit_hooks.copyright.get_target_branch",
+            Mock(return_value="branch-1-2"),
+        ),
     ):
         changed_files = copyright.get_changed_files(Mock())
     assert {

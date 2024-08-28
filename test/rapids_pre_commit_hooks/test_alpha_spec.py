@@ -68,9 +68,12 @@ def test_get_rapids_version(
             ),
         },
     )
-    with set_cwd(tmp_path), patch(
-        "rapids_pre_commit_hooks.alpha_spec.all_metadata",
-        Mock(return_value=MOCK_METADATA),
+    with (
+        set_cwd(tmp_path),
+        patch(
+            "rapids_pre_commit_hooks.alpha_spec.all_metadata",
+            Mock(return_value=MOCK_METADATA),
+        ),
     ):
         if version_file:
             with open("VERSION", "w") as f:
@@ -526,11 +529,14 @@ def test_check_dependencies(
     common_indices,
     specific_indices,
 ):
-    with patch(
-        "rapids_pre_commit_hooks.alpha_spec.check_common", Mock()
-    ) as mock_check_common, patch(
-        "rapids_pre_commit_hooks.alpha_spec.check_specific", Mock()
-    ) as mock_check_specific:
+    with (
+        patch(
+            "rapids_pre_commit_hooks.alpha_spec.check_common", Mock()
+        ) as mock_check_common,
+        patch(
+            "rapids_pre_commit_hooks.alpha_spec.check_specific", Mock()
+        ) as mock_check_specific,
+    ):
         args = Mock()
         linter = lint.Linter("dependencies.yaml", content)
         anchors = Mock()
@@ -579,11 +585,14 @@ def test_check_root(content, indices):
 
 def test_check_alpha_spec():
     CONTENT = "dependencies: []"
-    with patch(
-        "rapids_pre_commit_hooks.alpha_spec.check_root", Mock()
-    ) as mock_check_root, patch(
-        "rapids_pre_commit_hooks.alpha_spec.AnchorPreservingLoader", MagicMock()
-    ) as mock_anchor_preserving_loader:
+    with (
+        patch(
+            "rapids_pre_commit_hooks.alpha_spec.check_root", Mock()
+        ) as mock_check_root,
+        patch(
+            "rapids_pre_commit_hooks.alpha_spec.AnchorPreservingLoader", MagicMock()
+        ) as mock_anchor_preserving_loader,
+    ):
         args = Mock()
         linter = lint.Linter("dependencies.yaml", CONTENT)
         alpha_spec.check_alpha_spec(linter, args)

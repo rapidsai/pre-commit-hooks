@@ -19,7 +19,7 @@ import os
 import re
 import warnings
 from collections.abc import Callable
-from typing import Optional, Union
+from typing import Optional
 
 import git
 
@@ -63,7 +63,7 @@ def add_copy_rename_note(
     linter: Linter,
     warning: LintWarning,
     change_type: str,
-    old_filename: Optional[Union[str, os.PathLike[str]]],
+    old_filename: str | os.PathLike[str] | None,
 ):
     CHANGE_VERBS = {
         "C": "copied",
@@ -89,7 +89,7 @@ def add_copy_rename_note(
 def apply_copyright_revert(
     linter: Linter,
     change_type: str,
-    old_filename: Optional[Union[str, os.PathLike[str]]],
+    old_filename: str | os.PathLike[str] | None,
     old_match: re.Match,
     new_match: re.Match,
 ) -> None:
@@ -123,8 +123,8 @@ def apply_copyright_update(
 def apply_copyright_check(
     linter: Linter,
     change_type: str,
-    old_filename: Optional[Union[str, os.PathLike[str]]],
-    old_content: Optional[str],
+    old_filename: str | os.PathLike[str] | None,
+    old_content: str | None,
 ) -> None:
     if linter.content != old_content:
         current_year = datetime.datetime.now().year
@@ -154,7 +154,7 @@ def apply_copyright_check(
             linter.add_warning((0, 0), "no copyright notice found")
 
 
-def get_target_branch(repo: "git.Repo", args: argparse.Namespace) -> Optional[str]:
+def get_target_branch(repo: "git.Repo", args: argparse.Namespace) -> str | None:
     """Determine which branch is the "target" branch.
 
     The target branch is determined in the following order:
@@ -222,7 +222,7 @@ def get_target_branch(repo: "git.Repo", args: argparse.Namespace) -> Optional[st
 
 def get_target_branch_upstream_commit(
     repo: "git.Repo", args: argparse.Namespace
-) -> Optional[git.Commit]:
+) -> git.Commit | None:
     # If no target branch can be determined, use HEAD if it exists
     target_branch_name = get_target_branch(repo, args)
     if target_branch_name is None:
@@ -278,7 +278,7 @@ def get_target_branch_upstream_commit(
 
 def get_changed_files(
     args: argparse.Namespace,
-) -> dict[Union[str, os.PathLike[str]], tuple[str, Optional["git.Blob"]]]:
+) -> dict[str | os.PathLike[str], tuple[str, Optional["git.Blob"]]]:
     try:
         repo = git.Repo()
     except git.InvalidGitRepositoryError:
@@ -288,9 +288,9 @@ def get_changed_files(
             for filename in filenames
         }
 
-    changed_files: dict[
-        Union[str, os.PathLike[str]], tuple[str, Optional["git.Blob"]]
-    ] = {f: ("A", None) for f in repo.untracked_files}
+    changed_files: dict[str | os.PathLike[str], tuple[str, Optional["git.Blob"]]] = {
+        f: ("A", None) for f in repo.untracked_files
+    }
     target_branch_upstream_commit = get_target_branch_upstream_commit(repo, args)
     if target_branch_upstream_commit is None:
         changed_files.update(
@@ -316,7 +316,7 @@ def get_changed_files(
     return changed_files
 
 
-def normalize_git_filename(filename: Union[str, os.PathLike[str]]) -> Optional[str]:
+def normalize_git_filename(filename: str | os.PathLike[str]) -> str | None:
     relpath = os.path.relpath(filename)
     if re.search(r"^\.\.(/|$)", relpath):
         return None
@@ -324,7 +324,7 @@ def normalize_git_filename(filename: Union[str, os.PathLike[str]]) -> Optional[s
 
 
 def find_blob(
-    tree: "git.Tree", filename: Union[str, os.PathLike[str]]
+    tree: "git.Tree", filename: str | os.PathLike[str]
 ) -> Optional["git.Blob"]:
     d1, d2 = os.path.split(filename)
     split = [d2]
