@@ -163,21 +163,40 @@ class PRBuilderChecker:
                     (pr_builder_key.start_mark.index, pr_builder_key.end_mark.index),
                     "place pr-builder job before all other jobs",
                 )
-                assert self.linter.content[pr_builder_value.end_mark.index] == "\n"
+                end = pr_builder_value.end_mark.index
+                previous_newline = self.linter.content[:end].rfind("\n")
+                if all(
+                    c == " " for c in self.linter.content[previous_newline + 1 : end]
+                ):
+                    end = previous_newline
+                previous_newline_pr_builder = self.linter.content[
+                    : pr_builder_key.start_mark.index
+                ].rfind("\n")
+                assert all(
+                    c == " "
+                    for c in self.linter.content[
+                        previous_newline + 1 : pr_builder_key.start_mark.index
+                    ]
+                )
                 w.add_replacement(
                     (
-                        pr_builder_key.start_mark.index,
-                        pr_builder_value.end_mark.index + 1,
+                        previous_newline_pr_builder + 1,
+                        end + 1,
                     ),
                     "",
                 )
+                previous_newline_first = self.linter.content[
+                    : first_key.start_mark.index
+                ].rfind("\n")
+                assert all(
+                    c == " "
+                    for c in self.linter.content[
+                        previous_newline + 1 : first_key.start_mark.index
+                    ]
+                )
                 w.add_replacement(
-                    (first_key.start_mark.index, first_key.start_mark.index),
-                    self.linter.content[
-                        pr_builder_key.start_mark.index : (
-                            pr_builder_value.end_mark.index + 1
-                        )
-                    ],
+                    (previous_newline_first + 1, previous_newline_first + 1),
+                    self.linter.content[previous_newline_pr_builder + 1 : end + 1],
                 )
 
     def check_root(self) -> None:

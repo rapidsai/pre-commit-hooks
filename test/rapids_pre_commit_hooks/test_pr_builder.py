@@ -131,7 +131,8 @@ def test_check_pr_builder_job(content, warnings):
             dedent(
                 """\
                 jobs:
-                  pr-builder: {}
+                  pr-builder:
+                    if: always()
                   other-job-1: {}
                   other-job-2: {}
                 """
@@ -144,7 +145,8 @@ def test_check_pr_builder_job(content, warnings):
                 """\
                 jobs:
                   other-job-1: {}
-                  pr-builder: {}
+                  pr-builder:
+                    if: always()
                   other-job-2: {}
                 """
             ),
@@ -154,8 +156,8 @@ def test_check_pr_builder_job(content, warnings):
                     (26, 36),
                     "place pr-builder job before all other jobs",
                     replacements=[
-                        Replacement((26, 41), ""),
-                        Replacement((8, 8), "pr-builder: {}\n"),
+                        Replacement((24, 55), ""),
+                        Replacement((6, 6), "  pr-builder:\n    if: always()\n"),
                     ],
                 ),
             ],
@@ -166,7 +168,8 @@ def test_check_pr_builder_job(content, warnings):
                 jobs:
                   other-job-1: {}
                   other-job-2: {}
-                  pr-builder: {}
+                  pr-builder:
+                    if: always()
                 """
             ),
             2,
@@ -175,8 +178,8 @@ def test_check_pr_builder_job(content, warnings):
                     (44, 54),
                     "place pr-builder job before all other jobs",
                     replacements=[
-                        Replacement((44, 59), ""),
-                        Replacement((8, 8), "pr-builder: {}\n"),
+                        Replacement((42, 73), ""),
+                        Replacement((6, 6), "  pr-builder:\n    if: always()\n"),
                     ],
                 ),
             ],
