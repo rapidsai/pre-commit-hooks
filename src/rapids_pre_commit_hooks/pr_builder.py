@@ -280,6 +280,7 @@ def main() -> None:
         metavar="dependency",
         dest="ignore_dependencies",
         default=[],
+        help="Do not require another job as a dependency",
     )
     with m.execute() as ctx:
         ctx.add_check(check_pr_builder)
