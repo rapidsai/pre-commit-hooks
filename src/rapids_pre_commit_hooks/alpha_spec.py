@@ -23,6 +23,7 @@ from rapids_metadata.metadata import RAPIDSMetadata, RAPIDSVersion
 from rapids_metadata.remote import fetch_latest
 
 from .lint import Linter, LintMain
+from .utils.yaml import AnchorPreservingLoader, node_has_type
 
 ALPHA_SPECIFIER: str = ">=0.0.0a0"
 
@@ -37,10 +38,6 @@ CUDA_SUFFIX_REGEX: re.Pattern = re.compile(r"^(?P<package>.*)-cu[0-9]{2}$")
 @cache
 def all_metadata() -> "RAPIDSMetadata":
     return fetch_latest()
-
-
-def node_has_type(node: "yaml.Node", tag_type: str) -> bool:
-    return node.tag == f"tag:yaml.org,2002:{tag_type}"
 
 
 def get_rapids_version(args: argparse.Namespace) -> "RAPIDSVersion":
@@ -257,32 +254,6 @@ def check_root(
         for root_key, root_value in node.value:
             if node_has_type(root_key, "str") and root_key.value == "dependencies":
                 check_dependencies(linter, args, anchors, used_anchors, root_value)
-
-
-class AnchorPreservingLoader(yaml.SafeLoader):
-    """A SafeLoader that preserves the anchors for later reference. The anchors can
-    be found in the document_anchors member, which is a list of dictionaries, one
-    dictionary for each parsed document.
-    """
-
-    def __init__(self, stream) -> None:
-        super().__init__(stream)
-        self.document_anchors: list[dict[str, yaml.Node]] = []
-
-    def compose_document(self) -> "yaml.Node":
-        # Drop the DOCUMENT-START event.
-        self.get_event()
-
-        # Compose the root node.
-        node = self.compose_node(None, None)  # type: ignore[arg-type]
-
-        # Drop the DOCUMENT-END event.
-        self.get_event()
-
-        self.document_anchors.append(self.anchors)
-        self.anchors = {}
-        assert node is not None
-        return node
 
 
 def check_alpha_spec(linter: Linter, args: argparse.Namespace) -> None:

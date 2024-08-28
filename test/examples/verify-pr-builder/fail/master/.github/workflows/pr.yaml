@@ -1,0 +1,6 @@
+jobs:
+  pr-builder:
+    needs:
+      - other-job-1
+  other-job-1: {}
+  other-job-2: {}
