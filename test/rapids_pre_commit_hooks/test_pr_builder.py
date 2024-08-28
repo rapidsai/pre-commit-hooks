@@ -287,8 +287,66 @@ def test_check_jobs_first_job(content, pr_builder_index, warnings):
                 ),
             ],
         ),
+        (
+            dedent(
+                """\
+                jobs:
+                  pr-builder:
+                    needs:
+                      - other-job-1
+                      - other-job-2
+                  other-job-1: {}
+                  other-job-2: {}
+                  other-job-3: {}
+                """
+            ),
+            ["other-job-3"],
+            [],
+        ),
+        (
+            dedent(
+                """\
+                jobs:
+                  pr-builder:
+                    needs:
+                      - other-job-1
+                      - other-job-2
+                      - other-job-3
+                  other-job-1: {}
+                  other-job-2: {}
+                  other-job-3: {}
+                """
+            ),
+            ["other-job-3"],
+            [
+                LintWarning(
+                    (24, 29),
+                    "'pr-builder' job should depend on all other jobs in the order "
+                    "they appear",
+                    notes=[
+                        Note(
+                            (24, 29),
+                            "to ignore a job dependency, pass it as "
+                            "--ignore-dependency",
+                        ),
+                    ],
+                    replacements=[
+                        Replacement(
+                            (37, 90),
+                            "- other-job-1\n      - other-job-2",
+                        ),
+                    ],
+                ),
+            ],
+        ),
     ],
-    ids=["correct", "unsorted", "missing"],
+    ids=[
+        "correct",
+        "unsorted",
+        "missing",
+        "ignore-dependencies-correct",
+        "ignore-dependencies-extra",
+    ],
 )
 def test_check_other_jobs(content, ignore_dependencies, warnings):
     linter = Linter(".github/workflows/pr.yaml", content)
