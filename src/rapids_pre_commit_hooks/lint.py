@@ -21,7 +21,6 @@ import re
 import warnings
 from collections.abc import Callable
 from itertools import pairwise
-from typing import Optional
 
 from rich.console import Console
 from rich.markup import escape
@@ -105,7 +104,7 @@ class Linter:
         return replaced_content
 
     def _print_note(
-        self, note_type: str, pos: _PosType, msg: str, newtext: Optional[str] = None
+        self, note_type: str, pos: _PosType, msg: str, newtext: str | None = None
     ) -> None:
         line_index = self._line_for_pos(pos[0])
         line_pos = self.lines[line_index]
@@ -156,7 +155,7 @@ class Linter:
                 self._print_note("note", replacement.pos, replacement_msg, newtext)
 
     def _print_highlighted_code(
-        self, pos: _PosType, replacement: Optional[str] = None
+        self, pos: _PosType, replacement: str | None = None
     ) -> None:
         line_index = self._line_for_pos(pos[0])
         line_pos = self.lines[line_index]

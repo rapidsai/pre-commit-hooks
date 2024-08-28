@@ -16,7 +16,6 @@ import argparse
 import os
 import re
 from functools import cache, total_ordering
-from typing import Optional
 
 import yaml
 from packaging.requirements import InvalidRequirement, Requirement
@@ -63,7 +62,7 @@ def strip_cuda_suffix(args: argparse.Namespace, name: str) -> str:
 
 def check_and_mark_anchor(
     anchors: dict[str, "yaml.Node"], used_anchors: set[str], node: "yaml.Node"
-) -> tuple[bool, Optional[str]]:
+) -> tuple[bool, str | None]:
     for key, value in anchors.items():
         if value == node:
             anchor = key

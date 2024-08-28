@@ -60,8 +60,10 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
     def list_files(top):
         for dirpath, _, filenames in os.walk(top):
             for filename in filenames:
-                yield filename if top == dirpath else os.path.join(
-                    os.path.relpath(top, dirpath), filename
+                yield (
+                    filename
+                    if top == dirpath
+                    else os.path.join(os.path.relpath(top, dirpath), filename)
                 )
 
     example_dir = os.path.join(EXAMPLES_DIR, hook_name, expected_status)
@@ -89,9 +91,10 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
             commit_date=datetime.datetime(2024, 2, 1, tzinfo=datetime.timezone.utc),
         )
 
-    with set_cwd(git_repo.working_tree_dir), pytest.raises(
-        exc
-    ) if exc else contextlib.nullcontext():
+    with (
+        set_cwd(git_repo.working_tree_dir),
+        pytest.raises(exc) if exc else contextlib.nullcontext(),
+    ):
         subprocess.check_call(
             [sys.executable, "-m", "pre_commit", "try-repo", REPO_DIR, hook_name, "-a"],
             env={**os.environ, "TARGET_BRANCH": "master"},
