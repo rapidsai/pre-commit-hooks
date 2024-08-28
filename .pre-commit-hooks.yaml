@@ -42,6 +42,15 @@
         pyproject[.]toml$|
         setup[.]cfg$
   args: [--fix]
+- id: verify-pr-builder
+  name: verify-pr-builder
+  description: make sure pr-builder job is set up correctly
+  entry: verify-pr-builder
+  language: python
+  files: |
+    (?x)
+        ^[.]github/workflows/pr[.]yaml$
+  args: [--fix]
 - id: verify-pyproject-license
   name: verify-pyproject-license
   description: make sure pyproject.toml license is correct

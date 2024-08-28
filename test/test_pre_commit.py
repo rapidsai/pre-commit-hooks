@@ -63,7 +63,7 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
                 yield (
                     filename
                     if top == dirpath
-                    else os.path.join(os.path.relpath(top, dirpath), filename)
+                    else os.path.join(os.path.relpath(dirpath, top), filename)
                 )
 
     example_dir = os.path.join(EXAMPLES_DIR, hook_name, expected_status)
