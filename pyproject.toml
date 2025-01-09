@@ -1,4 +1,4 @@
-# Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# Copyright (c) 2023-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -54,6 +54,7 @@ alpha-spec = [
 [project.scripts]
 verify-alpha-spec = "rapids_pre_commit_hooks.alpha_spec:main"
 verify-conda-yes = "rapids_pre_commit_hooks.shell.verify_conda_yes:main"
+verify-codeowners = "rapids_pre_commit_hooks.codeowners:main"
 verify-copyright = "rapids_pre_commit_hooks.copyright:main"
 verify-pyproject-license = "rapids_pre_commit_hooks.pyproject_license:main"
 

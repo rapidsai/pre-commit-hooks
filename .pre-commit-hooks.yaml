@@ -1,4 +1,4 @@
-# Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# Copyright (c) 2023-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,6 +27,15 @@
   entry: verify-conda-yes
   language: python
   types: [shell]
+  args: [--fix]
+- id: verify-codeowners
+  name: verify-codeowners
+  description: make sure .github/CODEOWNERS file is correct
+  entry: verify-codeowners
+  language: python
+  files:
+    (?x)
+        ^[.]github/CODEOWNERS$
   args: [--fix]
 - id: verify-copyright
   name: verify-copyright
