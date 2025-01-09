@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -127,7 +127,14 @@ def apply_copyright_check(
     old_content: str | None,
 ) -> None:
     if linter.content != old_content:
-        current_year = datetime.datetime.now().year
+        year_env = os.getenv("RAPIDS_TEST_YEAR")
+        if year_env:
+            try:
+                current_year = int(year_env)
+            except ValueError:
+                current_year = datetime.datetime.now().year
+        else:
+            current_year = datetime.datetime.now().year
         new_copyright_matches = match_copyright(linter.content)
 
         if old_content is not None:
@@ -309,8 +316,11 @@ def get_changed_files(
         )
         for diff in diffs:
             if diff.change_type == "A":
+                assert diff.b_path is not None
                 changed_files[diff.b_path] = (diff.change_type, None)
             elif diff.change_type != "D":
+                assert diff.b_path is not None
+                assert diff.change_type is not None
                 changed_files[diff.b_path] = (diff.change_type, diff.a_blob)
 
     return changed_files

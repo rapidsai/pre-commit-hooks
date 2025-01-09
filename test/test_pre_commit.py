@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -97,7 +97,7 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
     ):
         subprocess.check_call(
             [sys.executable, "-m", "pre_commit", "try-repo", REPO_DIR, hook_name, "-a"],
-            env={**os.environ, "TARGET_BRANCH": "master"},
+            env={**os.environ, "TARGET_BRANCH": "master", "RAPIDS_TEST_YEAR": "2024"},
         )
 
 
