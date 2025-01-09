@@ -316,8 +316,13 @@ def get_changed_files(
         )
         for diff in diffs:
             if diff.change_type == "A":
+                assert diff.b_path is not None
                 changed_files[diff.b_path] = (diff.change_type, None)
             elif diff.change_type != "D":
+                assert diff.b_path is not None
+                assert diff.change_type is not None
+                a_blob = diff.a_blob
+                assert isinstance(a_blob, git.Blob)
                 changed_files[diff.b_path] = (diff.change_type, diff.a_blob)
 
     return changed_files
