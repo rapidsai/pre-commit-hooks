@@ -129,7 +129,7 @@ def check_codeowners_line(
                 for owner in codeowners_line.owners:
                     if owner.owner not in required_owners:
                         extraneous_owners.append(owner)
-                if len(extraneous_owners) != 0:
+                if extraneous_owners:
                     if not warning:
                         warning = linter.add_warning(
                             codeowners_line.file.pos,
@@ -179,7 +179,7 @@ def check_codeowners(linter: Linter, args: argparse.Namespace) -> None:
                         for owner in required_codeowners.owners)}\n"""
             )
     if new_text:
-        if len(linter.content) != 0 and linter.content[-1] != "\n":
+        if linter.content and not linter.content.endswith("\n"):
             new_text = f"\n{new_text}"
         content_len = len(linter.content)
         linter.add_warning((0, 0), "missing required codeowners").add_replacement(
