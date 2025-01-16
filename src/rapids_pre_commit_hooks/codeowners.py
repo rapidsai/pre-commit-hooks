@@ -54,6 +54,7 @@ class RequiredCodeownersLine:
     file: str
     owners: list[CodeownersTransform]
     allow_extra: bool = False
+    after: list[str] = dataclasses.field(default_factory=list)
 
 
 def hard_coded_codeowners(owners: str) -> CodeownersTransform:
@@ -113,7 +114,7 @@ def check_codeowners_line(
     linter: Linter,
     args: argparse.Namespace,
     codeowners_line: CodeownersLine,
-    found_files: set[str],
+    found_files: list[tuple[RequiredCodeownersLine, tuple[int, int]]],
 ) -> None:
     for required_codeowners_line in REQUIRED_CODEOWNERS_LINES:
         if required_codeowners_line.file == codeowners_line.file.filename:
@@ -158,12 +159,23 @@ def check_codeowners_line(
                 last = codeowners_line.owners[-1].pos[1]
                 warning.add_replacement((last, last), extra_string)
 
-            found_files.add(codeowners_line.file.filename)
+            for found_file, found_pos in found_files:
+                if codeowners_line.file.filename in found_file.after:
+                    linter.add_warning(
+                        found_pos,
+                        f"file '{found_file.file}' should come after "
+                        f"'{codeowners_line.file.filename}'",
+                    ).add_note(
+                        codeowners_line.file.pos,
+                        f"file '{codeowners_line.file.filename}' is here",
+                    )
+
+            found_files.append((required_codeowners_line, codeowners_line.file.pos))
             break
 
 
 def check_codeowners(linter: Linter, args: argparse.Namespace) -> None:
-    found_files: set[str] = set()
+    found_files: list[tuple[RequiredCodeownersLine, tuple[int, int]]] = []
     for pos in linter.lines:
         line = linter.content[pos[0] : pos[1]]
         codeowners_line = parse_codeowners_line(line, pos[0])
@@ -172,7 +184,9 @@ def check_codeowners(linter: Linter, args: argparse.Namespace) -> None:
 
     new_text = ""
     for required_codeowners_line in REQUIRED_CODEOWNERS_LINES:
-        if required_codeowners_line.file not in found_files:
+        if required_codeowners_line.file not in map(
+            lambda line: line[0].file, found_files
+        ):
             new_text += (
                 f"{required_codeowners_line.file} "
                 f"""{' '.join(owner(project_prefix=args.project_prefix)

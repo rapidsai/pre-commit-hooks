@@ -18,25 +18,28 @@ from unittest.mock import Mock, patch
 import pytest
 
 from rapids_pre_commit_hooks import codeowners
-from rapids_pre_commit_hooks.lint import Linter, LintWarning, Replacement
+from rapids_pre_commit_hooks.lint import Linter, LintWarning, Note, Replacement
+
+MOCK_REQUIRED_CODEOWNERS_LINES = [
+    codeowners.RequiredCodeownersLine(
+        file="CMakeLists.txt",
+        owners=[
+            codeowners.cmake_codeowners,
+        ],
+    ),
+    codeowners.RequiredCodeownersLine(
+        file="pyproject.toml",
+        owners=[
+            codeowners.hard_coded_codeowners("@rapidsai/ci-codeowners"),
+        ],
+        allow_extra=True,
+        after=["CMakeLists.txt"],
+    ),
+]
 
 patch_required_codeowners_lines = patch(
     "rapids_pre_commit_hooks.codeowners.REQUIRED_CODEOWNERS_LINES",
-    [
-        codeowners.RequiredCodeownersLine(
-            file="CMakeLists.txt",
-            owners=[
-                codeowners.cmake_codeowners,
-            ],
-        ),
-        codeowners.RequiredCodeownersLine(
-            file="pyproject.toml",
-            owners=[
-                codeowners.hard_coded_codeowners("@rapidsai/ci-codeowners"),
-            ],
-            allow_extra=True,
-        ),
-    ],
+    MOCK_REQUIRED_CODEOWNERS_LINES,
 )
 
 
@@ -148,14 +151,16 @@ def test_parse_codeowners_line(line, skip, codeowners_line):
 
 
 @pytest.mark.parametrize(
-    ["line", "warnings"],
+    ["line", "pos", "warnings"],
     [
         (
             "CMakeLists.txt @rapidsai/cudf-cmake-codeowners",
+            (0, 14),
             [],
         ),
         (
             "CMakeLists.txt @someone-else  # comment",
+            (0, 14),
             [
                 LintWarning(
                     pos=(0, 14),
@@ -175,6 +180,7 @@ def test_parse_codeowners_line(line, skip, codeowners_line):
         ),
         (
             "CMakeLists.txt @someone-else @rapidsai/cudf-cmake-codeowners",
+            (0, 14),
             [
                 LintWarning(
                     pos=(0, 14),
@@ -190,20 +196,25 @@ def test_parse_codeowners_line(line, skip, codeowners_line):
         ),
         (
             "pyproject.toml @someone-else @rapidsai/ci-codeowners",
+            (0, 14),
             [],
         ),
     ],
 )
 @patch_required_codeowners_lines
-def test_check_codeowners_line(line, warnings):
+def test_check_codeowners_line(line, pos, warnings):
     codeowners_line = codeowners.parse_codeowners_line(line, 0)
     linter = Linter(".github/CODEOWNERS", line)
-    found_files = set()
+    found_files = []
     codeowners.check_codeowners_line(
         linter, Mock(project_prefix="cudf"), codeowners_line, found_files
     )
     assert linter.warnings == warnings
-    assert found_files == {codeowners_line.file.filename}
+    assert found_files == [
+        (line, pos)
+        for line in MOCK_REQUIRED_CODEOWNERS_LINES
+        if line.file == codeowners_line.file.filename
+    ]
 
 
 @pytest.mark.parametrize(
@@ -275,6 +286,26 @@ def test_check_codeowners_line(line, warnings):
                             pos=(39, 39),
                             newtext="\nCMakeLists.txt "
                             "@rapidsai/cudf-cmake-codeowners\n",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        (
+            dedent(
+                """
+                pyproject.toml @rapidsai/ci-codeowners
+                CMakeLists.txt @rapidsai/cudf-cmake-codeowners
+                """
+            ),
+            [
+                LintWarning(
+                    pos=(1, 15),
+                    msg="file 'pyproject.toml' should come after 'CMakeLists.txt'",
+                    notes=[
+                        Note(
+                            pos=(40, 54),
+                            msg="file 'CMakeLists.txt' is here",
                         ),
                     ],
                 ),
