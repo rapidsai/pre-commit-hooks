@@ -24,7 +24,7 @@ MOCK_REQUIRED_CODEOWNERS_LINES = [
     codeowners.RequiredCodeownersLine(
         file="CMakeLists.txt",
         owners=[
-            codeowners.cmake_codeowners,
+            codeowners.project_codeowners("cmake"),
         ],
     ),
     codeowners.RequiredCodeownersLine(

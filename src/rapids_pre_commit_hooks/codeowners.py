@@ -61,23 +61,71 @@ def hard_coded_codeowners(owners: str) -> CodeownersTransform:
     return lambda *, project_prefix: owners
 
 
-def cmake_codeowners(*, project_prefix: str) -> str:
-    return f"@rapidsai/{project_prefix}-cmake-codeowners"
+def project_codeowners(category: str) -> CodeownersTransform:
+    return lambda *, project_prefix: f"@rapidsai/{project_prefix}-{category}-codeowners"
 
 
+def required_codeowners_list(
+    files: list[str], owners: list[CodeownersTransform], after: list[str] = []
+) -> list[RequiredCodeownersLine]:
+    return [RequiredCodeownersLine(file=file, owners=owners) for file in files]
+
+
+REQUIRED_CI_CODEOWNERS_LINES = required_codeowners_list(
+    [
+        "/.github/",
+        "/ci/",
+    ],
+    [hard_coded_codeowners("@rapidsai/ci-codeowners")],
+)
+REQUIRED_PACKAGING_CODEOWNERS_LINES = required_codeowners_list(
+    [
+        "/conda/",
+        "dependencies.yaml",
+        "/build.sh",
+        "pyproject.toml",
+        "/.pre-commit-config.yaml",
+        "/.devcontainer/",
+    ],
+    [hard_coded_codeowners("@rapidsai/packaging-codeowners")],
+)
+REQUIRED_CPP_CODEOWNERS_LINES = required_codeowners_list(
+    [
+        "cpp/",
+    ],
+    [project_codeowners("cpp")],
+)
+REQUIRED_PYTHON_CODEOWNERS_LINES = required_codeowners_list(
+    [
+        "python/",
+    ],
+    [project_codeowners("python")],
+)
+REQUIRED_CMAKE_CODEOWNERS_LINES = required_codeowners_list(
+    [
+        "CMakeLists.txt",
+        "**/cmake/",
+        "*.cmake",
+    ],
+    [project_codeowners("cmake")],
+    [
+        *(
+            after
+            for lines in [
+                REQUIRED_CPP_CODEOWNERS_LINES,
+                REQUIRED_PYTHON_CODEOWNERS_LINES,
+            ]
+            for line in lines
+            for after in line.after
+        ),
+    ],
+)
 REQUIRED_CODEOWNERS_LINES = [
-    RequiredCodeownersLine(
-        file="CMakeLists.txt",
-        owners=[
-            cmake_codeowners,
-        ],
-    ),
-    RequiredCodeownersLine(
-        file="pyproject.toml",
-        owners=[
-            hard_coded_codeowners("@rapidsai/ci-codeowners"),
-        ],
-    ),
+    *REQUIRED_CI_CODEOWNERS_LINES,
+    *REQUIRED_PACKAGING_CODEOWNERS_LINES,
+    *REQUIRED_CPP_CODEOWNERS_LINES,
+    *REQUIRED_PYTHON_CODEOWNERS_LINES,
+    *REQUIRED_CMAKE_CODEOWNERS_LINES,
 ]
 
 
