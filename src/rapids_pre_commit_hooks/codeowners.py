@@ -50,7 +50,7 @@ class CodeownersTransform(Protocol):
 
 
 @dataclasses.dataclass
-class RequiredCodeowners:
+class RequiredCodeownersLine:
     file: str
     owners: list[CodeownersTransform]
     allow_extra: bool = False
@@ -64,14 +64,14 @@ def cmake_codeowners(*, project_prefix: str) -> str:
     return f"@rapidsai/{project_prefix}-cmake-codeowners"
 
 
-REQUIRED_CODEOWNERS = [
-    RequiredCodeowners(
+REQUIRED_CODEOWNERS_LINES = [
+    RequiredCodeownersLine(
         file="CMakeLists.txt",
         owners=[
             cmake_codeowners,
         ],
     ),
-    RequiredCodeowners(
+    RequiredCodeownersLine(
         file="pyproject.toml",
         owners=[
             hard_coded_codeowners("@rapidsai/ci-codeowners"),
@@ -115,16 +115,16 @@ def check_codeowners_line(
     codeowners_line: CodeownersLine,
     found_files: set[str],
 ) -> None:
-    for required_codeowners in REQUIRED_CODEOWNERS:
-        if required_codeowners.file == codeowners_line.file.filename:
+    for required_codeowners_line in REQUIRED_CODEOWNERS_LINES:
+        if required_codeowners_line.file == codeowners_line.file.filename:
             required_owners = [
                 required_owner(project_prefix=args.project_prefix)
-                for required_owner in required_codeowners.owners
+                for required_owner in required_codeowners_line.owners
             ]
 
             warning: LintWarning | None = None
 
-            if not required_codeowners.allow_extra:
+            if not required_codeowners_line.allow_extra:
                 extraneous_owners: list[Owner] = []
                 for owner in codeowners_line.owners:
                     if owner.owner not in required_owners:
@@ -146,7 +146,7 @@ def check_codeowners_line(
                         break
                 else:
                     missing_required_owners.append(required_owner)
-            if len(missing_required_owners) != 0:
+            if missing_required_owners:
                 if not warning:
                     warning = linter.add_warning(
                         codeowners_line.file.pos,
@@ -171,7 +171,7 @@ def check_codeowners(linter: Linter, args: argparse.Namespace) -> None:
             check_codeowners_line(linter, args, codeowners_line, found_files)
 
     new_text = ""
-    for required_codeowners in REQUIRED_CODEOWNERS:
+    for required_codeowners in REQUIRED_CODEOWNERS_LINES:
         if required_codeowners.file not in found_files:
             new_text += (
                 f"{required_codeowners.file} "
