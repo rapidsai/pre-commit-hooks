@@ -21,13 +21,6 @@
   additional_dependencies:
     - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
     - .[alpha-spec]
-- id: verify-conda-yes
-  name: pass -y/--yes to conda
-  description: make sure that all calls to conda pass -y/--yes
-  entry: verify-conda-yes
-  language: python
-  types: [shell]
-  args: [--fix]
 - id: verify-codeowners
   name: verify-codeowners
   description: make sure .github/CODEOWNERS file is correct
@@ -36,6 +29,13 @@
   files:
     (?x)
         ^[.]github/CODEOWNERS$
+  args: [--fix]
+- id: verify-conda-yes
+  name: pass -y/--yes to conda
+  description: make sure that all calls to conda pass -y/--yes
+  entry: verify-conda-yes
+  language: python
+  types: [shell]
   args: [--fix]
 - id: verify-copyright
   name: verify-copyright
