@@ -171,12 +171,12 @@ def check_codeowners(linter: Linter, args: argparse.Namespace) -> None:
             check_codeowners_line(linter, args, codeowners_line, found_files)
 
     new_text = ""
-    for required_codeowners in REQUIRED_CODEOWNERS_LINES:
-        if required_codeowners.file not in found_files:
+    for required_codeowners_line in REQUIRED_CODEOWNERS_LINES:
+        if required_codeowners_line.file not in found_files:
             new_text += (
-                f"{required_codeowners.file} "
+                f"{required_codeowners_line.file} "
                 f"""{' '.join(owner(project_prefix=args.project_prefix)
-                        for owner in required_codeowners.owners)}\n"""
+                        for owner in required_codeowners_line.owners)}\n"""
             )
     if new_text:
         if linter.content and not linter.content.endswith("\n"):

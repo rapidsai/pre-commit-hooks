@@ -13,12 +13,31 @@
 # limitations under the License.
 
 from textwrap import dedent
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
 from rapids_pre_commit_hooks import codeowners
 from rapids_pre_commit_hooks.lint import Linter, LintWarning, Replacement
+
+patch_required_codeowners_lines = patch(
+    "rapids_pre_commit_hooks.codeowners.REQUIRED_CODEOWNERS_LINES",
+    [
+        codeowners.RequiredCodeownersLine(
+            file="CMakeLists.txt",
+            owners=[
+                codeowners.cmake_codeowners,
+            ],
+        ),
+        codeowners.RequiredCodeownersLine(
+            file="pyproject.toml",
+            owners=[
+                codeowners.hard_coded_codeowners("@rapidsai/ci-codeowners"),
+            ],
+            allow_extra=True,
+        ),
+    ],
+)
 
 
 @pytest.mark.parametrize(
@@ -169,8 +188,13 @@ def test_parse_codeowners_line(line, skip, codeowners_line):
                 ),
             ],
         ),
+        (
+            "pyproject.toml @someone-else @rapidsai/ci-codeowners",
+            [],
+        ),
     ],
 )
+@patch_required_codeowners_lines
 def test_check_codeowners_line(line, warnings):
     codeowners_line = codeowners.parse_codeowners_line(line, 0)
     linter = Linter(".github/CODEOWNERS", line)
@@ -258,6 +282,7 @@ def test_check_codeowners_line(line, warnings):
         ),
     ],
 )
+@patch_required_codeowners_lines
 def test_check_codeowners(content, warnings):
     linter = Linter(".github/CODEOWNERS", content)
     codeowners.check_codeowners(linter, Mock(project_prefix="cudf"))
