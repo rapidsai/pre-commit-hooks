@@ -201,9 +201,7 @@ def check_codeowners_line(
                         codeowners_line.file.pos,
                         f"file '{codeowners_line.file.filename}' has incorrect owners",
                     )
-                extra_string = ""
-                for missing_required_owner in missing_required_owners:
-                    extra_string += f" {missing_required_owner}"
+                extra_string = " " + " ".join(missing_required_owners)
                 last = codeowners_line.owners[-1].pos[1]
                 warning.add_replacement((last, last), extra_string)
 
