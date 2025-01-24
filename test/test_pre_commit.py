@@ -14,11 +14,14 @@
 
 import contextlib
 import datetime
+import json
 import os.path
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from functools import cache
+from textwrap import dedent
 
 import git
 import pytest
@@ -26,10 +29,17 @@ import yaml
 from packaging.version import Version
 from rapids_metadata.remote import fetch_latest
 
-REPO_DIR = os.path.join(os.path.dirname(__file__), "..")
-with open(os.path.join(REPO_DIR, ".pre-commit-hooks.yaml")) as f:
+HOOKS_REPO_DIR = os.path.join(os.path.dirname(__file__), "..")
+with open(os.path.join(HOOKS_REPO_DIR, ".pre-commit-hooks.yaml")) as f:
     ALL_HOOKS = [hook["id"] for hook in yaml.safe_load(f)]
+HOOKS_REPO = git.Repo(HOOKS_REPO_DIR)
 EXAMPLES_DIR = os.path.join(os.path.dirname(__file__), "examples")
+
+
+maybe_skip: Callable = pytest.mark.skipif(
+    any(HOOKS_REPO.head.commit.diff(other=None)),
+    reason="Hooks repo has modified files that haven't been committed",
+)
 
 
 @cache
@@ -56,6 +66,9 @@ def git_repo(tmp_path):
     return repo
 
 
+HOOK_ARGS = {"verify-codeowners": ["--fix", "--project-prefix=cudf"]}
+
+
 def run_pre_commit(git_repo, hook_name, expected_status, exc):
     def list_files(top):
         for dirpath, _, filenames in os.walk(top):
@@ -63,7 +76,7 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
                 yield (
                     filename
                     if top == dirpath
-                    else os.path.join(os.path.relpath(top, dirpath), filename)
+                    else os.path.join(os.path.relpath(dirpath, top), filename)
                 )
 
     example_dir = os.path.join(EXAMPLES_DIR, hook_name, expected_status)
@@ -72,7 +85,28 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
 
     with open(os.path.join(git_repo.working_tree_dir, "VERSION"), "w") as f:
         f.write(f"{max(all_metadata().versions.keys(), key=Version)}\n")
-    git_repo.index.add("VERSION")
+    try:
+        args = HOOK_ARGS[hook_name]
+        args_text = f"args: {json.dumps(args)}"
+    except KeyError:
+        args_text = ""
+    with open(
+        os.path.join(git_repo.working_tree_dir, ".pre-commit-config.yaml"), "w"
+    ) as f:
+        f.write(
+            dedent(
+                f"""
+                repos:
+                - repo: "{HOOKS_REPO_DIR}"
+                  rev: "{HOOKS_REPO.head.commit.hexsha}"
+                  hooks:
+                    - id: {hook_name}
+                      {args_text}
+                """
+            )
+        )
+
+    git_repo.index.add("VERSION", ".pre-commit-config.yaml")
 
     git_repo.index.add(list(list_files(master_dir)))
     git_repo.index.commit(
@@ -96,7 +130,7 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
         pytest.raises(exc) if exc else contextlib.nullcontext(),
     ):
         subprocess.check_call(
-            [sys.executable, "-m", "pre_commit", "try-repo", REPO_DIR, hook_name, "-a"],
+            [sys.executable, "-m", "pre_commit", "run", hook_name, "-a"],
             env={**os.environ, "TARGET_BRANCH": "master", "RAPIDS_TEST_YEAR": "2024"},
         )
 
@@ -105,6 +139,7 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
     "hook_name",
     ALL_HOOKS,
 )
+@maybe_skip
 def test_pre_commit_pass(git_repo, hook_name):
     run_pre_commit(git_repo, hook_name, "pass", None)
 
@@ -113,5 +148,6 @@ def test_pre_commit_pass(git_repo, hook_name):
     "hook_name",
     ALL_HOOKS,
 )
+@maybe_skip
 def test_pre_commit_fail(git_repo, hook_name):
     run_pre_commit(git_repo, hook_name, "fail", subprocess.CalledProcessError)
