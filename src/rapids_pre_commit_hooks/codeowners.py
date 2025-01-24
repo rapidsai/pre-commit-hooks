@@ -174,17 +174,17 @@ def check_codeowners_line(
             warning: LintWarning | None = None
 
             if not required_codeowners_line.allow_extra:
-                extraneous_owners: list[Owner] = []
-                for owner in codeowners_line.owners:
-                    if owner.owner not in required_owners:
-                        extraneous_owners.append(owner)
+                extraneous_owners: list[Owner] = [
+                    owner
+                    for owner in codeowners_line.owners
+                    if owner.owner not in required_owners
+                ]
                 if extraneous_owners:
-                    if not warning:
-                        warning = linter.add_warning(
-                            codeowners_line.file.pos,
-                            f"file '{codeowners_line.file.filename}' has incorrect "
-                            "owners",
-                        )
+                    warning = linter.add_warning(
+                        codeowners_line.file.pos,
+                        f"file '{codeowners_line.file.filename}' has incorrect "
+                        "owners",
+                    )
                     for owner in extraneous_owners:
                         warning.add_replacement(owner.pos_with_leading_whitespace, "")
 
@@ -224,9 +224,9 @@ def check_codeowners_line(
 
 def check_codeowners(linter: Linter, args: argparse.Namespace) -> None:
     found_files: list[tuple[RequiredCodeownersLine, tuple[int, int]]] = []
-    for pos in linter.lines:
-        line = linter.content[pos[0] : pos[1]]
-        codeowners_line = parse_codeowners_line(line, pos[0])
+    for begin, end in linter.lines:
+        line = linter.content[begin:end]
+        codeowners_line = parse_codeowners_line(line, begin)
         if codeowners_line:
             check_codeowners_line(linter, args, codeowners_line, found_files)
 
@@ -235,11 +235,11 @@ def check_codeowners(linter: Linter, args: argparse.Namespace) -> None:
         if required_codeowners_line.file not in map(
             lambda line: line[0].file, found_files
         ):
-            new_text += (
-                f"{required_codeowners_line.file} "
-                f"""{' '.join(owner(project_prefix=args.project_prefix)
-                        for owner in required_codeowners_line.owners)}\n"""
+            owners_text = " ".join(
+                owner(project_prefix=args.project_prefix)
+                for owner in required_codeowners_line.owners
             )
+            new_text += f"{required_codeowners_line.file} {owners_text}\n"
     if new_text:
         if linter.content and not linter.content.endswith("\n"):
             new_text = f"\n{new_text}"
