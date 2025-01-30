@@ -284,8 +284,7 @@ def test_check_codeowners_line(line, pos, warnings):
                     replacements=[
                         Replacement(
                             pos=(39, 39),
-                            newtext="\nCMakeLists.txt "
-                            "@rapidsai/cudf-cmake-codeowners\n",
+                            newtext="\nCMakeLists.txt @rapidsai/cudf-cmake-codeowners\n",
                         ),
                     ],
                 ),

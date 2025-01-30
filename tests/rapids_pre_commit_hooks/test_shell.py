@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,9 @@
 import bashlex
 
 from rapids_pre_commit_hooks.lint import Linter
-from rapids_pre_commit_hooks.shell.verify_conda_yes import VerifyCondaYesVisitor
+from rapids_pre_commit_hooks.shell.verify_conda_yes import (
+    VerifyCondaYesVisitor,
+)
 
 
 def run_shell_linter(content, cls):

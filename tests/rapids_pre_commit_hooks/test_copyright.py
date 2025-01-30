@@ -172,7 +172,8 @@ def test_strip_copyright():
                     "copyright is out of date",
                     replacements=[
                         Replacement(
-                            (1, 43), "Copyright (c) 2021-2024, NVIDIA CORPORATION"
+                            (1, 43),
+                            "Copyright (c) 2021-2024, NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -181,7 +182,8 @@ def test_strip_copyright():
                     "copyright is out of date",
                     replacements=[
                         Replacement(
-                            (44, 81), "Copyright (c) 2023-2024, NVIDIA CORPORATION"
+                            (44, 81),
+                            "Copyright (c) 2023-2024, NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -207,7 +209,8 @@ def test_strip_copyright():
                     "copyright is out of date",
                     replacements=[
                         Replacement(
-                            (1, 43), "Copyright (c) 2021-2024, NVIDIA CORPORATION"
+                            (1, 43),
+                            "Copyright (c) 2021-2024, NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -216,7 +219,8 @@ def test_strip_copyright():
                     "copyright is out of date",
                     replacements=[
                         Replacement(
-                            (44, 81), "Copyright (c) 2023-2024, NVIDIA CORPORATION"
+                            (44, 81),
+                            "Copyright (c) 2023-2024, NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -250,7 +254,8 @@ def test_strip_copyright():
                     "copyright is not out of date and should not be updated",
                     replacements=[
                         Replacement(
-                            (1, 43), "Copyright (c) 2021-2023 NVIDIA CORPORATION"
+                            (1, 43),
+                            "Copyright (c) 2021-2023 NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -293,7 +298,8 @@ def test_strip_copyright():
                     "copyright is out of date",
                     replacements=[
                         Replacement(
-                            (1, 43), "Copyright (c) 2021-2024, NVIDIA CORPORATION"
+                            (1, 43),
+                            "Copyright (c) 2021-2024, NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -302,7 +308,8 @@ def test_strip_copyright():
                     "copyright is out of date",
                     replacements=[
                         Replacement(
-                            (44, 81), "Copyright (c) 2023-2024, NVIDIA CORPORATION"
+                            (44, 81),
+                            "Copyright (c) 2023-2024, NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -336,7 +343,8 @@ def test_strip_copyright():
                     "copyright is out of date",
                     replacements=[
                         Replacement(
-                            (1, 43), "Copyright (c) 2021-2024, NVIDIA CORPORATION"
+                            (1, 43),
+                            "Copyright (c) 2021-2024, NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -345,7 +353,8 @@ def test_strip_copyright():
                     "copyright is out of date",
                     replacements=[
                         Replacement(
-                            (44, 81), "Copyright (c) 2023-2024, NVIDIA CORPORATION"
+                            (44, 81),
+                            "Copyright (c) 2023-2024, NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -439,7 +448,8 @@ def test_strip_copyright():
                     ],
                     replacements=[
                         Replacement(
-                            (1, 43), "Copyright (c) 2021-2023 NVIDIA CORPORATION"
+                            (1, 43),
+                            "Copyright (c) 2021-2023 NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -506,7 +516,8 @@ def test_strip_copyright():
                     ],
                     replacements=[
                         Replacement(
-                            (1, 43), "Copyright (c) 2021-2023 NVIDIA CORPORATION"
+                            (1, 43),
+                            "Copyright (c) 2021-2023 NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -540,7 +551,9 @@ def test_apply_copyright_check(
     change_type, old_filename, old_content, new_filename, new_content, warnings
 ):
     linter = Linter(new_filename, new_content)
-    copyright.apply_copyright_check(linter, change_type, old_filename, old_content)
+    copyright.apply_copyright_check(
+        linter, change_type, old_filename, old_content
+    )
     assert linter.warnings == warnings
 
 
@@ -557,7 +570,9 @@ def test_get_target_branch(git_repo):
     with patch.dict("os.environ", {}, clear=True):
         args = Mock(main_branch=None, target_branch=None)
 
-        with open(os.path.join(git_repo.working_tree_dir, "file.txt"), "w") as f:
+        with open(
+            os.path.join(git_repo.working_tree_dir, "file.txt"), "w"
+        ) as f:
             f.write("File\n")
         git_repo.index.add(["file.txt"])
         git_repo.index.commit("Initial commit")
@@ -607,9 +622,14 @@ def test_get_target_branch(git_repo):
 
         with patch.dict(
             "os.environ",
-            {"GITHUB_BASE_REF": "branch-24.02", "RAPIDS_BASE_BRANCH": "master"},
+            {
+                "GITHUB_BASE_REF": "branch-24.02",
+                "RAPIDS_BASE_BRANCH": "master",
+            },
         ):
-            assert copyright.get_target_branch(git_repo, args) == "branch-24.02"
+            assert (
+                copyright.get_target_branch(git_repo, args) == "branch-24.02"
+            )
 
         with patch.dict(
             "os.environ",
@@ -629,7 +649,9 @@ def test_get_target_branch(git_repo):
                 "TARGET_BRANCH": "branch-24.04",
             },
         ):
-            assert copyright.get_target_branch(git_repo, args) == "branch-24.04"
+            assert (
+                copyright.get_target_branch(git_repo, args) == "branch-24.04"
+            )
             args.target_branch = "nonexistent"
             assert copyright.get_target_branch(git_repo, args) == "nonexistent"
             args.target_branch = "master"
@@ -910,7 +932,9 @@ def test_get_changed_files(git_repo):
             f.write("Top file\n")
         os.mkdir(os.path.join(non_git_dir, "subdir1"))
         os.mkdir(os.path.join(non_git_dir, "subdir1/subdir2"))
-        with open(os.path.join(non_git_dir, "subdir1", "subdir2", "sub.txt"), "w") as f:
+        with open(
+            os.path.join(non_git_dir, "subdir1", "subdir2", "sub.txt"), "w"
+        ) as f:
             f.write("Subdir file\n")
         assert copyright.get_changed_files(Mock()) == {
             "top.txt": ("A", None),
@@ -933,7 +957,9 @@ def test_get_changed_files(git_repo):
     write_file("copied_and_modified.txt", file_contents("copied and modified"))
     write_file("deleted.txt", file_contents("deleted"))
     write_file("renamed.txt", file_contents("renamed"))
-    write_file("modified_and_renamed.txt", file_contents("modified and renamed"))
+    write_file(
+        "modified_and_renamed.txt", file_contents("modified and renamed")
+    )
     write_file("modified.txt", file_contents("modified"))
     write_file("chmodded.txt", file_contents("chmodded"))
     write_file("untracked.txt", file_contents("untracked"))
@@ -988,7 +1014,8 @@ def test_get_changed_files(git_repo):
     )
     git_repo.index.move(["renamed.txt", "renamed_2.txt"])
     write_file(
-        "modified.txt", file_contents("modified") + "This file has been modified\n"
+        "modified.txt",
+        file_contents("modified") + "This file has been modified\n",
     )
     os.chmod(fn("chmodded.txt"), 0o755)
     write_file("untouched.txt", file_contents("untouched") + "Oops\n")
@@ -998,14 +1025,17 @@ def test_get_changed_files(git_repo):
         "modified_and_copied.txt",
         file_contents("modified and copied") + "This file has been modified\n",
     )
-    write_file("modified_and_copied_2.txt", file_contents("modified and copied"))
+    write_file(
+        "modified_and_copied_2.txt", file_contents("modified and copied")
+    )
     write_file(
         "copied_and_modified_2.txt",
         file_contents("copied and modified") + "This file has been modified\n",
     )
     write_file(
         "modified_and_renamed_2.txt",
-        file_contents("modified and renamed") + "This file has been modified\n",
+        file_contents("modified and renamed")
+        + "This file has been modified\n",
     )
     git_repo.index.add(
         [
@@ -1028,7 +1058,9 @@ def test_get_changed_files(git_repo):
     merge_base = git_repo.merge_base(target_branch, "HEAD")[0]
     old_files = {
         blob.path: blob
-        for blob in merge_base.tree.traverse(lambda b, _: isinstance(b, git.Blob))
+        for blob in merge_base.tree.traverse(
+            lambda b, _: isinstance(b, git.Blob)
+        )
     }
 
     # Truly need to be checked
@@ -1100,7 +1132,9 @@ def test_get_changed_files_multiple_merge_bases(git_repo):
     git_repo.index.add("file1.txt")
     git_repo.index.commit(
         "Modify file1.txt",
-        commit_date=datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc),
+        commit_date=datetime.datetime(
+            2024, 1, 1, tzinfo=datetime.timezone.utc
+        ),
     )
 
     branch_2 = git_repo.create_head("branch-2", "master")
@@ -1110,7 +1144,9 @@ def test_get_changed_files_multiple_merge_bases(git_repo):
     git_repo.index.add("file2.txt")
     git_repo.index.commit(
         "Modify file2.txt",
-        commit_date=datetime.datetime(2024, 2, 1, tzinfo=datetime.timezone.utc),
+        commit_date=datetime.datetime(
+            2024, 2, 1, tzinfo=datetime.timezone.utc
+        ),
     )
 
     branch_1_2 = git_repo.create_head("branch-1-2", "master")
@@ -1122,7 +1158,9 @@ def test_get_changed_files_multiple_merge_bases(git_repo):
     git_repo.index.commit(
         "Merge branches branch-1 and branch-2",
         parent_commits=[branch_1.commit, branch_2.commit],
-        commit_date=datetime.datetime(2024, 3, 1, tzinfo=datetime.timezone.utc),
+        commit_date=datetime.datetime(
+            2024, 3, 1, tzinfo=datetime.timezone.utc
+        ),
     )
 
     branch_3 = git_repo.create_head("branch-3", "master")
@@ -1134,13 +1172,17 @@ def test_get_changed_files_multiple_merge_bases(git_repo):
     git_repo.index.commit(
         "Merge branches branch-1 and branch-2",
         parent_commits=[branch_1.commit, branch_2.commit],
-        commit_date=datetime.datetime(2024, 4, 1, tzinfo=datetime.timezone.utc),
+        commit_date=datetime.datetime(
+            2024, 4, 1, tzinfo=datetime.timezone.utc
+        ),
     )
     write_file("file3.txt", "File 3 modified\n")
     git_repo.index.add("file3.txt")
     git_repo.index.commit(
         "Modify file3.txt",
-        commit_date=datetime.datetime(2024, 5, 1, tzinfo=datetime.timezone.utc),
+        commit_date=datetime.datetime(
+            2024, 5, 1, tzinfo=datetime.timezone.utc
+        ),
     )
 
     with (
@@ -1194,7 +1236,9 @@ def test_find_blob(git_repo, path, present):
         pass
     os.mkdir(os.path.join(git_repo.working_tree_dir, "sub1"))
     os.mkdir(os.path.join(git_repo.working_tree_dir, "sub1", "sub2"))
-    with open(os.path.join(git_repo.working_tree_dir, "sub1", "sub2", "sub.txt"), "w"):
+    with open(
+        os.path.join(git_repo.working_tree_dir, "sub1", "sub2", "sub.txt"), "w"
+    ):
         pass
     git_repo.index.add(["top.txt", "sub1/sub2/sub.txt"])
     git_repo.index.commit("Initial commit")
@@ -1236,7 +1280,9 @@ def test_check_copyright(git_repo):
     write_file("dir/file2.txt", file_contents(2))
     write_file("file3.txt", file_contents(3))
     write_file("file4.txt", file_contents(4))
-    git_repo.index.add(["file1.txt", "dir/file2.txt", "file3.txt", "file4.txt"])
+    git_repo.index.add(
+        ["file1.txt", "dir/file2.txt", "file3.txt", "file4.txt"]
+    )
     git_repo.index.commit("Initial commit")
 
     branch_1 = git_repo.create_head("branch-1", "master")
@@ -1276,11 +1322,14 @@ def test_check_copyright(git_repo):
             return repo.heads[target_branch].commit
 
         return patch(
-            "rapids_pre_commit_hooks.copyright.get_target_branch_upstream_commit", func
+            "rapids_pre_commit_hooks.copyright.get_target_branch_upstream_commit",
+            func,
         )
 
     def mock_apply_copyright_check():
-        return patch("rapids_pre_commit_hooks.copyright.apply_copyright_check", Mock())
+        return patch(
+            "rapids_pre_commit_hooks.copyright.apply_copyright_check", Mock()
+        )
 
     #############################
     # branch-1 is target branch

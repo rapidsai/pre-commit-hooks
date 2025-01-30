@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -53,7 +53,10 @@ class VerifyCondaYesVisitor(LintVisitor):
             )
         except StopIteration:
             return
-        if any(arg in {"-h", "--help", "-V"} for arg in part_words[1:command_index]):
+        if any(
+            arg in {"-h", "--help", "-V"}
+            for arg in part_words[1:command_index]
+        ):
             return
 
         command_name = part_words[command_index]

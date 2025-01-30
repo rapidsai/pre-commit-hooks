@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -104,7 +104,11 @@ class Linter:
         return replaced_content
 
     def _print_note(
-        self, note_type: str, pos: _PosType, msg: str, newtext: str | None = None
+        self,
+        note_type: str,
+        pos: _PosType,
+        msg: str,
+        newtext: str | None = None,
     ) -> None:
         line_index = self._line_for_pos(pos[0])
         line_pos = self.lines[line_index]
@@ -117,7 +121,9 @@ class Linter:
         self.console.print()
 
     def print_warnings(self, fix_applied: bool = False) -> None:
-        sorted_warnings = sorted(self.warnings, key=lambda warning: warning.pos)
+        sorted_warnings = sorted(
+            self.warnings, key=lambda warning: warning.pos
+        )
 
         for warning in sorted_warnings:
             self._print_note("warning", warning.pos, warning.msg)
@@ -146,13 +152,12 @@ class Linter:
                         replacement_msg = "suggested fix applied"
                 else:
                     if long:
-                        replacement_msg = (
-                            "suggested fix is too long to display, use --fix to apply "
-                            "it"
-                        )
+                        replacement_msg = "suggested fix is too long to display, use --fix to apply it"
                     else:
                         replacement_msg = "suggested fix"
-                self._print_note("note", replacement.pos, replacement_msg, newtext)
+                self._print_note(
+                    "note", replacement.pos, replacement_msg, newtext
+                )
 
     def _print_highlighted_code(
         self, pos: _PosType, replacement: str | None = None
@@ -170,18 +175,18 @@ class Linter:
             self.console.print(
                 f" {escape(self.content[line_pos[0] : left])}"
                 f"[bold]{escape(self.content[left:right])}[/bold]"
-                f"{escape(self.content[right:line_pos[1]])}"
+                f"{escape(self.content[right : line_pos[1]])}"
             )
         else:
             self.console.print(
                 f"[red]-{escape(self.content[line_pos[0] : left])}"
                 f"[bold]{escape(self.content[left:right])}[/bold]"
-                f"{escape(self.content[right:line_pos[1]])}[/red]"
+                f"{escape(self.content[right : line_pos[1]])}[/red]"
             )
             self.console.print(
                 f"[green]+{escape(self.content[line_pos[0] : left])}"
                 f"[bold]{escape(replacement)}[/bold]"
-                f"{escape(self.content[right:line_pos[1]])}[/green]"
+                f"{escape(self.content[right : line_pos[1]])}[/green]"
             )
 
     def _line_for_pos(self, index: int) -> int:
@@ -250,7 +255,9 @@ class ExecutionContext(contextlib.AbstractContextManager):
         self.args: argparse.Namespace = args
         self.checks: list[Callable[[Linter, argparse.Namespace], None]] = []
 
-    def add_check(self, check: Callable[[Linter, argparse.Namespace], None]) -> None:
+    def add_check(
+        self, check: Callable[[Linter, argparse.Namespace], None]
+    ) -> None:
         self.checks.append(check)
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:

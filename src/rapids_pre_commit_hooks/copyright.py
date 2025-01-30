@@ -29,7 +29,9 @@ COPYRIGHT_RE: re.Pattern = re.compile(
     r"Copyright *(?:\(c\))? *(?P<years>(?P<first_year>\d{4})(-(?P<last_year>\d{4}))?),?"
     r" *NVIDIA C(?:ORPORATION|orporation)"
 )
-BRANCH_RE: re.Pattern = re.compile(r"^branch-(?P<major>[0-9]+)\.(?P<minor>[0-9]+)$")
+BRANCH_RE: re.Pattern = re.compile(
+    r"^branch-(?P<major>[0-9]+)\.(?P<minor>[0-9]+)$"
+)
 COPYRIGHT_REPLACEMENT: str = (
     "Copyright (c) {first_year}-{last_year}, NVIDIA CORPORATION"
 )
@@ -47,7 +49,9 @@ def match_copyright(content: str) -> list[re.Match]:
     return list(COPYRIGHT_RE.finditer(content))
 
 
-def strip_copyright(content: str, copyright_matches: list[re.Match]) -> list[str]:
+def strip_copyright(
+    content: str, copyright_matches: list[re.Match]
+) -> list[str]:
     lines = []
 
     def append_stripped(start: int, item: re.Match):
@@ -161,7 +165,9 @@ def apply_copyright_check(
             linter.add_warning((0, 0), "no copyright notice found")
 
 
-def get_target_branch(repo: "git.Repo", args: argparse.Namespace) -> str | None:
+def get_target_branch(
+    repo: "git.Repo", args: argparse.Namespace
+) -> str | None:
     """Determine which branch is the "target" branch.
 
     The target branch is determined in the following order:
@@ -264,7 +270,11 @@ def get_target_branch_upstream_commit(
     try:
         # Try branches in all remotes that have the branch name
         upstream_commit = max(
-            (upstream for remote in repo.remotes if (upstream := try_get_ref(remote))),
+            (
+                upstream
+                for remote in repo.remotes
+                if (upstream := try_get_ref(remote))
+            ),
             key=lambda upstream: upstream.commit.committed_datetime,
         ).commit
     except ValueError:
@@ -273,7 +283,9 @@ def get_target_branch_upstream_commit(
         commits_to_try.append(upstream_commit)
 
     if commits_to_try:
-        return max(commits_to_try, key=lambda commit: commit.committed_datetime)
+        return max(
+            commits_to_try, key=lambda commit: commit.committed_datetime
+        )
 
     # No branch with the specified name, local or remote, can be found, so return HEAD
     # if it exists
@@ -295,10 +307,12 @@ def get_changed_files(
             for filename in filenames
         }
 
-    changed_files: dict[str | os.PathLike[str], tuple[str, Optional["git.Blob"]]] = {
-        f: ("A", None) for f in repo.untracked_files
-    }
-    target_branch_upstream_commit = get_target_branch_upstream_commit(repo, args)
+    changed_files: dict[
+        str | os.PathLike[str], tuple[str, Optional["git.Blob"]]
+    ] = {f: ("A", None) for f in repo.untracked_files}
+    target_branch_upstream_commit = get_target_branch_upstream_commit(
+        repo, args
+    )
     if target_branch_upstream_commit is None:
         changed_files.update(
             {blob.path: ("A", None) for _, blob in repo.index.iter_blobs()}
@@ -360,7 +374,7 @@ def check_copyright(
 ) -> Callable[[Linter, argparse.Namespace], None]:
     changed_files = get_changed_files(args)
 
-    def the_check(linter: Linter, args: argparse.Namespace):
+    def the_check(linter: Linter, _args: argparse.Namespace):
         if not (git_filename := normalize_git_filename(linter.filename)):
             warnings.warn(
                 f'File "{linter.filename}" is outside of current directory. Not '
