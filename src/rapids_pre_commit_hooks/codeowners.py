@@ -68,7 +68,9 @@ def project_codeowners(category: str) -> CodeownersTransform:
 def required_codeowners_list(
     files: list[str], owners: list[CodeownersTransform], after: list[str] = []
 ) -> list[RequiredCodeownersLine]:
-    return [RequiredCodeownersLine(file=file, owners=owners) for file in files]
+    return [
+        RequiredCodeownersLine(file=file, owners=owners, after=after) for file in files
+    ]
 
 
 REQUIRED_CI_CODEOWNERS_LINES = required_codeowners_list(
