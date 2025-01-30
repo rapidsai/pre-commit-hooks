@@ -38,8 +38,8 @@ MOCK_REQUIRED_CODEOWNERS_LINES = [
 ]
 
 patch_required_codeowners_lines = patch(
-    "rapids_pre_commit_hooks.codeowners.REQUIRED_CODEOWNERS_LINES",
-    MOCK_REQUIRED_CODEOWNERS_LINES,
+    "rapids_pre_commit_hooks.codeowners.required_codeowners_lines",
+    lambda _args: MOCK_REQUIRED_CODEOWNERS_LINES,
 )
 
 

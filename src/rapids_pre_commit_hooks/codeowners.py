@@ -68,7 +68,9 @@ def project_codeowners(category: str) -> CodeownersTransform:
 def required_codeowners_list(
     files: list[str], owners: list[CodeownersTransform], after: list[str] = []
 ) -> list[RequiredCodeownersLine]:
-    return [RequiredCodeownersLine(file=file, owners=owners) for file in files]
+    return [
+        RequiredCodeownersLine(file=file, owners=owners, after=after) for file in files
+    ]
 
 
 REQUIRED_CI_CODEOWNERS_LINES = required_codeowners_list(
@@ -120,13 +122,16 @@ REQUIRED_CMAKE_CODEOWNERS_LINES = required_codeowners_list(
         ),
     ],
 )
-REQUIRED_CODEOWNERS_LINES = [
-    *REQUIRED_CI_CODEOWNERS_LINES,
-    *REQUIRED_PACKAGING_CODEOWNERS_LINES,
-    *REQUIRED_CPP_CODEOWNERS_LINES,
-    *REQUIRED_PYTHON_CODEOWNERS_LINES,
-    *REQUIRED_CMAKE_CODEOWNERS_LINES,
-]
+
+
+def required_codeowners_lines(args: argparse.Namespace) -> list[RequiredCodeownersLine]:
+    return [
+        *(REQUIRED_CI_CODEOWNERS_LINES if args.ci else []),
+        *(REQUIRED_PACKAGING_CODEOWNERS_LINES if args.packaging else []),
+        *(REQUIRED_CPP_CODEOWNERS_LINES if args.cpp else []),
+        *(REQUIRED_PYTHON_CODEOWNERS_LINES if args.python else []),
+        *(REQUIRED_CMAKE_CODEOWNERS_LINES if args.cmake else []),
+    ]
 
 
 def parse_codeowners_line(line: str, skip: int) -> CodeownersLine | None:
@@ -164,7 +169,7 @@ def check_codeowners_line(
     codeowners_line: CodeownersLine,
     found_files: list[tuple[RequiredCodeownersLine, tuple[int, int]]],
 ) -> None:
-    for required_codeowners_line in REQUIRED_CODEOWNERS_LINES:
+    for required_codeowners_line in required_codeowners_lines(args):
         if required_codeowners_line.file == codeowners_line.file.filename:
             required_owners = [
                 required_owner(project_prefix=args.project_prefix)
@@ -229,7 +234,7 @@ def check_codeowners(linter: Linter, args: argparse.Namespace) -> None:
             check_codeowners_line(linter, args, codeowners_line, found_files)
 
     new_text = ""
-    for required_codeowners_line in REQUIRED_CODEOWNERS_LINES:
+    for required_codeowners_line in required_codeowners_lines(args):
         if required_codeowners_line.file not in map(
             lambda line: line[0].file, found_files
         ):
@@ -257,6 +262,36 @@ def main() -> None:
         metavar="<project prefix>",
         help="project prefix to insert for project-specific team names",
         required=True,
+    )
+    m.argparser.add_argument(
+        "--ci",
+        help="enforce rules for CI codeowners",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    m.argparser.add_argument(
+        "--packaging",
+        help="enforce rules for packaging codeowners",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    m.argparser.add_argument(
+        "--cpp",
+        help="enforce rules for C++ codeowners",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    m.argparser.add_argument(
+        "--python",
+        help="enforce rules for Python codeowners",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    m.argparser.add_argument(
+        "--cmake",
+        help="enforce rules for CMake codeowners",
+        action=argparse.BooleanOptionalAction,
+        default=True,
     )
     with m.execute() as ctx:
         ctx.add_check(check_codeowners)
