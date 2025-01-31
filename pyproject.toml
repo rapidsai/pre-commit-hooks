@@ -61,12 +61,22 @@ verify-pyproject-license = "rapids_pre_commit_hooks.pyproject_license:main"
 [tool.setuptools]
 packages = { "find" = { where = ["src"] } }
 
-[tool.isort]
-profile = "black"
+[tool.ruff]
+line-length = 79
+
+[tool.ruff.lint]
+select = [
+    # flake8-unused-args
+    "ARG",
+    # pycodestyle
+    "E",
+    # pyflakes
+    "F",
+]
 
 [tool.pytest.ini_options]
 testpaths = [
-    "test",
+    "tests",
 ]
 
 [[tool.mypy.overrides]]

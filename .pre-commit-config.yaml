@@ -1,4 +1,4 @@
-# Copyright (c) 2023-2024, NVIDIA CORPORATION.
+# Copyright (c) 2023-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -32,20 +32,11 @@ repos:
       - id: pyupgrade
         args:
           - --py310-plus
-  - repo: https://github.com/PyCQA/isort
-    rev: '5.13.2'
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.3
     hooks:
-      - id: isort
-  - repo: https://github.com/psf/black
-    rev: '24.8.0'
-    hooks:
-      - id: black
-  - repo: https://github.com/PyCQA/flake8
-    rev: '7.1.1'
-    hooks:
-      - id: flake8
-        args:
-        - --show-source
+      - id: ruff
+      - id: ruff-format
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: 'v1.11.2'
     hooks:
@@ -53,9 +44,9 @@ repos:
         args:
           - --config-file=pyproject.toml
           - --exclude
-          - '^test/examples/'
+          - '^tests/examples/'
           - src/
-          - test/
+          - tests/
         pass_filenames: false
         additional_dependencies:
           - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple

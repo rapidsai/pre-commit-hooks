@@ -266,7 +266,8 @@ def test_check_codeowners_line(line, pos, warnings):
                     replacements=[
                         Replacement(
                             pos=(40, 40),
-                            newtext="CMakeLists.txt @rapidsai/cudf-cmake-codeowners\n",
+                            newtext="CMakeLists.txt "
+                            "@rapidsai/cudf-cmake-codeowners\n",
                         ),
                     ],
                 ),
@@ -301,7 +302,8 @@ def test_check_codeowners_line(line, pos, warnings):
             [
                 LintWarning(
                     pos=(1, 15),
-                    msg="file 'pyproject.toml' should come after 'CMakeLists.txt'",
+                    msg="file 'pyproject.toml' should come after "
+                    "'CMakeLists.txt'",
                     notes=[
                         Note(
                             pos=(40, 54),

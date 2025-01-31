@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -87,7 +87,8 @@ class TestLinter:
                 21,
                 None,
                 pytest.raises(
-                    IndexError, match="^Position 21 is inside a line separator$"
+                    IndexError,
+                    match="^Position 21 is inside a line separator$",
                 ),
             ),
             (LONG_CONTENTS, 34, 5, contextlib.nullcontext()),
@@ -97,7 +98,9 @@ class TestLinter:
                 LONG_CONTENTS,
                 200,
                 None,
-                pytest.raises(IndexError, match="^Position 200 is not in the string$"),
+                pytest.raises(
+                    IndexError, match="^Position 200 is not in the string$"
+                ),
             ),
             ("line 1", 0, 0, contextlib.nullcontext()),
             ("line 1", 3, 0, contextlib.nullcontext()),
@@ -122,15 +125,23 @@ class TestLinter:
         linter.add_warning((0, 0), "no fix")
         assert linter.fix() == "Hello world!"
 
-        linter.add_warning((5, 5), "use punctuation").add_replacement((5, 5), ",")
+        linter.add_warning((5, 5), "use punctuation").add_replacement(
+            (5, 5), ","
+        )
         linter.add_warning((0, 5), "say good bye instead").add_replacement(
             (0, 5), "Good bye"
         )
-        linter.add_warning((11, 12), "don't shout").add_replacement((11, 12), "")
-        linter.add_warning((6, 11), "no-op replacement").add_replacement((11, 11), "")
+        linter.add_warning((11, 12), "don't shout").add_replacement(
+            (11, 12), ""
+        )
+        linter.add_warning((6, 11), "no-op replacement").add_replacement(
+            (11, 11), ""
+        )
         assert linter.fix() == "Good bye, world"
 
-        linter.add_warning((11, 12), "don't shout").add_replacement((11, 12), ".")
+        linter.add_warning((11, 12), "don't shout").add_replacement(
+            (11, 12), "."
+        )
         with pytest.raises(
             OverlappingReplacementsError,
             match=r"^Replacement\(pos=\(11, 12\), newtext=''\) overlaps with "
@@ -159,7 +170,7 @@ class TestLintMain:
     @pytest.fixture
     def binary_file(self, tmp_path):
         with open(os.path.join(tmp_path, "binary.bin"), "wb+") as f:
-            f.write(b"\xDE\xAD\xBE\xEF")
+            f.write(b"\xde\xad\xbe\xef")
             f.flush()
             f.seek(0)
             yield f
@@ -196,29 +207,34 @@ class TestLintMain:
         if args.check_test_note:
             w.add_note((6, 11), "it's a small world after all")
         if linter.content[5] != "!":
-            linter.add_warning((5, 5), "use punctuation").add_replacement((5, 5), ",")
+            linter.add_warning((5, 5), "use punctuation").add_replacement(
+                (5, 5), ","
+            )
 
-    def long_file_check(self, linter, args):
+    def long_file_check(self, linter, _args):
         linter.add_warning((0, len(linter.content)), "this is a long file")
 
-    def long_fix_check(self, linter, args):
+    def long_fix_check(self, linter, _args):
         linter.add_warning((0, 19), "this is a long line").add_replacement(
             (0, 19), "This is a long file\nIt's even longer now"
         )
 
-    def long_delete_fix_check(self, linter, args):
+    def long_delete_fix_check(self, linter, _args):
         linter.add_warning(
             (0, len(linter.content)), "this is a long file"
         ).add_replacement((0, len(linter.content)), "This is a short file now")
 
-    def bracket_check(self, linter, args):
-        linter.add_warning((0, 28), "this [file] has brackets").add_replacement(
-            (12, 17), "[has more]"
-        )
+    def bracket_check(self, linter, _args):
+        linter.add_warning(
+            (0, 28), "this [file] has brackets"
+        ).add_replacement((12, 17), "[has more]")
 
     def test_no_warnings_no_fix(self, hello_world_file):
         with (
-            patch("sys.argv", ["check-test", "--check-test", hello_world_file.name]),
+            patch(
+                "sys.argv",
+                ["check-test", "--check-test", hello_world_file.name],
+            ),
             self.mock_console() as console,
         ):
             m = LintMain()
@@ -251,7 +267,10 @@ class TestLintMain:
 
     def test_warnings_no_fix(self, hello_world_file):
         with (
-            patch("sys.argv", ["check-test", "--check-test", hello_world_file.name]),
+            patch(
+                "sys.argv",
+                ["check-test", "--check-test", hello_world_file.name],
+            ),
             self.mock_console() as console,
             pytest.raises(SystemExit, match=r"^1$"),
         ):
@@ -477,8 +496,8 @@ class TestLintMain:
             call().print("[red]-[bold]This is a long file[/bold][/red]"),
             call().print("[green]+[bold]This is a long file[/bold][/green]"),
             call().print(
-                "[bold]note:[/bold] suggested fix is too long to display, use --fix to "
-                "apply it"
+                "[bold]note:[/bold] suggested fix is too long to display, use "
+                "--fix to apply it"
             ),
             call().print(),
             call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
@@ -516,10 +535,12 @@ class TestLintMain:
             call().print(),
             call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
             call().print("[red]-[bold]This is a long file[/bold][/red]"),
-            call().print("[green]+[bold]This is a short file now[/bold][/green]"),
             call().print(
-                "[bold]note:[/bold] suggested fix is too long to display, use --fix to "
-                "apply it"
+                "[green]+[bold]This is a short file now[/bold][/green]"
+            ),
+            call().print(
+                "[bold]note:[/bold] suggested fix is too long to display, use "
+                "--fix to apply it"
             ),
             call().print(),
         ]
@@ -558,7 +579,8 @@ class TestLintMain:
             call().print("[red]-[bold]This is a long file[/bold][/red]"),
             call().print("[green]+[bold]This is a long file[/bold][/green]"),
             call().print(
-                "[bold]note:[/bold] suggested fix applied but is too long to display"
+                "[bold]note:[/bold] suggested fix applied but is too long to "
+                "display"
             ),
             call().print(),
             call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
@@ -592,9 +614,12 @@ class TestLintMain:
             call().print(),
             call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
             call().print("[red]-[bold]This is a long file[/bold][/red]"),
-            call().print("[green]+[bold]This is a short file now[/bold][/green]"),
             call().print(
-                "[bold]note:[/bold] suggested fix applied but is too long to display"
+                "[green]+[bold]This is a short file now[/bold][/green]"
+            ),
+            call().print(
+                "[bold]note:[/bold] suggested fix applied but is too long to "
+                "display"
             ),
             call().print(),
         ]
@@ -629,9 +654,12 @@ class TestLintMain:
                 rf"In file [bold]{os.path.dirname(bracket_file.name)}"
                 r"/file\[with]brackets.txt:1:13[/bold]:"
             ),
-            call().print(r"[red]-This \[file] [bold]\[has][/bold] \[brackets][/red]"),
             call().print(
-                r"[green]+This \[file] [bold]\[has more][/bold] \[brackets][/green]"
+                r"[red]-This \[file] [bold]\[has][/bold] \[brackets][/red]"
+            ),
+            call().print(
+                r"[green]+This \[file] [bold]\[has more][/bold] \[brackets]"
+                r"[/green]"
             ),
             call().print("[bold]note:[/bold] suggested fix applied"),
             call().print(),

@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,12 +21,17 @@ from unittest.mock import MagicMock, Mock, call, patch
 import pytest
 import yaml
 from packaging.version import Version
-from rapids_metadata.metadata import RAPIDSMetadata, RAPIDSRepository, RAPIDSVersion
+from rapids_metadata.metadata import (
+    RAPIDSMetadata,
+    RAPIDSRepository,
+    RAPIDSVersion,
+)
 
 from rapids_pre_commit_hooks import alpha_spec, lint
 
 latest_version, latest_metadata = max(
-    alpha_spec.all_metadata().versions.items(), key=lambda item: Version(item[0])
+    alpha_spec.all_metadata().versions.items(),
+    key=lambda item: Version(item[0]),
 )
 
 
@@ -131,7 +136,13 @@ def test_strip_cuda_suffix(name, stripped_name):
 
 
 @pytest.mark.parametrize(
-    ["used_anchors_before", "node_index", "descend", "anchor", "used_anchors_after"],
+    [
+        "used_anchors_before",
+        "node_index",
+        "descend",
+        "anchor",
+        "used_anchors_after",
+    ],
     [
         (
             set(),
@@ -208,10 +219,20 @@ def test_check_and_mark_anchor(
         *chain(
             *(
                 [
-                    (f"{p}-cu12", f"{p}-cu12", "development", f"{p}-cu12>=0.0.0a0"),
+                    (
+                        f"{p}-cu12",
+                        f"{p}-cu12",
+                        "development",
+                        f"{p}-cu12>=0.0.0a0",
+                    ),
                     (f"{p}-cu11", f"{p}-cu11", "release", None),
                     (f"{p}-cu12", f"{p}-cu12>=0.0.0a0", "development", None),
-                    (f"{p}-cu11", f"{p}-cu11>=0.0.0a0", "release", f"{p}-cu11"),
+                    (
+                        f"{p}-cu11",
+                        f"{p}-cu11>=0.0.0a0",
+                        "release",
+                        f"{p}-cu11",
+                    ),
                 ]
                 for p in latest_metadata.prerelease_packages
                 & latest_metadata.cuda_suffixed_packages
@@ -230,8 +251,18 @@ def test_check_and_mark_anchor(
                 )
             )
         ),
-        ("cuml", "cuml>=24.04,<24.06", "development", "cuml>=24.04,<24.06,>=0.0.0a0"),
-        ("cuml", "cuml>=24.04,<24.06,>=0.0.0a0", "release", "cuml>=24.04,<24.06"),
+        (
+            "cuml",
+            "cuml>=24.04,<24.06",
+            "development",
+            "cuml>=24.04,<24.06,>=0.0.0a0",
+        ),
+        (
+            "cuml",
+            "cuml>=24.04,<24.06,>=0.0.0a0",
+            "release",
+            "cuml>=24.04,<24.06",
+        ),
         (
             "cuml",
             "&cuml cuml>=24.04,<24.06,>=0.0.0a0",
@@ -239,7 +270,12 @@ def test_check_and_mark_anchor(
             "&cuml cuml>=24.04,<24.06",
         ),
         ("packaging", "packaging", "development", None),
-        (None, "--extra-index-url=https://pypi.nvidia.com", "development", None),
+        (
+            None,
+            "--extra-index-url=https://pypi.nvidia.com",
+            "development",
+            None,
+        ),
         (None, "--extra-index-url=https://pypi.nvidia.com", "release", None),
         (None, "gcc_linux-64=11.*", "development", None),
         (None, "gcc_linux-64=11.*", "release", None),
@@ -302,13 +338,21 @@ def test_check_package_spec_anchor():
     ).add_replacement((2, 26), "&cudf cudf>=24.04,<24.06,>=0.0.0a0")
 
     alpha_spec.check_package_spec(
-        linter, args, loader.document_anchors[0], used_anchors, composed.value[0]
+        linter,
+        args,
+        loader.document_anchors[0],
+        used_anchors,
+        composed.value[0],
     )
     assert linter.warnings == expected_linter.warnings
     assert used_anchors == {"cudf"}
 
     alpha_spec.check_package_spec(
-        linter, args, loader.document_anchors[0], used_anchors, composed.value[1]
+        linter,
+        args,
+        loader.document_anchors[0],
+        used_anchors,
+        composed.value[1],
     )
     assert linter.warnings == expected_linter.warnings
     assert used_anchors == {"cudf"}
@@ -317,7 +361,11 @@ def test_check_package_spec_anchor():
         (37, 55), "add alpha spec for RAPIDS package cuml"
     ).add_replacement((37, 55), "cuml>=24.04,<24.06,>=0.0.0a0")
     alpha_spec.check_package_spec(
-        linter, args, loader.document_anchors[0], used_anchors, composed.value[2]
+        linter,
+        args,
+        loader.document_anchors[0],
+        used_anchors,
+        composed.value[2],
     )
     assert linter.warnings == expected_linter.warnings
     assert used_anchors == {"cudf"}
@@ -326,7 +374,11 @@ def test_check_package_spec_anchor():
         (58, 75), "add alpha spec for RAPIDS package rmm"
     ).add_replacement((58, 75), "rmm>=24.04,<24.06,>=0.0.0a0")
     alpha_spec.check_package_spec(
-        linter, args, loader.document_anchors[0], used_anchors, composed.value[3]
+        linter,
+        args,
+        loader.document_anchors[0],
+        used_anchors,
+        composed.value[3],
     )
     assert linter.warnings == expected_linter.warnings
     assert used_anchors == {"cudf"}
@@ -361,11 +413,16 @@ def test_check_packages(content, indices, use_anchor):
         composed = yaml.compose(content)
         anchors = {"anchor": composed}
         used_anchors = set()
-        alpha_spec.check_packages(linter, args, anchors, used_anchors, composed)
+        alpha_spec.check_packages(
+            linter, args, anchors, used_anchors, composed
+        )
         assert used_anchors == ({"anchor"} if use_anchor else set())
-        alpha_spec.check_packages(linter, args, anchors, used_anchors, composed)
+        alpha_spec.check_packages(
+            linter, args, anchors, used_anchors, composed
+        )
     assert mock_check_package_spec.mock_calls == [
-        call(linter, args, anchors, used_anchors, composed.value[i]) for i in indices
+        call(linter, args, anchors, used_anchors, composed.value[i])
+        for i in indices
     ]
 
 
@@ -401,7 +458,9 @@ def test_check_common(content, indices):
         composed = yaml.compose(content)
         alpha_spec.check_common(linter, args, anchors, used_anchors, composed)
     assert mock_check_packages.mock_calls == [
-        call(linter, args, anchors, used_anchors, composed.value[i].value[j][1])
+        call(
+            linter, args, anchors, used_anchors, composed.value[i].value[j][1]
+        )
         for i, j in indices
     ]
 
@@ -434,9 +493,13 @@ def test_check_matrices(content, indices):
         anchors = Mock()
         used_anchors = Mock()
         composed = yaml.compose(content)
-        alpha_spec.check_matrices(linter, args, anchors, used_anchors, composed)
+        alpha_spec.check_matrices(
+            linter, args, anchors, used_anchors, composed
+        )
     assert mock_check_packages.mock_calls == [
-        call(linter, args, anchors, used_anchors, composed.value[i].value[j][1])
+        call(
+            linter, args, anchors, used_anchors, composed.value[i].value[j][1]
+        )
         for i, j in indices
     ]
 
@@ -480,9 +543,13 @@ def test_check_specific(content, indices):
         anchors = Mock()
         used_anchors = Mock()
         composed = yaml.compose(content)
-        alpha_spec.check_specific(linter, args, anchors, used_anchors, composed)
+        alpha_spec.check_specific(
+            linter, args, anchors, used_anchors, composed
+        )
     assert mock_check_matrices.mock_calls == [
-        call(linter, args, anchors, used_anchors, composed.value[i].value[j][1])
+        call(
+            linter, args, anchors, used_anchors, composed.value[i].value[j][1]
+        )
         for i, j in indices
     ]
 
@@ -542,13 +609,27 @@ def test_check_dependencies(
         anchors = Mock()
         used_anchors = Mock()
         composed = yaml.compose(content)
-        alpha_spec.check_dependencies(linter, args, anchors, used_anchors, composed)
+        alpha_spec.check_dependencies(
+            linter, args, anchors, used_anchors, composed
+        )
     assert mock_check_common.mock_calls == [
-        call(linter, args, anchors, used_anchors, composed.value[i][1].value[j][1])
+        call(
+            linter,
+            args,
+            anchors,
+            used_anchors,
+            composed.value[i][1].value[j][1],
+        )
         for i, j in common_indices
     ]
     assert mock_check_specific.mock_calls == [
-        call(linter, args, anchors, used_anchors, composed.value[i][1].value[j][1])
+        call(
+            linter,
+            args,
+            anchors,
+            used_anchors,
+            composed.value[i][1].value[j][1],
+        )
         for i, j in specific_indices
     ]
 
@@ -579,7 +660,8 @@ def test_check_root(content, indices):
         composed = yaml.compose(content)
         alpha_spec.check_root(linter, args, anchors, used_anchors, composed)
     assert mock_check_dependencies.mock_calls == [
-        call(linter, args, anchors, used_anchors, composed.value[i][1]) for i in indices
+        call(linter, args, anchors, used_anchors, composed.value[i][1])
+        for i in indices
     ]
 
 
@@ -590,7 +672,8 @@ def test_check_alpha_spec():
             "rapids_pre_commit_hooks.alpha_spec.check_root", Mock()
         ) as mock_check_root,
         patch(
-            "rapids_pre_commit_hooks.alpha_spec.AnchorPreservingLoader", MagicMock()
+            "rapids_pre_commit_hooks.alpha_spec.AnchorPreservingLoader",
+            MagicMock(),
         ) as mock_anchor_preserving_loader,
     ):
         args = Mock()

@@ -26,10 +26,13 @@ import git
 from .lint import Linter, LintMain, LintWarning
 
 COPYRIGHT_RE: re.Pattern = re.compile(
-    r"Copyright *(?:\(c\))? *(?P<years>(?P<first_year>\d{4})(-(?P<last_year>\d{4}))?),?"
+    r"Copyright *(?:\(c\))? *"
+    r"(?P<years>(?P<first_year>\d{4})(-(?P<last_year>\d{4}))?),?"
     r" *NVIDIA C(?:ORPORATION|orporation)"
 )
-BRANCH_RE: re.Pattern = re.compile(r"^branch-(?P<major>[0-9]+)\.(?P<minor>[0-9]+)$")
+BRANCH_RE: re.Pattern = re.compile(
+    r"^branch-(?P<major>[0-9]+)\.(?P<minor>[0-9]+)$"
+)
 COPYRIGHT_REPLACEMENT: str = (
     "Copyright (c) {first_year}-{last_year}, NVIDIA CORPORATION"
 )
@@ -47,7 +50,9 @@ def match_copyright(content: str) -> list[re.Match]:
     return list(COPYRIGHT_RE.finditer(content))
 
 
-def strip_copyright(content: str, copyright_matches: list[re.Match]) -> list[str]:
+def strip_copyright(
+    content: str, copyright_matches: list[re.Match]
+) -> list[str]:
     lines = []
 
     def append_stripped(start: int, item: re.Match):
@@ -76,8 +81,8 @@ def add_copy_rename_note(
     else:
         warning.add_note(
             (0, len(linter.content)),
-            f"file was {change_verb} from '{old_filename}' and is assumed to share "
-            "history with it",
+            f"file was {change_verb} from '{old_filename}' and is assumed to "
+            "share history with it",
         )
         warning.add_note(
             (0, len(linter.content)),
@@ -161,26 +166,31 @@ def apply_copyright_check(
             linter.add_warning((0, 0), "no copyright notice found")
 
 
-def get_target_branch(repo: "git.Repo", args: argparse.Namespace) -> str | None:
+def get_target_branch(
+    repo: "git.Repo", args: argparse.Namespace
+) -> str | None:
     """Determine which branch is the "target" branch.
 
     The target branch is determined in the following order:
 
-    * If the ``--target-branch`` argument is passed, that branch is used. This allows
-      users to set a base branch on the command line.
+    * If the ``--target-branch`` argument is passed, that branch is used. This
+      allows users to set a base branch on the command line.
     * If the ``$TARGET_BRANCH`` environment variable is defined, that branch is
       used. This allows users to locally set a base branch on a one-time basis.
-    * If the ``$GITHUB_BASE_REF`` environment variable is defined, that branch is used.
-      This allows GitHub Actions to easily use this tool.
-    * If the ``$RAPIDS_BASE_BRANCH`` environment variable is defined, that branch is
-      used. This allows GitHub Actions inside ``copy-pr-bot`` to easily use this tool.
-    * If the Git configuration option ``rapidsai.baseBranch`` is defined, that branch is
-      used. This allows users to locally set a base branch on a long-term basis.
-    * If the ``--main-branch`` argument is passed, that branch is used. This allows
-      projects to use a branching strategy other than ``branch-<major>.<minor>``.
-    * If a ``branch-<major>.<minor>`` branch exists, that branch is used. If more than
-      one such branch exists, the one with the latest version is used. This supports the
-      expected default.
+    * If the ``$GITHUB_BASE_REF`` environment variable is defined, that branch
+      is used. This allows GitHub Actions to easily use this tool.
+    * If the ``$RAPIDS_BASE_BRANCH`` environment variable is defined, that
+      branch is used. This allows GitHub Actions inside ``copy-pr-bot`` to
+      easily use this tool.
+    * If the Git configuration option ``rapidsai.baseBranch`` is defined, that
+      branch is used. This allows users to locally set a base branch on a
+      long-term basis.
+    * If the ``--main-branch`` argument is passed, that branch is used. This
+      allows projects to use a branching strategy other than
+      ``branch-<major>.<minor>``.
+    * If a ``branch-<major>.<minor>`` branch exists, that branch is used. If
+      more than one such branch exists, the one with the latest version is
+      used. This supports the expected default.
     * Otherwise, None is returned and a warning is issued.
     """
     # Try --target-branch
@@ -220,8 +230,9 @@ def get_target_branch(repo: "git.Repo", args: argparse.Namespace) -> str | None:
 
     # Appropriate branch not found
     warnings.warn(
-        "Could not determine target branch. Try setting the TARGET_BRANCH environment "
-        "variable, or setting the rapidsai.baseBranch configuration option.",
+        "Could not determine target branch. Try setting the TARGET_BRANCH "
+        "environment variable, or setting the rapidsai.baseBranch "
+        "configuration option.",
         NoTargetBranchWarning,
     )
     return None
@@ -264,7 +275,11 @@ def get_target_branch_upstream_commit(
     try:
         # Try branches in all remotes that have the branch name
         upstream_commit = max(
-            (upstream for remote in repo.remotes if (upstream := try_get_ref(remote))),
+            (
+                upstream
+                for remote in repo.remotes
+                if (upstream := try_get_ref(remote))
+            ),
             key=lambda upstream: upstream.commit.committed_datetime,
         ).commit
     except ValueError:
@@ -273,10 +288,12 @@ def get_target_branch_upstream_commit(
         commits_to_try.append(upstream_commit)
 
     if commits_to_try:
-        return max(commits_to_try, key=lambda commit: commit.committed_datetime)
+        return max(
+            commits_to_try, key=lambda commit: commit.committed_datetime
+        )
 
-    # No branch with the specified name, local or remote, can be found, so return HEAD
-    # if it exists
+    # No branch with the specified name, local or remote, can be found, so
+    # return HEAD if it exists
     try:
         return repo.head.commit
     except ValueError:
@@ -295,10 +312,12 @@ def get_changed_files(
             for filename in filenames
         }
 
-    changed_files: dict[str | os.PathLike[str], tuple[str, Optional["git.Blob"]]] = {
-        f: ("A", None) for f in repo.untracked_files
-    }
-    target_branch_upstream_commit = get_target_branch_upstream_commit(repo, args)
+    changed_files: dict[
+        str | os.PathLike[str], tuple[str, Optional["git.Blob"]]
+    ] = {f: ("A", None) for f in repo.untracked_files}
+    target_branch_upstream_commit = get_target_branch_upstream_commit(
+        repo, args
+    )
     if target_branch_upstream_commit is None:
         changed_files.update(
             {blob.path: ("A", None) for _, blob in repo.index.iter_blobs()}
@@ -360,11 +379,11 @@ def check_copyright(
 ) -> Callable[[Linter, argparse.Namespace], None]:
     changed_files = get_changed_files(args)
 
-    def the_check(linter: Linter, args: argparse.Namespace):
+    def the_check(linter: Linter, _args: argparse.Namespace):
         if not (git_filename := normalize_git_filename(linter.filename)):
             warnings.warn(
-                f'File "{linter.filename}" is outside of current directory. Not '
-                "running linter on it.",
+                f'File "{linter.filename}" is outside of current directory. '
+                "Not running linter on it.",
                 ConflictingFilesWarning,
             )
             return
@@ -388,14 +407,14 @@ def check_copyright(
 def main() -> None:
     m = LintMain()
     m.argparser.description = (
-        "Verify that all files have had their copyright notices updated. Each file "
-        "will be compared against the target branch (determined automatically or with "
-        "the --target-branch argument) to decide whether or not they need a copyright "
-        "update.\n\n"
-        "--main-branch and --target-branch effectively control the same thing, but "
-        "--target-branch has higher precedence and is meant only for a user-local "
-        "override, while --main-branch is a project-wide setting. Both --main-branch "
-        "and --target-branch may be specified."
+        "Verify that all files have had their copyright notices updated. Each "
+        "file will be compared against the target branch (determined "
+        "automatically or with the --target-branch argument) to decide "
+        "whether or not they need a copyright update.\n\n"
+        "--main-branch and --target-branch effectively control the same "
+        "thing, but --target-branch has higher precedence and is meant only "
+        "for a user-local override, while --main-branch is a project-wide "
+        "setting. Both --main-branch and --target-branch may be specified."
     )
     m.argparser.add_argument(
         "--main-branch",

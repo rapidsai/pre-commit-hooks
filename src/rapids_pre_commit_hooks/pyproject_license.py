@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,9 +39,9 @@ def find_value_location(
     placeholder_toml = tomlkit.string(str(placeholder))
     placeholder_repr = placeholder_toml.as_string()
 
-    # tomlkit does not provide "mark" information to determine where exactly in the
-    # document a value is located, so instead we replace it with a placeholder and
-    # look for that in the new document.
+    # tomlkit does not provide "mark" information to determine where exactly in
+    # the document a value is located, so instead we replace it with a
+    # placeholder and look for that in the new document.
     node = copied_document
     while len(key) > (0 if append else 1):
         node = node[key[0]]  # type: ignore[assignment]
@@ -60,7 +60,7 @@ def find_value_location(
     return begin_loc, end_loc
 
 
-def check_pyproject_license(linter: Linter, args: argparse.Namespace) -> None:
+def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
     document = tomlkit.loads(linter.content)
     try:
         add_project_table = True
@@ -71,33 +71,38 @@ def check_pyproject_license(linter: Linter, args: argparse.Namespace) -> None:
         if add_project_table:
             loc = (len(linter.content), len(linter.content))
             linter.add_warning(
-                loc, f'add project.license with value {{ text = "{RAPIDS_LICENSE}" }}'
+                loc,
+                'add project.license with value { text = "'
+                f'{RAPIDS_LICENSE}" }}',
             ).add_replacement(
                 loc,
-                "[project]\nlicense = "
-                f"{{ text = {tomlkit.string(RAPIDS_LICENSE).as_string()} }}\n",
+                "[project]\nlicense = { text = "
+                f"{tomlkit.string(RAPIDS_LICENSE).as_string()} }}\n",
             )
         else:
             loc = find_value_location(document, ("project",), True)
             linter.add_warning(
-                loc, f'add project.license with value {{ text = "{RAPIDS_LICENSE}" }}'
+                loc,
+                'add project.license with value { text = "'
+                f'{RAPIDS_LICENSE}" }}',
             ).add_replacement(
                 loc,
-                "license = "
-                f"{{ text = {tomlkit.string(RAPIDS_LICENSE).as_string()} }}\n",
+                "license = { text = "
+                f"{tomlkit.string(RAPIDS_LICENSE).as_string()} }}\n",
             )
         return
 
     if license_value not in ACCEPTABLE_LICENSES:
-        loc = find_value_location(document, ("project", "license", "text"), False)
+        loc = find_value_location(
+            document, ("project", "license", "text"), False
+        )
         linter.add_warning(loc, f'license should be "{RAPIDS_LICENSE}"')
 
 
 def main() -> None:
     m = LintMain()
-    m.argparser.description = (
-        f'Verify that pyproject.toml has the correct license ("{RAPIDS_LICENSE}").'
-    )
+    m.argparser.description = "Verify that pyproject.toml has the correct "
+    f'license ("{RAPIDS_LICENSE}").'
     with m.execute() as ctx:
         ctx.add_check(check_pyproject_license)
 

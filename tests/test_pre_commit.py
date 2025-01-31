@@ -111,18 +111,26 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
     git_repo.index.add(list(list_files(master_dir)))
     git_repo.index.commit(
         "Initial commit",
-        commit_date=datetime.datetime(2023, 2, 1, tzinfo=datetime.timezone.utc),
+        commit_date=datetime.datetime(
+            2023, 2, 1, tzinfo=datetime.timezone.utc
+        ),
     )
 
     branch_dir = os.path.join(example_dir, "branch")
     if os.path.exists(branch_dir):
-        git_repo.head.reference = git_repo.create_head("branch", git_repo.head.commit)
+        git_repo.head.reference = git_repo.create_head(
+            "branch", git_repo.head.commit
+        )
         git_repo.index.remove(list(list_files(master_dir)), working_tree=True)
-        shutil.copytree(branch_dir, git_repo.working_tree_dir, dirs_exist_ok=True)
+        shutil.copytree(
+            branch_dir, git_repo.working_tree_dir, dirs_exist_ok=True
+        )
         git_repo.index.add(list(list_files(branch_dir)))
         git_repo.index.commit(
             "Make some changes",
-            commit_date=datetime.datetime(2024, 2, 1, tzinfo=datetime.timezone.utc),
+            commit_date=datetime.datetime(
+                2024, 2, 1, tzinfo=datetime.timezone.utc
+            ),
         )
 
     with (
@@ -131,7 +139,11 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
     ):
         subprocess.check_call(
             [sys.executable, "-m", "pre_commit", "run", hook_name, "-a"],
-            env={**os.environ, "TARGET_BRANCH": "master", "RAPIDS_TEST_YEAR": "2024"},
+            env={
+                **os.environ,
+                "TARGET_BRANCH": "master",
+                "RAPIDS_TEST_YEAR": "2024",
+            },
         )
 
 

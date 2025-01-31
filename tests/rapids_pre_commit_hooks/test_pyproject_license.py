@@ -1,4 +1,4 @@
-# Copyright (c) 2024, NVIDIA CORPORATION.
+# Copyright (c) 2024-2025, NVIDIA CORPORATION.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -65,7 +65,9 @@ def test_find_value_location(key, append, loc):
         """
     )
     parsed_doc = tomlkit.loads(CONTENT)
-    assert pyproject_license.find_value_location(parsed_doc, key, append) == loc
+    assert (
+        pyproject_license.find_value_location(parsed_doc, key, append) == loc
+    )
     assert parsed_doc.as_string() == CONTENT
 
 
@@ -101,7 +103,9 @@ def test_find_value_location(key, append, loc):
                 dedent(
                     f"""\
                     [project]
-                    license = {{ text = {tomlkit.string(license).as_string()} }}
+                    license = {{ text = {
+                        tomlkit.string(license).as_string()
+                    } }}
                     """
                 ),
                 None,

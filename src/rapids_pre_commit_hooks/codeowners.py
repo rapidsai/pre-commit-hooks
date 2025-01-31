@@ -58,18 +58,22 @@ class RequiredCodeownersLine:
 
 
 def hard_coded_codeowners(owners: str) -> CodeownersTransform:
-    return lambda *, project_prefix: owners
+    return lambda *, project_prefix: owners  # noqa: ARG005
 
 
 def project_codeowners(category: str) -> CodeownersTransform:
-    return lambda *, project_prefix: f"@rapidsai/{project_prefix}-{category}-codeowners"
+    return (
+        lambda *,
+        project_prefix: f"@rapidsai/{project_prefix}-{category}-codeowners"
+    )
 
 
 def required_codeowners_list(
     files: list[str], owners: list[CodeownersTransform], after: list[str] = []
 ) -> list[RequiredCodeownersLine]:
     return [
-        RequiredCodeownersLine(file=file, owners=owners, after=after) for file in files
+        RequiredCodeownersLine(file=file, owners=owners, after=after)
+        for file in files
     ]
 
 
@@ -124,7 +128,9 @@ REQUIRED_CMAKE_CODEOWNERS_LINES = required_codeowners_list(
 )
 
 
-def required_codeowners_lines(args: argparse.Namespace) -> list[RequiredCodeownersLine]:
+def required_codeowners_lines(
+    args: argparse.Namespace,
+) -> list[RequiredCodeownersLine]:
     return [
         *(REQUIRED_CI_CODEOWNERS_LINES if args.ci else []),
         *(REQUIRED_PACKAGING_CODEOWNERS_LINES if args.packaging else []),
@@ -141,12 +147,17 @@ def parse_codeowners_line(line: str, skip: int) -> CodeownersLine | None:
 
     file_pattern = FilePattern(
         filename=line_match.group("file"),
-        pos=(line_match.span("file")[0] + skip, line_match.span("file")[1] + skip),
+        pos=(
+            line_match.span("file")[0] + skip,
+            line_match.span("file")[1] + skip,
+        ),
     )
     owners: list[Owner] = []
 
     line_skip = skip + len(line_match.group("file"))
-    for owner_match in CODEOWNERS_OWNER_RE.finditer(line_match.group("owners")):
+    for owner_match in CODEOWNERS_OWNER_RE.finditer(
+        line_match.group("owners")
+    ):
         start, end = owner_match.span("owner")
         whitespace_start, _ = owner_match.span()
         owners.append(
@@ -187,11 +198,13 @@ def check_codeowners_line(
                 if extraneous_owners:
                     warning = linter.add_warning(
                         codeowners_line.file.pos,
-                        f"file '{codeowners_line.file.filename}' has incorrect "
-                        "owners",
+                        f"file '{codeowners_line.file.filename}' has "
+                        "incorrect owners",
                     )
                     for owner in extraneous_owners:
-                        warning.add_replacement(owner.pos_with_leading_whitespace, "")
+                        warning.add_replacement(
+                            owner.pos_with_leading_whitespace, ""
+                        )
 
             missing_required_owners: list[str] = []
             for required_owner in required_owners:
@@ -204,7 +217,8 @@ def check_codeowners_line(
                 if not warning:
                     warning = linter.add_warning(
                         codeowners_line.file.pos,
-                        f"file '{codeowners_line.file.filename}' has incorrect owners",
+                        f"file '{codeowners_line.file.filename}' has "
+                        "incorrect owners",
                     )
                 extra_string = " " + " ".join(missing_required_owners)
                 last = codeowners_line.owners[-1].pos[1]
@@ -221,7 +235,9 @@ def check_codeowners_line(
                         f"file '{codeowners_line.file.filename}' is here",
                     )
 
-            found_files.append((required_codeowners_line, codeowners_line.file.pos))
+            found_files.append(
+                (required_codeowners_line, codeowners_line.file.pos)
+            )
             break
 
 
@@ -247,9 +263,9 @@ def check_codeowners(linter: Linter, args: argparse.Namespace) -> None:
         if linter.content and not linter.content.endswith("\n"):
             new_text = f"\n{new_text}"
         content_len = len(linter.content)
-        linter.add_warning((0, 0), "missing required codeowners").add_replacement(
-            (content_len, content_len), new_text
-        )
+        linter.add_warning(
+            (0, 0), "missing required codeowners"
+        ).add_replacement((content_len, content_len), new_text)
 
 
 def main() -> None:
