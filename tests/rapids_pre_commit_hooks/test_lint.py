@@ -211,20 +211,20 @@ class TestLintMain:
                 (5, 5), ","
             )
 
-    def long_file_check(self, linter, args):
+    def long_file_check(self, linter, _args):
         linter.add_warning((0, len(linter.content)), "this is a long file")
 
-    def long_fix_check(self, linter, args):
+    def long_fix_check(self, linter, _args):
         linter.add_warning((0, 19), "this is a long line").add_replacement(
             (0, 19), "This is a long file\nIt's even longer now"
         )
 
-    def long_delete_fix_check(self, linter, args):
+    def long_delete_fix_check(self, linter, _args):
         linter.add_warning(
             (0, len(linter.content)), "this is a long file"
         ).add_replacement((0, len(linter.content)), "This is a short file now")
 
-    def bracket_check(self, linter, args):
+    def bracket_check(self, linter, _args):
         linter.add_warning(
             (0, 28), "this [file] has brackets"
         ).add_replacement((12, 17), "[has more]")
@@ -496,8 +496,8 @@ class TestLintMain:
             call().print("[red]-[bold]This is a long file[/bold][/red]"),
             call().print("[green]+[bold]This is a long file[/bold][/green]"),
             call().print(
-                "[bold]note:[/bold] suggested fix is too long to display, use --fix to "
-                "apply it"
+                "[bold]note:[/bold] suggested fix is too long to display, use "
+                "--fix to apply it"
             ),
             call().print(),
             call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
@@ -539,8 +539,8 @@ class TestLintMain:
                 "[green]+[bold]This is a short file now[/bold][/green]"
             ),
             call().print(
-                "[bold]note:[/bold] suggested fix is too long to display, use --fix to "
-                "apply it"
+                "[bold]note:[/bold] suggested fix is too long to display, use "
+                "--fix to apply it"
             ),
             call().print(),
         ]
@@ -579,7 +579,8 @@ class TestLintMain:
             call().print("[red]-[bold]This is a long file[/bold][/red]"),
             call().print("[green]+[bold]This is a long file[/bold][/green]"),
             call().print(
-                "[bold]note:[/bold] suggested fix applied but is too long to display"
+                "[bold]note:[/bold] suggested fix applied but is too long to "
+                "display"
             ),
             call().print(),
             call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
@@ -617,7 +618,8 @@ class TestLintMain:
                 "[green]+[bold]This is a short file now[/bold][/green]"
             ),
             call().print(
-                "[bold]note:[/bold] suggested fix applied but is too long to display"
+                "[bold]note:[/bold] suggested fix applied but is too long to "
+                "display"
             ),
             call().print(),
         ]
@@ -656,7 +658,8 @@ class TestLintMain:
                 r"[red]-This \[file] [bold]\[has][/bold] \[brackets][/red]"
             ),
             call().print(
-                r"[green]+This \[file] [bold]\[has more][/bold] \[brackets][/green]"
+                r"[green]+This \[file] [bold]\[has more][/bold] \[brackets]"
+                r"[/green]"
             ),
             call().print("[bold]note:[/bold] suggested fix applied"),
             call().print(),

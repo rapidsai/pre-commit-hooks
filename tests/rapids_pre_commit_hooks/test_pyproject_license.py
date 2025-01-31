@@ -103,7 +103,9 @@ def test_find_value_location(key, append, loc):
                 dedent(
                     f"""\
                     [project]
-                    license = {{ text = {tomlkit.string(license).as_string()} }}
+                    license = {{ text = {
+                        tomlkit.string(license).as_string()
+                    } }}
                     """
                 ),
                 None,

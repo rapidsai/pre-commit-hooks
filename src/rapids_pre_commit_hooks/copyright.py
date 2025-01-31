@@ -26,7 +26,8 @@ import git
 from .lint import Linter, LintMain, LintWarning
 
 COPYRIGHT_RE: re.Pattern = re.compile(
-    r"Copyright *(?:\(c\))? *(?P<years>(?P<first_year>\d{4})(-(?P<last_year>\d{4}))?),?"
+    r"Copyright *(?:\(c\))? *"
+    r"(?P<years>(?P<first_year>\d{4})(-(?P<last_year>\d{4}))?),?"
     r" *NVIDIA C(?:ORPORATION|orporation)"
 )
 BRANCH_RE: re.Pattern = re.compile(
@@ -80,8 +81,8 @@ def add_copy_rename_note(
     else:
         warning.add_note(
             (0, len(linter.content)),
-            f"file was {change_verb} from '{old_filename}' and is assumed to share "
-            "history with it",
+            f"file was {change_verb} from '{old_filename}' and is assumed to "
+            "share history with it",
         )
         warning.add_note(
             (0, len(linter.content)),
@@ -172,21 +173,24 @@ def get_target_branch(
 
     The target branch is determined in the following order:
 
-    * If the ``--target-branch`` argument is passed, that branch is used. This allows
-      users to set a base branch on the command line.
+    * If the ``--target-branch`` argument is passed, that branch is used. This
+      allows users to set a base branch on the command line.
     * If the ``$TARGET_BRANCH`` environment variable is defined, that branch is
       used. This allows users to locally set a base branch on a one-time basis.
-    * If the ``$GITHUB_BASE_REF`` environment variable is defined, that branch is used.
-      This allows GitHub Actions to easily use this tool.
-    * If the ``$RAPIDS_BASE_BRANCH`` environment variable is defined, that branch is
-      used. This allows GitHub Actions inside ``copy-pr-bot`` to easily use this tool.
-    * If the Git configuration option ``rapidsai.baseBranch`` is defined, that branch is
-      used. This allows users to locally set a base branch on a long-term basis.
-    * If the ``--main-branch`` argument is passed, that branch is used. This allows
-      projects to use a branching strategy other than ``branch-<major>.<minor>``.
-    * If a ``branch-<major>.<minor>`` branch exists, that branch is used. If more than
-      one such branch exists, the one with the latest version is used. This supports the
-      expected default.
+    * If the ``$GITHUB_BASE_REF`` environment variable is defined, that branch
+      is used. This allows GitHub Actions to easily use this tool.
+    * If the ``$RAPIDS_BASE_BRANCH`` environment variable is defined, that
+      branch is used. This allows GitHub Actions inside ``copy-pr-bot`` to
+      easily use this tool.
+    * If the Git configuration option ``rapidsai.baseBranch`` is defined, that
+      branch is used. This allows users to locally set a base branch on a
+      long-term basis.
+    * If the ``--main-branch`` argument is passed, that branch is used. This
+      allows projects to use a branching strategy other than
+      ``branch-<major>.<minor>``.
+    * If a ``branch-<major>.<minor>`` branch exists, that branch is used. If
+      more than one such branch exists, the one with the latest version is
+      used. This supports the expected default.
     * Otherwise, None is returned and a warning is issued.
     """
     # Try --target-branch
@@ -226,8 +230,9 @@ def get_target_branch(
 
     # Appropriate branch not found
     warnings.warn(
-        "Could not determine target branch. Try setting the TARGET_BRANCH environment "
-        "variable, or setting the rapidsai.baseBranch configuration option.",
+        "Could not determine target branch. Try setting the TARGET_BRANCH "
+        "environment variable, or setting the rapidsai.baseBranch "
+        "configuration option.",
         NoTargetBranchWarning,
     )
     return None
@@ -287,8 +292,8 @@ def get_target_branch_upstream_commit(
             commits_to_try, key=lambda commit: commit.committed_datetime
         )
 
-    # No branch with the specified name, local or remote, can be found, so return HEAD
-    # if it exists
+    # No branch with the specified name, local or remote, can be found, so
+    # return HEAD if it exists
     try:
         return repo.head.commit
     except ValueError:
@@ -377,8 +382,8 @@ def check_copyright(
     def the_check(linter: Linter, _args: argparse.Namespace):
         if not (git_filename := normalize_git_filename(linter.filename)):
             warnings.warn(
-                f'File "{linter.filename}" is outside of current directory. Not '
-                "running linter on it.",
+                f'File "{linter.filename}" is outside of current directory. '
+                "Not running linter on it.",
                 ConflictingFilesWarning,
             )
             return
@@ -402,14 +407,14 @@ def check_copyright(
 def main() -> None:
     m = LintMain()
     m.argparser.description = (
-        "Verify that all files have had their copyright notices updated. Each file "
-        "will be compared against the target branch (determined automatically or with "
-        "the --target-branch argument) to decide whether or not they need a copyright "
-        "update.\n\n"
-        "--main-branch and --target-branch effectively control the same thing, but "
-        "--target-branch has higher precedence and is meant only for a user-local "
-        "override, while --main-branch is a project-wide setting. Both --main-branch "
-        "and --target-branch may be specified."
+        "Verify that all files have had their copyright notices updated. Each "
+        "file will be compared against the target branch (determined "
+        "automatically or with the --target-branch argument) to decide "
+        "whether or not they need a copyright update.\n\n"
+        "--main-branch and --target-branch effectively control the same "
+        "thing, but --target-branch has higher precedence and is meant only "
+        "for a user-local override, while --main-branch is a project-wide "
+        "setting. Both --main-branch and --target-branch may be specified."
     )
     m.argparser.add_argument(
         "--main-branch",

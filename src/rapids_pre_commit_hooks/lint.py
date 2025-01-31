@@ -152,7 +152,10 @@ class Linter:
                         replacement_msg = "suggested fix applied"
                 else:
                     if long:
-                        replacement_msg = "suggested fix is too long to display, use --fix to apply it"
+                        replacement_msg = (
+                            "suggested fix is too long to display, use --fix "
+                            "to apply it"
+                        )
                     else:
                         replacement_msg = "suggested fix"
                 self._print_note(

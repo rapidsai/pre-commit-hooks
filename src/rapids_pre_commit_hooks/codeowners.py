@@ -58,7 +58,7 @@ class RequiredCodeownersLine:
 
 
 def hard_coded_codeowners(owners: str) -> CodeownersTransform:
-    return lambda *, project_prefix: owners
+    return lambda *, project_prefix: owners  # noqa: ARG005
 
 
 def project_codeowners(category: str) -> CodeownersTransform:
@@ -198,7 +198,8 @@ def check_codeowners_line(
                 if extraneous_owners:
                     warning = linter.add_warning(
                         codeowners_line.file.pos,
-                        f"file '{codeowners_line.file.filename}' has incorrect owners",
+                        f"file '{codeowners_line.file.filename}' has "
+                        "incorrect owners",
                     )
                     for owner in extraneous_owners:
                         warning.add_replacement(
@@ -216,7 +217,8 @@ def check_codeowners_line(
                 if not warning:
                     warning = linter.add_warning(
                         codeowners_line.file.pos,
-                        f"file '{codeowners_line.file.filename}' has incorrect owners",
+                        f"file '{codeowners_line.file.filename}' has "
+                        "incorrect owners",
                     )
                 extra_string = " " + " ".join(missing_required_owners)
                 last = codeowners_line.owners[-1].pos[1]

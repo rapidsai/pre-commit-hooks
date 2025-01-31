@@ -437,13 +437,14 @@ def test_strip_copyright():
                     notes=[
                         Note(
                             (0, 189),
-                            "file was renamed from 'file1.txt' and is assumed to "
-                            "share history with it",
+                            "file was renamed from 'file1.txt' and is assumed "
+                            "to share history with it",
                         ),
                         Note(
                             (0, 189),
-                            "change file contents if you want its copyright dates to "
-                            "only be determined by its own edit history",
+                            "change file contents if you want its copyright "
+                            "dates to only be determined by its own edit "
+                            "history",
                         ),
                     ],
                     replacements=[
@@ -459,13 +460,14 @@ def test_strip_copyright():
                     notes=[
                         Note(
                             (0, 189),
-                            "file was renamed from 'file1.txt' and is assumed to "
-                            "share history with it",
+                            "file was renamed from 'file1.txt' and is assumed "
+                            "to share history with it",
                         ),
                         Note(
                             (0, 189),
-                            "change file contents if you want its copyright dates to "
-                            "only be determined by its own edit history",
+                            "change file contents if you want its copyright "
+                            "dates to only be determined by its own edit "
+                            "history",
                         ),
                     ],
                     replacements=[
@@ -505,13 +507,14 @@ def test_strip_copyright():
                     notes=[
                         Note(
                             (0, 189),
-                            "file was copied from 'file1.txt' and is assumed to share "
-                            "history with it",
+                            "file was copied from 'file1.txt' and is assumed "
+                            "to share history with it",
                         ),
                         Note(
                             (0, 189),
-                            "change file contents if you want its copyright dates to "
-                            "only be determined by its own edit history",
+                            "change file contents if you want its copyright "
+                            "dates to only be determined by its own edit "
+                            "history",
                         ),
                     ],
                     replacements=[
@@ -527,13 +530,14 @@ def test_strip_copyright():
                     notes=[
                         Note(
                             (0, 189),
-                            "file was copied from 'file1.txt' and is assumed to share "
-                            "history with it",
+                            "file was copied from 'file1.txt' and is assumed "
+                            "to share history with it",
                         ),
                         Note(
                             (0, 189),
-                            "change file contents if you want its copyright dates to "
-                            "only be determined by its own edit history",
+                            "change file contents if you want its copyright "
+                            "dates to only be determined by its own edit "
+                            "history",
                         ),
                     ],
                     replacements=[
@@ -579,8 +583,8 @@ def test_get_target_branch(git_repo):
         with pytest.warns(
             copyright.NoTargetBranchWarning,
             match=r"^Could not determine target branch[.] Try setting the "
-            r"TARGET_BRANCH environment variable, or setting the rapidsai.baseBranch "
-            r"configuration option[.]$",
+            r"TARGET_BRANCH environment variable, or setting the "
+            r"rapidsai[.]baseBranch configuration option[.]$",
         ):
             assert copyright.get_target_branch(git_repo, args) is None
 
@@ -710,7 +714,9 @@ def test_get_target_branch_upstream_commit(git_repo):
         remote_repo_1.index.add(["file1.txt"])
         remote_repo_1.index.commit(
             "Update file1.txt",
-            commit_date=datetime.datetime(2024, 2, 1, tzinfo=datetime.timezone.utc),
+            commit_date=datetime.datetime(
+                2024, 2, 1, tzinfo=datetime.timezone.utc,
+            ),
         )
 
         remote_1_branch_2 = remote_repo_1.create_head(
@@ -731,7 +737,9 @@ def test_get_target_branch_upstream_commit(git_repo):
         remote_repo_1.index.add(["file3.txt"])
         remote_repo_1.index.commit(
             "Update file3.txt",
-            commit_date=datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
+            commit_date=datetime.datetime(
+                2025, 1, 1, tzinfo=datetime.timezone.utc,
+            ),
         )
 
         remote_1_branch_4 = remote_repo_1.create_head(
@@ -743,7 +751,9 @@ def test_get_target_branch_upstream_commit(git_repo):
         remote_repo_1.index.add(["file4.txt"])
         remote_repo_1.index.commit(
             "Update file4.txt",
-            commit_date=datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc),
+            commit_date=datetime.datetime(
+                2024, 1, 1, tzinfo=datetime.timezone.utc,
+            ),
         )
 
         remote_1_branch_7 = remote_repo_1.create_head(
@@ -755,12 +765,17 @@ def test_get_target_branch_upstream_commit(git_repo):
         remote_repo_1.index.add(["file7.txt"])
         remote_repo_1.index.commit(
             "Update file7.txt",
-            commit_date=datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc),
+            commit_date=datetime.datetime(
+                2024, 1, 1, tzinfo=datetime.timezone.utc,
+            ),
         )
 
         remote_2_1 = remote_repo_2.create_remote("remote-1", remote_dir_1)
         remote_2_1.fetch(["master"])
-        remote_2_master = remote_repo_2.create_head("master", remote_2_1.refs["master"])
+        remote_2_master = remote_repo_2.create_head(
+            "master",
+            remote_2_1.refs["master"],
+        )
 
         remote_2_branch_3 = remote_repo_2.create_head(
             "branch-3", remote_2_master.commit
@@ -771,7 +786,9 @@ def test_get_target_branch_upstream_commit(git_repo):
         remote_repo_2.index.add(["file3.txt"])
         remote_repo_2.index.commit(
             "Update file3.txt",
-            commit_date=datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc),
+            commit_date=datetime.datetime(
+                2024, 1, 1, tzinfo=datetime.timezone.utc,
+            ),
         )
 
         remote_2_branch_4 = remote_repo_2.create_head(
@@ -783,7 +800,9 @@ def test_get_target_branch_upstream_commit(git_repo):
         remote_repo_2.index.add(["file4.txt"])
         remote_repo_2.index.commit(
             "Update file4.txt",
-            commit_date=datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
+            commit_date=datetime.datetime(
+                2025, 1, 1, tzinfo=datetime.timezone.utc,
+            ),
         )
 
         remote_2_branch_5 = remote_repo_2.create_head(
@@ -796,12 +815,18 @@ def test_get_target_branch_upstream_commit(git_repo):
         remote_repo_2.index.commit("Update file5.txt")
 
         with mock_target_branch(None):
-            assert copyright.get_target_branch_upstream_commit(git_repo, Mock()) is None
+            assert copyright.get_target_branch_upstream_commit(
+                git_repo, Mock(),
+            ) is None
 
         with mock_target_branch("branch-1"):
-            assert copyright.get_target_branch_upstream_commit(git_repo, Mock()) is None
+            assert copyright.get_target_branch_upstream_commit(
+                git_repo, Mock(),
+            ) is None
 
-        remote_1 = git_repo.create_remote("unconventional/remote/name/1", remote_dir_1)
+        remote_1 = git_repo.create_remote(
+            "unconventional/remote/name/1", remote_dir_1,
+        )
         remote_1.fetch([
             "master",
             "branch-1-renamed",
@@ -810,7 +835,9 @@ def test_get_target_branch_upstream_commit(git_repo):
             "branch-4",
             "branch-7",
         ])
-        remote_2 = git_repo.create_remote("unconventional/remote/name/2", remote_dir_2)
+        remote_2 = git_repo.create_remote(
+            "unconventional/remote/name/2", remote_dir_2,
+        )
         remote_2.fetch(["branch-3", "branch-4", "branch-5"])
 
         main = git_repo.create_head("main", remote_1.refs["master"])
@@ -824,7 +851,9 @@ def test_get_target_branch_upstream_commit(git_repo):
         git_repo.index.remove("file1.txt", working_tree=True)
         git_repo.index.commit(
             "Remove file1.txt",
-            commit_date=datetime.datetime(2024, 1, 1, tzinfo=datetime.timezone.utc),
+            commit_date=datetime.datetime(
+                2024, 1, 1, tzinfo=datetime.timezone.utc,
+            ),
         )
 
         branch_6 = git_repo.create_head("branch-6", remote_1.refs["master"])
@@ -842,7 +871,9 @@ def test_get_target_branch_upstream_commit(git_repo):
         git_repo.index.remove(["file7.txt"], working_tree=True)
         git_repo.index.commit(
             "Remove file7.txt",
-            commit_date=datetime.datetime(2024, 2, 1, tzinfo=datetime.timezone.utc),
+            commit_date=datetime.datetime(
+                2024, 2, 1, tzinfo=datetime.timezone.utc,
+            ),
         )
 
         git_repo.head.reference = main
@@ -981,7 +1012,8 @@ def test_get_changed_files(git_repo):
         patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir)),
         mock_os_walk(git_repo.working_tree_dir),
         patch(
-            "rapids_pre_commit_hooks.copyright.get_target_branch_upstream_commit",
+            "rapids_pre_commit_hooks.copyright."
+            "get_target_branch_upstream_commit",
             Mock(return_value=None),
         ),
     ):
@@ -1084,7 +1116,8 @@ def test_get_changed_files(git_repo):
     with (
         patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir)),
         patch(
-            "rapids_pre_commit_hooks.copyright.get_target_branch_upstream_commit",
+            "rapids_pre_commit_hooks.copyright."
+            "get_target_branch_upstream_commit",
             Mock(return_value=target_branch.commit),
         ),
     ):
@@ -1322,7 +1355,8 @@ def test_check_copyright(git_repo):
             return repo.heads[target_branch].commit
 
         return patch(
-            "rapids_pre_commit_hooks.copyright.get_target_branch_upstream_commit",
+            "rapids_pre_commit_hooks.copyright."
+            "get_target_branch_upstream_commit",
             func,
         )
 
@@ -1398,8 +1432,8 @@ def test_check_copyright(git_repo):
     with mock_apply_copyright_check() as apply_copyright_check:
         with pytest.warns(
             copyright.ConflictingFilesWarning,
-            match=r'File "\.\./file1\.txt" is outside of current directory\. Not '
-            r"running linter on it\.$",
+            match=r'File "\.\./file1\.txt" is outside of current directory\. '
+            r"Not running linter on it\.$",
         ):
             copyright_checker(linter, mock_args)
         apply_copyright_check.assert_not_called()

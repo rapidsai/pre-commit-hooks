@@ -298,9 +298,9 @@ def check_root(
 
 
 class AnchorPreservingLoader(yaml.SafeLoader):
-    """A SafeLoader that preserves the anchors for later reference. The anchors can
-    be found in the document_anchors member, which is a list of dictionaries, one
-    dictionary for each parsed document.
+    """A SafeLoader that preserves the anchors for later reference. The anchors
+    can be found in the document_anchors member, which is a list of
+    dictionaries, one dictionary for each parsed document.
     """
 
     def __init__(self, stream) -> None:
@@ -347,7 +347,8 @@ def main() -> None:
     )
     m.argparser.add_argument(
         "--rapids-version",
-        help="Specify a RAPIDS version to use instead of reading from the VERSION file",
+        help="Specify a RAPIDS version to use instead of reading from the "
+        "VERSION file",
     )
     with m.execute() as ctx:
         ctx.add_check(check_alpha_spec)
