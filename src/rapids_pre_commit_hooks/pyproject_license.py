@@ -21,7 +21,7 @@ import tomlkit.exceptions
 
 from .lint import Linter, LintMain
 
-RAPIDS_LICENSE: str = "Apache 2.0"
+RAPIDS_LICENSE: str = "Apache-2.0"
 ACCEPTABLE_LICENSES: set[str] = {
     RAPIDS_LICENSE,
     "BSD-3-Clause",
@@ -66,29 +66,26 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
         add_project_table = True
         project_table = document["project"]
         add_project_table = project_table.is_super_table()  # type: ignore[union-attr]
-        license_value = project_table["license"]["text"]  # type: ignore[index]
+        license_value = project_table["license"]  # type: ignore[index]
     except tomlkit.exceptions.NonExistentKey:
         if add_project_table:
             loc = (len(linter.content), len(linter.content))
             linter.add_warning(
                 loc,
-                'add project.license with value { text = "'
-                f'{RAPIDS_LICENSE}" }}',
+                f'add project.license with value "{RAPIDS_LICENSE}"',
             ).add_replacement(
                 loc,
-                "[project]\nlicense = { text = "
-                f"{tomlkit.string(RAPIDS_LICENSE).as_string()} }}\n",
+                "[project]\nlicense = "
+                f"{tomlkit.string(RAPIDS_LICENSE).as_string()}\n",
             )
         else:
             loc = find_value_location(document, ("project",), True)
             linter.add_warning(
                 loc,
-                'add project.license with value { text = "'
-                f'{RAPIDS_LICENSE}" }}',
+                f'add project.license with value "{RAPIDS_LICENSE}"',
             ).add_replacement(
                 loc,
-                "license = { text = "
-                f"{tomlkit.string(RAPIDS_LICENSE).as_string()} }}\n",
+                f"license = {tomlkit.string(RAPIDS_LICENSE).as_string()}\n",
             )
         return
 
