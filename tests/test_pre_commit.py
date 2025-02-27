@@ -66,9 +66,6 @@ def git_repo(tmp_path):
     return repo
 
 
-HOOK_ARGS = {"verify-codeowners": ["--fix", "--project-prefix=cudf"]}
-
-
 def run_pre_commit(git_repo, hook_name, expected_status, exc):
     def list_files(top):
         for dirpath, _, filenames in os.walk(top):
@@ -86,10 +83,13 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
     with open(os.path.join(git_repo.working_tree_dir, "VERSION"), "w") as f:
         f.write(f"{max(all_metadata().versions.keys(), key=Version)}\n")
     try:
-        args = HOOK_ARGS[hook_name]
-        args_text = f"args: {json.dumps(args)}"
-    except KeyError:
+        f = open(os.path.join(example_dir, "metadata.yaml"))
+    except FileNotFoundError:
         args_text = ""
+    else:
+        with f:
+            metadata = yaml.safe_load(f)
+        args_text = f"args: {json.dumps(metadata['args'])}"
     with open(
         os.path.join(git_repo.working_tree_dir, ".pre-commit-config.yaml"), "w"
     ) as f:
