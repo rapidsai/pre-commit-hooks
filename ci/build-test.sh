@@ -3,13 +3,12 @@
 
 set -ue
 
-pip install build
+# According to https://pre-commit.com/#python,
+# pre-commit will install the package with 'pip install .' from the repo root.
+#
+# So this installs it the same way.
+pip install \
+  --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple \
+  .[test]
 
-python -m build .
-
-for PKG in dist/*; do
-  echo "$PKG"
-  pip uninstall -y rapids-pre-commit-hooks
-  pip install --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple "$PKG[test]"
-  pytest
-done
+pytest
