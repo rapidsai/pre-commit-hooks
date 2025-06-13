@@ -48,7 +48,7 @@ test = [
     "rapids-pre-commit-hooks[alpha-spec]",
 ]
 alpha-spec = [
-    "rapids-metadata>=0.3.0,<0.4.0.dev0",
+    "rapids-metadata>=0.4.0,<0.5.0.dev0",
 ]
 
 [project.scripts]

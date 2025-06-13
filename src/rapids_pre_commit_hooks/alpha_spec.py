@@ -48,7 +48,7 @@ def get_rapids_version(args: argparse.Namespace) -> "RAPIDSVersion":
     return (
         md.versions[args.rapids_version]
         if args.rapids_version
-        else md.get_current_version(os.getcwd())
+        else md.get_current_version(os.getcwd(), args.rapids_version_file)
     )
 
 
@@ -349,6 +349,12 @@ def main() -> None:
         "--rapids-version",
         help="Specify a RAPIDS version to use instead of reading from the "
         "VERSION file",
+    )
+    m.argparser.add_argument(
+        "--rapids-version-file",
+        help="Specify a file to read the RAPIDS version from instead of "
+        "VERSION",
+        default="VERSION",
     )
     with m.execute() as ctx:
         ctx.add_check(check_alpha_spec)
