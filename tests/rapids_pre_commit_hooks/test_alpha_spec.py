@@ -46,18 +46,30 @@ def set_cwd(cwd):
 
 
 @pytest.mark.parametrize(
-    ["version_file", "version_arg", "expected_version", "raises"],
     [
-        ("24.06", None, "24.06", contextlib.nullcontext()),
-        ("24.06", "24.08", "24.08", contextlib.nullcontext()),
-        ("24.08", "24.06", "24.06", contextlib.nullcontext()),
-        (None, "24.06", "24.06", contextlib.nullcontext()),
-        (None, "24.10", None, pytest.raises(KeyError)),
-        (None, None, None, pytest.raises(FileNotFoundError)),
+        "version_file",
+        "version_file_contents",
+        "version_arg",
+        "expected_version",
+        "raises",
+    ],
+    [
+        ("VERSION", "24.06", None, "24.06", contextlib.nullcontext()),
+        ("RAPIDS_VERSION", "24.06", None, "24.06", contextlib.nullcontext()),
+        ("VERSION", "24.06", "24.08", "24.08", contextlib.nullcontext()),
+        ("VERSION", "24.08", "24.06", "24.06", contextlib.nullcontext()),
+        ("VERSION", None, "24.06", "24.06", contextlib.nullcontext()),
+        ("VERSION", None, "24.10", None, pytest.raises(KeyError)),
+        ("VERSION", None, None, None, pytest.raises(FileNotFoundError)),
     ],
 )
 def test_get_rapids_version(
-    tmp_path, version_file, version_arg, expected_version, raises
+    tmp_path,
+    version_file,
+    version_file_contents,
+    version_arg,
+    expected_version,
+    raises,
 ):
     MOCK_METADATA = RAPIDSMetadata(
         versions={
@@ -80,10 +92,12 @@ def test_get_rapids_version(
             Mock(return_value=MOCK_METADATA),
         ),
     ):
-        if version_file:
-            with open("VERSION", "w") as f:
-                f.write(f"{version_file}\n")
-        args = Mock(rapids_version=version_arg)
+        if version_file_contents:
+            with open(version_file, "w") as f:
+                f.write(f"{version_file_contents}\n")
+        args = Mock(
+            rapids_version=version_arg, rapids_version_file=version_file
+        )
         with raises:
             version = alpha_spec.get_rapids_version(args)
             if expected_version:
@@ -702,7 +716,9 @@ def test_check_alpha_spec_integration(tmp_path):
     )
     REPLACED = "cudf>=24.04,<24.06"
 
-    args = Mock(mode="development", rapids_version=None)
+    args = Mock(
+        mode="development", rapids_version=None, rapids_version_file="VERSION"
+    )
     linter = lint.Linter("dependencies.yaml", CONTENT)
     with open(os.path.join(tmp_path, "VERSION"), "w") as f:
         f.write(f"{latest_version}\n")
