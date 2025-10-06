@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
 import datetime
 import os.path
 import tempfile
@@ -1236,23 +1237,45 @@ def test_get_changed_files_multiple_merge_bases(git_repo):
     }
 
 
-def test_normalize_git_filename():
-    assert copyright.normalize_git_filename("file.txt") == "file.txt"
-    assert copyright.normalize_git_filename("sub/file.txt") == "sub/file.txt"
-    assert copyright.normalize_git_filename("sub//file.txt") == "sub/file.txt"
-    assert copyright.normalize_git_filename("sub/../file.txt") == "file.txt"
-    assert copyright.normalize_git_filename("./file.txt") == "file.txt"
-    assert copyright.normalize_git_filename("../file.txt") is None
-    assert (
-        copyright.normalize_git_filename(os.path.join(os.getcwd(), "file.txt"))
-        == "file.txt"
-    )
-    assert (
-        copyright.normalize_git_filename(
-            os.path.join("..", os.path.basename(os.getcwd()), "file.txt")
-        )
-        == "file.txt"
-    )
+@pytest.mark.parametrize(
+    ["filename", "normalized_filename"],
+    [
+        (
+            "file.txt",
+            "file.txt",
+        ),
+        (
+            "sub/file.txt",
+            "sub/file.txt",
+        ),
+        (
+            "sub//file.txt",
+            "sub/file.txt",
+        ),
+        (
+            "sub/../file.txt",
+            "file.txt",
+        ),
+        (
+            "./file.txt",
+            "file.txt",
+        ),
+        (
+            "../file.txt",
+            None,
+        ),
+        (
+            os.path.join(os.getcwd(), "file.txt"),
+            "file.txt",
+        ),
+        (
+            os.path.join("..", os.path.basename(os.getcwd()), "file.txt"),
+            "file.txt",
+        ),
+    ],
+)
+def test_normalize_git_filename(filename, normalized_filename):
+    assert copyright.normalize_git_filename(filename) == normalized_filename
 
 
 @pytest.mark.parametrize(
@@ -1284,7 +1307,143 @@ def test_find_blob(git_repo, path, present):
 
 
 @freeze_time("2024-01-18")
-def test_check_copyright(git_repo):
+@pytest.mark.parametrize(
+    [
+        "target_branch",
+        "filename",
+        "contents",
+        "warning_context",
+        "op",
+        "old_filename",
+        "old_contents",
+    ],
+    [
+        (
+            "branch-1",
+            "file1.txt",
+            "File 1 modified",
+            contextlib.nullcontext(),
+            None,
+            None,
+            None,
+        ),
+        (
+            "branch-1",
+            "file5.txt",
+            "File 2",
+            contextlib.nullcontext(),
+            "R",
+            "dir/file2.txt",
+            "File 2",
+        ),
+        (
+            "branch-1",
+            "file3.txt",
+            "File 3 modified",
+            contextlib.nullcontext(),
+            "M",
+            "file3.txt",
+            "File 3",
+        ),
+        (
+            "branch-1",
+            "file4.txt",
+            "File 4 modified",
+            contextlib.nullcontext(),
+            "M",
+            "file4.txt",
+            "File 4",
+        ),
+        (
+            "branch-1",
+            "file6.txt",
+            "File 6",
+            contextlib.nullcontext(),
+            "A",
+            None,
+            None,
+        ),
+        (
+            "branch-2",
+            "file1.txt",
+            "File 1 modified",
+            contextlib.nullcontext(),
+            "M",
+            "file1.txt",
+            "File 1",
+        ),
+        (
+            "branch-2",
+            "./file1.txt",
+            "File 1 modified",
+            contextlib.nullcontext(),
+            "M",
+            "file1.txt",
+            "File 1",
+        ),
+        (
+            "branch-2",
+            "../file1.txt",
+            "File 1 modified",
+            pytest.warns(
+                copyright.ConflictingFilesWarning,
+                match=(
+                    r'^File "\.\./file1\.txt" is outside of current '
+                    r"directory\. Not running linter on it\.$"
+                ),
+            ),
+            None,
+            None,
+            None,
+        ),
+        (
+            "branch-2",
+            "file5.txt",
+            "File 2",
+            contextlib.nullcontext(),
+            "R",
+            "dir/file2.txt",
+            "File 2",
+        ),
+        (
+            "branch-2",
+            "file3.txt",
+            "File 3 modified",
+            contextlib.nullcontext(),
+            "M",
+            "file3.txt",
+            "File 3",
+        ),
+        (
+            "branch-2",
+            "file4.txt",
+            "File 4 modified",
+            contextlib.nullcontext(),
+            "M",
+            "file4.txt",
+            "File 4",
+        ),
+        (
+            "branch-2",
+            "file6.txt",
+            "File 6",
+            contextlib.nullcontext(),
+            "A",
+            None,
+            None,
+        ),
+    ],
+)
+def test_check_copyright(
+    git_repo,
+    target_branch,
+    filename,
+    contents,
+    warning_context,
+    op,
+    old_filename,
+    old_contents,
+):
     def fn(filename):
         return os.path.join(git_repo.working_tree_dir, filename)
 
@@ -1292,27 +1451,19 @@ def test_check_copyright(git_repo):
         with open(fn(filename), "w") as f:
             f.write(contents)
 
-    def file_contents(num):
+    def file_contents(contents):
         return dedent(
-            rf"""\
+            f"""\
             Copyright (c) 2021-2023 NVIDIA CORPORATION
-            File {num}
-            """
-        )
-
-    def file_contents_modified(num):
-        return dedent(
-            rf"""\
-            Copyright (c) 2021-2023 NVIDIA CORPORATION
-            File {num} modified
+            {contents}
             """
         )
 
     os.mkdir(os.path.join(git_repo.working_tree_dir, "dir"))
-    write_file("file1.txt", file_contents(1))
-    write_file("dir/file2.txt", file_contents(2))
-    write_file("file3.txt", file_contents(3))
-    write_file("file4.txt", file_contents(4))
+    write_file("file1.txt", file_contents("File 1"))
+    write_file("dir/file2.txt", file_contents("File 2"))
+    write_file("file3.txt", file_contents("File 3"))
+    write_file("file4.txt", file_contents("File 4"))
     git_repo.index.add(
         ["file1.txt", "dir/file2.txt", "file3.txt", "file4.txt"]
     )
@@ -1321,30 +1472,30 @@ def test_check_copyright(git_repo):
     branch_1 = git_repo.create_head("branch-1", "master")
     git_repo.head.reference = branch_1
     git_repo.head.reset(index=True, working_tree=True)
-    write_file("file1.txt", file_contents_modified(1))
+    write_file("file1.txt", file_contents("File 1 modified"))
     git_repo.index.add(["file1.txt"])
     git_repo.index.commit("Update file1.txt")
 
     branch_2 = git_repo.create_head("branch-2", "master")
     git_repo.head.reference = branch_2
     git_repo.head.reset(index=True, working_tree=True)
-    write_file("dir/file2.txt", file_contents_modified(2))
+    write_file("dir/file2.txt", file_contents("File 2 modified"))
     git_repo.index.add(["dir/file2.txt"])
     git_repo.index.commit("Update file2.txt")
 
     pr = git_repo.create_head("pr", "branch-1")
     git_repo.head.reference = pr
     git_repo.head.reset(index=True, working_tree=True)
-    write_file("file3.txt", file_contents_modified(3))
+    write_file("file3.txt", file_contents("File 3 modified"))
     git_repo.index.add(["file3.txt"])
     git_repo.index.commit("Update file3.txt")
-    write_file("file4.txt", file_contents_modified(4))
+    write_file("file4.txt", file_contents("File 4 modified"))
     git_repo.index.add(["file4.txt"])
     git_repo.index.commit("Update file4.txt")
     git_repo.index.move(["dir/file2.txt", "file5.txt"])
     git_repo.index.commit("Rename file2.txt to file5.txt")
 
-    write_file("file6.txt", file_contents(6))
+    write_file("file6.txt", file_contents("File 6"))
 
     def mock_repo_cwd():
         return patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir))
@@ -1365,101 +1516,21 @@ def test_check_copyright(git_repo):
             "rapids_pre_commit_hooks.copyright.apply_copyright_check", Mock()
         )
 
-    #############################
-    # branch-1 is target branch
-    #############################
+    mock_args = Mock(target_branch=target_branch, batch=False)
 
-    mock_args = Mock(target_branch="branch-1", batch=False)
-
-    with mock_repo_cwd(), mock_target_branch_upstream_commit("branch-1"):
+    with mock_repo_cwd(), mock_target_branch_upstream_commit(target_branch):
         copyright_checker = copyright.check_copyright(mock_args)
 
-    linter = Linter("file1.txt", file_contents_modified(1))
+    linter = Linter(filename, file_contents(contents))
     with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, mock_args)
-        apply_copyright_check.assert_not_called()
-
-    linter = Linter("file5.txt", file_contents(2))
-    with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, mock_args)
-        apply_copyright_check.assert_called_once_with(
-            linter, "R", "dir/file2.txt", file_contents(2)
-        )
-
-    linter = Linter("file3.txt", file_contents_modified(3))
-    with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, mock_args)
-        apply_copyright_check.assert_called_once_with(
-            linter, "M", "file3.txt", file_contents(3)
-        )
-
-    linter = Linter("file4.txt", file_contents_modified(4))
-    with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, mock_args)
-        apply_copyright_check.assert_called_once_with(
-            linter, "M", "file4.txt", file_contents(4)
-        )
-
-    linter = Linter("file6.txt", file_contents(6))
-    with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, mock_args)
-        apply_copyright_check.assert_called_once_with(linter, "A", None, None)
-
-    #############################
-    # branch-2 is target branch
-    #############################
-
-    mock_args = Mock(target_branch="branch-2", batch=False)
-
-    with mock_repo_cwd(), mock_target_branch_upstream_commit("branch-2"):
-        copyright_checker = copyright.check_copyright(mock_args)
-
-    linter = Linter("file1.txt", file_contents_modified(1))
-    with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, mock_args)
-        apply_copyright_check.assert_called_once_with(
-            linter, "M", "file1.txt", file_contents(1)
-        )
-
-    linter = Linter("./file1.txt", file_contents_modified(1))
-    with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, mock_args)
-        apply_copyright_check.assert_called_once_with(
-            linter, "M", "file1.txt", file_contents(1)
-        )
-
-    linter = Linter("../file1.txt", file_contents_modified(1))
-    with mock_apply_copyright_check() as apply_copyright_check:
-        with pytest.warns(
-            copyright.ConflictingFilesWarning,
-            match=r'File "\.\./file1\.txt" is outside of current directory\. '
-            r"Not running linter on it\.$",
-        ):
+        with warning_context:
             copyright_checker(linter, mock_args)
-        apply_copyright_check.assert_not_called()
-
-    linter = Linter("file5.txt", file_contents(2))
-    with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, mock_args)
-        apply_copyright_check.assert_called_once_with(
-            linter, "R", "dir/file2.txt", file_contents(2)
-        )
-
-    linter = Linter("file3.txt", file_contents_modified(3))
-    with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, mock_args)
-        apply_copyright_check.assert_called_once_with(
-            linter, "M", "file3.txt", file_contents(3)
-        )
-
-    linter = Linter("file4.txt", file_contents_modified(4))
-    with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, mock_args)
-        apply_copyright_check.assert_called_once_with(
-            linter, "M", "file4.txt", file_contents(4)
-        )
-
-    linter = Linter("file6.txt", file_contents(6))
-    with mock_apply_copyright_check() as apply_copyright_check:
-        copyright_checker(linter, mock_args)
-        apply_copyright_check.assert_called_once_with(linter, "A", None, None)
+        if op is None:
+            apply_copyright_check.assert_not_called()
+        else:
+            apply_copyright_check.assert_called_once_with(
+                linter,
+                op,
+                old_filename,
+                None if old_contents is None else file_contents(old_contents),
+            )

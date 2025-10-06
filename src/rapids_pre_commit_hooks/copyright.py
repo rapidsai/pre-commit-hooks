@@ -69,7 +69,7 @@ def add_copy_rename_note(
     warning: LintWarning,
     change_type: str,
     old_filename: str | os.PathLike[str] | None,
-):
+) -> None:
     CHANGE_VERBS = {
         "C": "copied",
         "R": "renamed",
@@ -379,7 +379,7 @@ def check_copyright(
 ) -> Callable[[Linter, argparse.Namespace], None]:
     changed_files = get_changed_files(args)
 
-    def the_check(linter: Linter, _args: argparse.Namespace):
+    def the_check(linter: Linter, _args: argparse.Namespace) -> None:
         if not (git_filename := normalize_git_filename(linter.filename)):
             warnings.warn(
                 f'File "{linter.filename}" is outside of current directory. '
