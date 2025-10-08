@@ -116,7 +116,7 @@ class TestLinter:
     ):
         linter = Linter("test.txt", contents)
         with raises:
-            assert linter._line_for_pos(pos) == line
+            assert linter.line_for_pos(pos) == line
 
     def test_fix(self):
         linter = Linter("test.txt", "Hello world!")

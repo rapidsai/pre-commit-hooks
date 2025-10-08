@@ -110,7 +110,7 @@ class Linter:
         msg: str,
         newtext: str | None = None,
     ) -> None:
-        line_index = self._line_for_pos(pos[0])
+        line_index = self.line_for_pos(pos[0])
         line_pos = self.lines[line_index]
         self.console.print(
             f"In file [bold]{escape(self.filename)}:{line_index + 1}:"
@@ -132,7 +132,7 @@ class Linter:
                 self._print_note("note", note.pos, note.msg)
 
             for replacement in warning.replacements:
-                line_index = self._line_for_pos(replacement.pos[0])
+                line_index = self.line_for_pos(replacement.pos[0])
                 line_pos = self.lines[line_index]
                 newtext = replacement.newtext
                 if match := self.NEWLINE_RE.search(newtext):
@@ -165,11 +165,11 @@ class Linter:
     def _print_highlighted_code(
         self, pos: _PosType, replacement: str | None = None
     ) -> None:
-        line_index = self._line_for_pos(pos[0])
+        line_index = self.line_for_pos(pos[0])
         line_pos = self.lines[line_index]
         left = pos[0]
 
-        if self._line_for_pos(pos[1]) == line_index:
+        if self.line_for_pos(pos[1]) == line_index:
             right = pos[1]
         else:
             right = line_pos[1]
@@ -192,7 +192,7 @@ class Linter:
                 f"{escape(self.content[right : line_pos[1]])}[/green]"
             )
 
-    def _line_for_pos(self, index: int) -> int:
+    def line_for_pos(self, index: int) -> int:
         @functools.total_ordering
         class LineComparator:
             def __init__(self, pos: _PosType) -> None:

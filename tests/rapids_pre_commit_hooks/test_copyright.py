@@ -27,70 +27,155 @@ from rapids_pre_commit_hooks import copyright
 from rapids_pre_commit_hooks.lint import Linter, LintWarning, Note, Replacement
 
 
-def test_match_copyright():
-    CONTENT = dedent(
-        r"""
-        Copyright (c) 2024 NVIDIA CORPORATION
-        Copyright (c) 2021-2024 NVIDIA CORPORATION
-        # Copyright 2021,  NVIDIA Corporation and affiliates
-        """
-    )
-
-    re_matches = copyright.match_copyright(CONTENT)
-    matches = [
+@pytest.mark.parametrize(
+    ["content", "expected_matches"],
+    [
+        (
+            dedent(
+                """
+                Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) 2021-2024 NVIDIA CORPORATION
+                """
+            ),
+            [
+                {
+                    "span": (1, 38),
+                    "spdx": (-1, -1),
+                    "text": (1, 38),
+                    "years": (15, 19),
+                    "first_year": (15, 19),
+                    "last_year": (-1, -1),
+                },
+                {
+                    "span": (39, 81),
+                    "spdx": (-1, -1),
+                    "text": (39, 81),
+                    "years": (53, 62),
+                    "first_year": (53, 57),
+                    "last_year": (58, 62),
+                },
+            ],
+        ),
+        (
+            "# Copyright 2021,  NVIDIA Corporation and affiliates",
+            [
+                {
+                    "span": (2, 37),
+                    "spdx": (-1, -1),
+                    "text": (2, 37),
+                    "years": (12, 16),
+                    "first_year": (12, 16),
+                    "last_year": (-1, -1),
+                },
+            ],
+        ),
+        (
+            "SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION",
+            [
+                {
+                    "span": (0, 61),
+                    "spdx": (0, 24),
+                    "text": (24, 61),
+                    "years": (38, 42),
+                    "first_year": (38, 42),
+                    "last_year": (-1, -1),
+                },
+            ],
+        ),
+    ],
+)
+def test_match_copyright(content, expected_matches):
+    re_matches = copyright.match_copyright(content)
+    assert [
         {
             "span": match.span(),
+            "spdx": match.span("spdx"),
+            "text": match.span("text"),
             "years": match.span("years"),
             "first_year": match.span("first_year"),
             "last_year": match.span("last_year"),
         }
         for match in re_matches
-    ]
-    assert matches == [
-        {
-            "span": (1, 38),
-            "years": (15, 19),
-            "first_year": (15, 19),
-            "last_year": (-1, -1),
-        },
-        {
-            "span": (39, 81),
-            "years": (53, 62),
-            "first_year": (53, 57),
-            "last_year": (58, 62),
-        },
-        {
-            "span": (84, 119),
-            "years": (94, 98),
-            "first_year": (94, 98),
-            "last_year": (-1, -1),
-        },
-    ]
+    ] == expected_matches
 
 
-def test_strip_copyright():
-    CONTENT = dedent(
-        r"""
-        This is a line before the first copyright statement
-        Copyright (c) 2024 NVIDIA CORPORATION
-        This is a line between the first two copyright statements
-        Copyright (c) 2021-2024 NVIDIA CORPORATION
-        This is a line between the next two copyright statements
-        # Copyright 2021,  NVIDIA Corporation and affiliates
-        This is a line after the last copyright statement
-        """
+@pytest.mark.parametrize(
+    ["content", "expected_stripped", "spdx", "force_spdx"],
+    [
+        pytest.param(
+            dedent(
+                """
+                This is a line before the first copyright statement
+                Copyright (c) 2024 NVIDIA CORPORATION
+                This is a line between the first two copyright statements
+                Copyright (c) 2021-2024 NVIDIA CORPORATION
+                This is a line between the next two copyright statements
+                # Copyright 2021,  NVIDIA Corporation and affiliates
+                This is a line after the last copyright statement
+                """
+            ),
+            [
+                "\nThis is a line before the first copyright statement\n",
+                "\nThis is a line between the first two copyright statements"
+                "\n",
+                "\nThis is a line between the next two copyright statements"
+                "\n# ",
+                " and affiliates\nThis is a line after the last copyright "
+                "statement\n",
+            ],
+            False,
+            False,
+            id="basic-copyright",
+        ),
+        pytest.param(
+            "No copyright here",
+            ["No copyright here"],
+            False,
+            False,
+            id="no-copyright",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                This is a line after the license identifier
+                """
+            ),
+            [
+                "\n# ",
+                "\nThis is a line after the license identifier\n",
+            ],
+            True,
+            False,
+            id="spdx",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                This is a line after the license identifier
+                """
+            ),
+            [
+                "\n# ",
+                "\nThis is a line after the license identifier\n",
+            ],
+            False,
+            True,
+            id="force-spdx",
+        ),
+    ],
+)
+def test_strip_copyright(content, expected_stripped, spdx, force_spdx):
+    matches = copyright.match_copyright(content)
+    assert (
+        copyright.strip_copyright(
+            Mock(spdx=spdx, force_spdx=force_spdx), content, matches
+        )
+        == expected_stripped
     )
-    matches = copyright.match_copyright(CONTENT)
-    stripped = copyright.strip_copyright(CONTENT, matches)
-    assert stripped == [
-        "\nThis is a line before the first copyright statement\n",
-        "\nThis is a line between the first two copyright statements\n",
-        "\nThis is a line between the next two copyright statements\n# ",
-        " and affiliates\nThis is a line after the last copyright statement\n",
-    ]
-
-    stripped = copyright.strip_copyright("No copyright here", [])
-    assert stripped == ["No copyright here"]
 
 
 @pytest.mark.parametrize(
@@ -100,28 +185,36 @@ def test_strip_copyright():
         "old_content",
         "new_filename",
         "new_content",
+        "spdx",
+        "force_spdx",
         "warnings",
     ],
     [
-        (
+        pytest.param(
             "A",
             None,
             None,
             "file.txt",
             "No copyright notice",
+            False,
+            False,
             [
                 LintWarning((0, 0), "no copyright notice found"),
             ],
+            id="added-with-no-copyright-notice",
         ),
-        (
+        pytest.param(
             "M",
             "file.txt",
             "No copyright notice",
             "file.txt",
             "No copyright notice",
+            False,
+            False,
             [],
+            id="unchanged-with-no-copyright-notice",
         ),
-        (
+        pytest.param(
             "M",
             "file.txt",
             dedent(
@@ -143,9 +236,12 @@ def test_strip_copyright():
                 This file has not been changed
                 """
             ),
+            False,
+            False,
             [],
+            id="unchanged-with-copyright-notice",
         ),
-        (
+        pytest.param(
             "M",
             "file.txt",
             dedent(
@@ -167,6 +263,8 @@ def test_strip_copyright():
                 This file has been changed
                 """
             ),
+            False,
+            False,
             [
                 LintWarning(
                     (15, 24),
@@ -189,8 +287,9 @@ def test_strip_copyright():
                     ],
                 ),
             ],
+            id="changed-with-no-copyright-update",
         ),
-        (
+        pytest.param(
             "A",
             None,
             None,
@@ -204,6 +303,8 @@ def test_strip_copyright():
                 This file has been changed
                 """
             ),
+            False,
+            False,
             [
                 LintWarning(
                     (15, 24),
@@ -226,8 +327,9 @@ def test_strip_copyright():
                     ],
                 ),
             ],
+            id="added-with-out-of-date-copyright",
         ),
-        (
+        pytest.param(
             "M",
             "file.txt",
             dedent(
@@ -249,6 +351,8 @@ def test_strip_copyright():
                 This file has not been changed
                 """
             ),
+            False,
+            False,
             [
                 LintWarning(
                     (15, 24),
@@ -270,8 +374,9 @@ def test_strip_copyright():
                     ],
                 ),
             ],
+            id="unchanged-with-copyright-update",
         ),
-        (
+        pytest.param(
             "R",
             "file1.txt",
             dedent(
@@ -293,6 +398,8 @@ def test_strip_copyright():
                 This file has been changed
                 """
             ),
+            False,
+            False,
             [
                 LintWarning(
                     (15, 24),
@@ -315,8 +422,9 @@ def test_strip_copyright():
                     ],
                 ),
             ],
+            id="renamed-and-changed-with-no-copyright-update",
         ),
-        (
+        pytest.param(
             "C",
             "file1.txt",
             dedent(
@@ -338,6 +446,8 @@ def test_strip_copyright():
                 This file has been changed
                 """
             ),
+            False,
+            False,
             [
                 LintWarning(
                     (15, 24),
@@ -360,8 +470,9 @@ def test_strip_copyright():
                     ],
                 ),
             ],
+            id="copied-and-changed-with-no-copyright-update",
         ),
-        (
+        pytest.param(
             "R",
             "file1.txt",
             dedent(
@@ -383,9 +494,12 @@ def test_strip_copyright():
                 This file has been changed
                 """
             ),
+            False,
+            False,
             [],
+            id="renamed-and-changed-with-copyright-update",
         ),
-        (
+        pytest.param(
             "C",
             "file1.txt",
             dedent(
@@ -407,9 +521,12 @@ def test_strip_copyright():
                 This file has been changed
                 """
             ),
+            False,
+            False,
             [],
+            id="copied-and-changed-with-copyright-update",
         ),
-        (
+        pytest.param(
             "R",
             "file1.txt",
             dedent(
@@ -431,6 +548,8 @@ def test_strip_copyright():
                 This file has not been changed
                 """
             ),
+            False,
+            False,
             [
                 LintWarning(
                     (15, 24),
@@ -478,8 +597,9 @@ def test_strip_copyright():
                     ],
                 ),
             ],
+            id="renamed-and-unchanged-with-copyright-update",
         ),
-        (
+        pytest.param(
             "C",
             "file1.txt",
             dedent(
@@ -501,6 +621,8 @@ def test_strip_copyright():
                 This file has not been changed
                 """
             ),
+            False,
+            False,
             [
                 LintWarning(
                     (15, 24),
@@ -548,16 +670,295 @@ def test_strip_copyright():
                     ],
                 ),
             ],
+            id="copied-and-unchanged-with-copyright-update",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                r"""
+                SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                SPDX-License-Identifier: Apache-2.0
+                This file has not been changed
+                """
+            ),
+            "file1.txt",
+            dedent(
+                r"""
+                SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                SPDX-License-Identifier: Apache-2.0
+                This file has been changed
+                """
+            ),
+            True,
+            False,
+            [],
+            id="spdx-changed-with-headers",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                r"""
+                Copyright (c) 2024 NVIDIA CORPORATION
+                This file has not been changed
+                """
+            ),
+            "file1.txt",
+            dedent(
+                r"""
+                Copyright (c) 2024 NVIDIA CORPORATION
+                This file has been changed
+                """
+            ),
+            True,
+            False,
+            [
+                LintWarning(
+                    (1, 38),
+                    "include SPDX-FileCopyrightText header",
+                    replacements=[
+                        Replacement(
+                            (1, 1),
+                            "SPDX-FileCopyrightText: ",
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (0, 0),
+                    "no SPDX-License-Identifier header found",
+                    replacements=[
+                        Replacement(
+                            (39, 39),
+                            "SPDX-License-Identifier: Apache-2.0\n",
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-changed-with-no-headers",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                r"""
+                Copyright (c) 2023 NVIDIA CORPORATION
+                This file has not been changed
+                """
+            ),
+            "file1.txt",
+            dedent(
+                r"""
+                Copyright (c) 2023 NVIDIA CORPORATION
+                This file has been changed
+                """
+            ),
+            True,
+            False,
+            [
+                LintWarning(
+                    (15, 19),
+                    "copyright is out of date",
+                    replacements=[
+                        Replacement(
+                            (1, 38),
+                            "Copyright (c) 2023-2024, NVIDIA CORPORATION",
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (1, 38),
+                    "include SPDX-FileCopyrightText header",
+                    replacements=[
+                        Replacement(
+                            (1, 1),
+                            "SPDX-FileCopyrightText: ",
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (0, 0),
+                    "no SPDX-License-Identifier header found",
+                    replacements=[
+                        Replacement(
+                            (39, 39),
+                            "SPDX-License-Identifier: Apache-2.0\n",
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-changed-with-no-headers-and-out-of-date-copyright",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                r"""
+                SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                SPDX-License-Identifier: BSD-3-Clause
+                This file has not been changed
+                """
+            ),
+            "file1.txt",
+            dedent(
+                r"""
+                SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                SPDX-License-Identifier: BSD-3-Clause
+                This file has been changed
+                """
+            ),
+            True,
+            False,
+            [
+                LintWarning(
+                    (63, 100),
+                    "SPDX-License-Identifier is incorrect",
+                    replacements=[
+                        Replacement(
+                            (88, 100),
+                            "Apache-2.0",
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-changed-with-headers-and-incorrect-license-identifier",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                r"""
+                Copyright (c) 2024 NVIDIA CORPORATION
+                This file has not been changed
+                """
+            ),
+            "file1.txt",
+            dedent(
+                r"""
+                Copyright (c) 2024 NVIDIA CORPORATION
+                This file has not been changed
+                """
+            ),
+            True,
+            False,
+            [],
+            id="spdx-unchanged-with-no-headers",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                r"""
+                // Copyright (c) 2024 NVIDIA CORPORATION
+                // This file has not been changed
+                """
+            ),
+            "file1.txt",
+            dedent(
+                r"""
+                // Copyright (c) 2024 NVIDIA CORPORATION
+                // This file has not been changed
+                """
+            ),
+            False,
+            True,
+            [
+                LintWarning(
+                    (4, 41),
+                    "include SPDX-FileCopyrightText header",
+                    replacements=[
+                        Replacement(
+                            (4, 4),
+                            "SPDX-FileCopyrightText: ",
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (0, 0),
+                    "no SPDX-License-Identifier header found",
+                    replacements=[
+                        Replacement(
+                            (42, 42),
+                            "// SPDX-License-Identifier: Apache-2.0\n",
+                        ),
+                    ],
+                ),
+            ],
+            id="force-spdx-unchanged-with-comments-and-no-headers",
+        ),
+        pytest.param(
+            "M",
+            "file1.cpp",
+            (
+                "/* SPDX-FileCopyrightText: "
+                "Copyright (c) 2024 NVIDIA CORPORATION\n"
+                " */\n"
+                "This file has not been changed\n"
+            ),
+            "file1.cpp",
+            (
+                "/* SPDX-FileCopyrightText: "
+                "Copyright (c) 2024 NVIDIA CORPORATION\n"
+                " */\n"
+                "This file has been changed\n"
+            ),
+            True,
+            False,
+            [
+                LintWarning(
+                    (0, 0),
+                    "no SPDX-License-Identifier header found",
+                    replacements=[
+                        Replacement(
+                            (65, 65),
+                            " * SPDX-License-Identifier: Apache-2.0\n",
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-changed-with-c-style-comments-and-no-license-header",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                r"""
+                Copyright (c) 2023 NVIDIA CORPORATION
+                This file has not been changed
+                """
+            ),
+            "file1.txt",
+            dedent(
+                r"""
+                SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                SPDX-License-Identifier: Apache-2.0
+                This file has not been changed
+                """
+            ),
+            True,
+            False,
+            [],
+            id="spdx-headers-added-and-no-other-changes",
         ),
     ],
 )
 @freeze_time("2024-01-18")
 def test_apply_copyright_check(
-    change_type, old_filename, old_content, new_filename, new_content, warnings
+    change_type,
+    old_filename,
+    old_content,
+    new_filename,
+    new_content,
+    spdx,
+    force_spdx,
+    warnings,
 ):
     linter = Linter(new_filename, new_content)
+    mock_args = Mock(
+        spdx=spdx, force_spdx=force_spdx, spdx_license_identifier="Apache-2.0"
+    )
     copyright.apply_copyright_check(
-        linter, change_type, old_filename, old_content
+        linter, mock_args, change_type, old_filename, old_content
     )
     assert linter.warnings == warnings
 
@@ -1316,6 +1717,7 @@ def test_find_blob(git_repo, path, present):
         "op",
         "old_filename",
         "old_contents",
+        "force_spdx",
     ],
     [
         (
@@ -1326,6 +1728,7 @@ def test_find_blob(git_repo, path, present):
             None,
             None,
             None,
+            False,
         ),
         (
             "branch-1",
@@ -1335,6 +1738,7 @@ def test_find_blob(git_repo, path, present):
             "R",
             "dir/file2.txt",
             "File 2",
+            False,
         ),
         (
             "branch-1",
@@ -1344,6 +1748,7 @@ def test_find_blob(git_repo, path, present):
             "M",
             "file3.txt",
             "File 3",
+            False,
         ),
         (
             "branch-1",
@@ -1353,6 +1758,7 @@ def test_find_blob(git_repo, path, present):
             "M",
             "file4.txt",
             "File 4",
+            False,
         ),
         (
             "branch-1",
@@ -1362,6 +1768,7 @@ def test_find_blob(git_repo, path, present):
             "A",
             None,
             None,
+            False,
         ),
         (
             "branch-2",
@@ -1371,6 +1778,7 @@ def test_find_blob(git_repo, path, present):
             "M",
             "file1.txt",
             "File 1",
+            False,
         ),
         (
             "branch-2",
@@ -1380,6 +1788,7 @@ def test_find_blob(git_repo, path, present):
             "M",
             "file1.txt",
             "File 1",
+            False,
         ),
         (
             "branch-2",
@@ -1395,6 +1804,7 @@ def test_find_blob(git_repo, path, present):
             None,
             None,
             None,
+            False,
         ),
         (
             "branch-2",
@@ -1404,6 +1814,7 @@ def test_find_blob(git_repo, path, present):
             "R",
             "dir/file2.txt",
             "File 2",
+            False,
         ),
         (
             "branch-2",
@@ -1413,6 +1824,7 @@ def test_find_blob(git_repo, path, present):
             "M",
             "file3.txt",
             "File 3",
+            False,
         ),
         (
             "branch-2",
@@ -1422,6 +1834,7 @@ def test_find_blob(git_repo, path, present):
             "M",
             "file4.txt",
             "File 4",
+            False,
         ),
         (
             "branch-2",
@@ -1431,6 +1844,17 @@ def test_find_blob(git_repo, path, present):
             "A",
             None,
             None,
+            False,
+        ),
+        (
+            "branch-1",
+            "file1.txt",
+            "File 1 modified",
+            contextlib.nullcontext(),
+            "M",
+            "file1.txt",
+            "File 1 modified",
+            True,
         ),
     ],
 )
@@ -1443,6 +1867,7 @@ def test_check_copyright(
     op,
     old_filename,
     old_contents,
+    force_spdx,
 ):
     def fn(filename):
         return os.path.join(git_repo.working_tree_dir, filename)
@@ -1516,7 +1941,12 @@ def test_check_copyright(
             "rapids_pre_commit_hooks.copyright.apply_copyright_check", Mock()
         )
 
-    mock_args = Mock(target_branch=target_branch, batch=False)
+    mock_args = Mock(
+        target_branch=target_branch,
+        batch=False,
+        spdx=False,
+        force_spdx=force_spdx,
+    )
 
     with mock_repo_cwd(), mock_target_branch_upstream_commit(target_branch):
         copyright_checker = copyright.check_copyright(mock_args)
@@ -1530,6 +1960,7 @@ def test_check_copyright(
         else:
             apply_copyright_check.assert_called_once_with(
                 linter,
+                mock_args,
                 op,
                 old_filename,
                 None if old_contents is None else file_contents(old_contents),

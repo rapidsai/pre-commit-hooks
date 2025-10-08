@@ -25,16 +25,27 @@ import git
 
 from .lint import Linter, LintMain, LintWarning
 
-COPYRIGHT_RE: re.Pattern = re.compile(
-    r"Copyright *(?:\(c\))? *"
+SPDX_COPYRIGHT_RE: re.Pattern = re.compile(
+    r"(?P<spdx>SPDX-FileCopyrightText: )?"
+    r"(?P<text>Copyright *(?:\(c\))? *"
     r"(?P<years>(?P<first_year>\d{4})(-(?P<last_year>\d{4}))?),?"
-    r" *NVIDIA C(?:ORPORATION|orporation)"
+    r" *NVIDIA C(?:ORPORATION|orporation))"
+)
+SPDX_LICENSE_PATTERN: str = (
+    r"SPDX-License-Identifier: (?P<identifier>[a-zA-Z0-9.-]+)"
+)
+SPDX_LICENSE_RE: re.Pattern = re.compile(SPDX_LICENSE_PATTERN)
+SPDX_LICENSE_LINE_RE: re.Pattern = re.compile(
+    rf"[^\r\n]*{SPDX_LICENSE_PATTERN}[^\r\n]*(\r|\n|\r\n)"
 )
 BRANCH_RE: re.Pattern = re.compile(
     r"^branch-(?P<major>[0-9]+)\.(?P<minor>[0-9]+)$"
 )
 COPYRIGHT_REPLACEMENT: str = (
     "Copyright (c) {first_year}-{last_year}, NVIDIA CORPORATION"
+)
+C_STYLE_COMMENTS_RE: re.Pattern = re.compile(
+    r"\.(c|cpp|cxx|cu|h|hpp|hxx|cuh|js|java|rs)$"
 )
 
 
@@ -47,12 +58,15 @@ class ConflictingFilesWarning(RuntimeWarning):
 
 
 def match_copyright(content: str) -> list[re.Match]:
-    return list(COPYRIGHT_RE.finditer(content))
+    return list(SPDX_COPYRIGHT_RE.finditer(content))
 
 
 def strip_copyright(
-    content: str, copyright_matches: list[re.Match]
+    args: argparse.Namespace, content: str, copyright_matches: list[re.Match]
 ) -> list[str]:
+    if args.spdx or args.force_spdx:
+        content = re.sub(SPDX_LICENSE_LINE_RE, "", content)
+
     lines = []
 
     def append_stripped(start: int, item: re.Match):
@@ -117,7 +131,7 @@ def apply_copyright_update(
 ) -> None:
     w = linter.add_warning(match.span("years"), "copyright is out of date")
     w.add_replacement(
-        match.span(),
+        match.span("text"),
         COPYRIGHT_REPLACEMENT.format(
             first_year=match.group("first_year"),
             last_year=year,
@@ -125,13 +139,50 @@ def apply_copyright_update(
     )
 
 
+def apply_spdx_text_insert(linter: Linter, match: re.Match) -> None:
+    span = (match.span("text")[0], match.span("text")[0])
+    w = linter.add_warning(
+        match.span("text"), "include SPDX-FileCopyrightText header"
+    )
+    w.add_replacement(span, "SPDX-FileCopyrightText: ")
+
+
+def apply_spdx_license_update(
+    linter: Linter, match: re.Match, identifier: str
+) -> None:
+    w = linter.add_warning(
+        match.span(), "SPDX-License-Identifier is incorrect"
+    )
+    w.add_replacement(match.span("identifier"), identifier)
+
+
+def apply_spdx_license_insert(
+    linter: Linter, matches: list[re.Match], identifier: str
+) -> None:
+    w = linter.add_warning((0, 0), "no SPDX-License-Identifier header found")
+    for match in matches:
+        match_start_pos = match.span()[0]
+        line = linter.line_for_pos(match_start_pos)
+        line_start_pos = linter.lines[line][0]
+        line_start = linter.content[line_start_pos:match_start_pos]
+        if C_STYLE_COMMENTS_RE.search(linter.filename):
+            line_start = line_start.replace("/*", " *")
+        next_line_start_pos = linter.lines[line + 1][0]
+        w.add_replacement(
+            (next_line_start_pos, next_line_start_pos),
+            f"{line_start}SPDX-License-Identifier: {identifier}\n",
+        )
+
+
 def apply_copyright_check(
     linter: Linter,
+    args: argparse.Namespace,
     change_type: str,
     old_filename: str | os.PathLike[str] | None,
     old_content: str | None,
 ) -> None:
-    if linter.content != old_content:
+    content_changed = linter.content != old_content
+    if content_changed or args.force_spdx:
         year_env = os.getenv("RAPIDS_TEST_YEAR")
         if year_env:
             try:
@@ -146,24 +197,51 @@ def apply_copyright_check(
             old_copyright_matches = match_copyright(old_content)
 
         if old_content is not None and strip_copyright(
-            old_content, old_copyright_matches
-        ) == strip_copyright(linter.content, new_copyright_matches):
-            for old_match, new_match in zip(
-                old_copyright_matches, new_copyright_matches
-            ):
-                if old_match.group() != new_match.group():
-                    apply_copyright_revert(
-                        linter, change_type, old_filename, old_match, new_match
-                    )
+            args, old_content, old_copyright_matches
+        ) == strip_copyright(args, linter.content, new_copyright_matches):
+            if content_changed or args.force_spdx:
+                for old_match, new_match in zip(
+                    old_copyright_matches, new_copyright_matches
+                ):
+                    if (
+                        old_match.group("text") != new_match.group("text")
+                        and content_changed
+                    ):
+                        apply_copyright_revert(
+                            linter,
+                            change_type,
+                            old_filename,
+                            old_match,
+                            new_match,
+                        )
+                    if args.force_spdx and not new_match.group("spdx"):
+                        apply_spdx_text_insert(linter, new_match)
         elif new_copyright_matches:
             for match in new_copyright_matches:
                 if (
                     int(match.group("last_year") or match.group("first_year"))
                     < current_year
-                ):
+                ) and linter.content != old_content:
                     apply_copyright_update(linter, match, current_year)
-        else:
+                if (args.spdx or args.force_spdx) and not match.group("spdx"):
+                    apply_spdx_text_insert(linter, match)
+        elif linter.content != old_content:
             linter.add_warning((0, 0), "no copyright notice found")
+
+    if (args.spdx and content_changed) or args.force_spdx:
+        found = False
+        for match in SPDX_LICENSE_RE.finditer(linter.content):
+            found = True
+            if match.group("identifier") != args.spdx_license_identifier:
+                apply_spdx_license_update(
+                    linter, match, args.spdx_license_identifier
+                )
+        if not found:
+            apply_spdx_license_insert(
+                linter,
+                new_copyright_matches,
+                args.spdx_license_identifier,
+            )
 
 
 def get_target_branch(
@@ -379,7 +457,7 @@ def check_copyright(
 ) -> Callable[[Linter, argparse.Namespace], None]:
     changed_files = get_changed_files(args)
 
-    def the_check(linter: Linter, _args: argparse.Namespace) -> None:
+    def the_check(linter: Linter, args: argparse.Namespace) -> None:
         if not (git_filename := normalize_git_filename(linter.filename)):
             warnings.warn(
                 f'File "{linter.filename}" is outside of current directory. '
@@ -388,18 +466,27 @@ def check_copyright(
             )
             return
 
+        old_filename: str | os.PathLike[str] | None
+        old_content: str | None
         try:
             change_type, changed_file = changed_files[git_filename]
         except KeyError:
-            return
-
-        if changed_file is None:
-            old_filename = None
-            old_content = None
+            if args.force_spdx:
+                change_type = "M"
+                old_filename = linter.filename
+                old_content = linter.content
+            else:
+                return
         else:
-            old_filename = changed_file.path
-            old_content = changed_file.data_stream.read().decode()
-        apply_copyright_check(linter, change_type, old_filename, old_content)
+            if changed_file is None:
+                old_filename = None
+                old_content = None
+            else:
+                old_filename = changed_file.path
+                old_content = changed_file.data_stream.read().decode()
+        apply_copyright_check(
+            linter, args, change_type, old_filename, old_content
+        )
 
     return the_check
 
@@ -425,6 +512,23 @@ def main() -> None:
         "--target-branch",
         metavar="<target branch>",
         help="target branch to check modified files against",
+    )
+    m.argparser.add_argument(
+        "--spdx",
+        action="store_true",
+        help="require SPDX headers",
+    )
+    m.argparser.add_argument(
+        "--force-spdx",
+        action="store_true",
+        help="enforce SPDX headers even if the file hasn't changed "
+        "(implies --spdx)",
+    )
+    m.argparser.add_argument(
+        "--spdx-license-identifier",
+        metavar="<license identifier>",
+        help="content of SPDX-License-Identifier header",
+        default="Apache-2.0",
     )
     with m.execute() as ctx:
         ctx.add_check(check_copyright(ctx.args))
