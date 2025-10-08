@@ -36,16 +36,14 @@ SPDX_LICENSE_PATTERN: str = (
 )
 SPDX_LICENSE_RE: re.Pattern = re.compile(SPDX_LICENSE_PATTERN)
 SPDX_LICENSE_LINE_RE: re.Pattern = re.compile(
-    rf"[^\r\n]*{SPDX_LICENSE_PATTERN}[^\r\n]*(\r|\n|\r\n)"
+    rf"[^\r\n]*{SPDX_LICENSE_PATTERN}[^\r\n]*(?:\r\n|\n|\r)"
 )
-BRANCH_RE: re.Pattern = re.compile(
-    r"^branch-(?P<major>[0-9]+)\.(?P<minor>[0-9]+)$"
-)
+BRANCH_RE: re.Pattern = re.compile(r"^branch-(?P<major>\d+)\.(?P<minor>\d+)$")
 COPYRIGHT_REPLACEMENT: str = (
     "Copyright (c) {first_year}-{last_year}, NVIDIA CORPORATION"
 )
 C_STYLE_COMMENTS_RE: re.Pattern = re.compile(
-    r"\.(c|cpp|cxx|cu|h|hpp|hxx|cuh|js|java|rs)$"
+    r"\.(?:c|cpp|cxx|cu|h|hpp|hxx|cuh|js|java|rs)$"
 )
 
 
