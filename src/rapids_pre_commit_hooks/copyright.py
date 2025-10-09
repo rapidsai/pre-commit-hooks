@@ -62,6 +62,18 @@ LONG_FORM_LICENSE_TEXT: dict[str, list[list[str]]] = {
             "See the License for the specific language governing permissions and",  # noqa: E501
             "limitations under the License.",
         ],
+        [
+            "",
+            'Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except',  # noqa: E501
+            "in compliance with the License. You may obtain a copy of the License at",  # noqa: E501
+            "",
+            "http://www.apache.org/licenses/LICENSE-2.0",
+            "",
+            "Unless required by applicable law or agreed to in writing, software distributed under the License",  # noqa: E501
+            'is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express',  # noqa: E501
+            "or implied. See the License for the specific language governing permissions and limitations under",  # noqa: E501
+            "the License.",
+        ],
     ],
 }
 
