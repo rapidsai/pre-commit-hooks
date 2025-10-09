@@ -243,7 +243,7 @@ def check_codeowners_line(
 
 def check_codeowners(linter: Linter, args: argparse.Namespace) -> None:
     found_files: list[tuple[RequiredCodeownersLine, tuple[int, int]]] = []
-    for begin, end in linter.lines:
+    for begin, end in linter.lines.pos:
         line = linter.content[begin:end]
         codeowners_line = parse_codeowners_line(line, begin)
         if codeowners_line:

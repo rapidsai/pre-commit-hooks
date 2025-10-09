@@ -23,7 +23,7 @@ from typing import Optional
 
 import git
 
-from .lint import Linter, LintMain, LintWarning
+from .lint import Lines, Linter, LintMain, LintWarning
 
 SPDX_COPYRIGHT_RE: re.Pattern = re.compile(
     r"(?P<spdx>SPDX-FileCopyrightText: )?"
@@ -36,7 +36,7 @@ SPDX_LICENSE_PATTERN: str = (
 )
 SPDX_LICENSE_RE: re.Pattern = re.compile(SPDX_LICENSE_PATTERN)
 SPDX_LICENSE_LINE_RE: re.Pattern = re.compile(
-    rf"[^\r\n]*{SPDX_LICENSE_PATTERN}[^\r\n]*(?:\r\n|\n|\r)"
+    rf"(?:\n|\r\n|\r)[^\n\r]*{SPDX_LICENSE_PATTERN}[^\n\r]*"
 )
 BRANCH_RE: re.Pattern = re.compile(r"^branch-(?P<major>\d+)\.(?P<minor>\d+)$")
 COPYRIGHT_REPLACEMENT: str = (
@@ -45,6 +45,25 @@ COPYRIGHT_REPLACEMENT: str = (
 C_STYLE_COMMENTS_RE: re.Pattern = re.compile(
     r"\.(?:c|cpp|cxx|cu|h|hpp|hxx|cuh|js|java|rs)$"
 )
+
+LONG_FORM_LICENSE_TEXT: dict[str, list[list[str]]] = {
+    "Apache-2.0": [
+        [
+            "",
+            'Licensed under the Apache License, Version 2.0 (the "License");',
+            "you may not use this file except in compliance with the License.",
+            "You may obtain a copy of the License at",
+            "",
+            "    http://www.apache.org/licenses/LICENSE-2.0",
+            "",
+            "Unless required by applicable law or agreed to in writing, software",  # noqa: E501
+            'distributed under the License is distributed on an "AS IS" BASIS,',  # noqa: E501
+            "WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",  # noqa: E501
+            "See the License for the specific language governing permissions and",  # noqa: E501
+            "limitations under the License.",
+        ],
+    ],
+}
 
 
 class NoTargetBranchWarning(RuntimeWarning):
@@ -59,21 +78,71 @@ def match_copyright(content: str) -> list[re.Match]:
     return list(SPDX_COPYRIGHT_RE.finditer(content))
 
 
+def find_long_form_text(
+    lines: Lines, identifier: str, index: int
+) -> tuple[int, int] | None:
+    line = lines.line_for_pos(index)
+    rest_of_lines = lines.pos[line + 1 :]
+
+    try:
+        long_form_texts = LONG_FORM_LICENSE_TEXT[identifier]
+    except KeyError:
+        return None
+
+    for text_lines in long_form_texts:
+        if len(rest_of_lines) < len(text_lines):
+            continue
+
+        prefix: str | None = None
+        for file_pos, text_line in zip(rest_of_lines, text_lines):
+            file_line = lines.content[file_pos[0] : file_pos[1]]
+            if text_line == "":
+                if prefix is None or prefix.startswith(file_line):
+                    continue
+            else:
+                if prefix is None:
+                    if file_line.endswith(text_line):
+                        prefix = file_line[: -len(text_line)]
+                        continue
+                elif file_line == f"{prefix}{text_line}":
+                    continue
+
+            break
+        else:
+            return (lines.pos[line][1], lines.pos[line + len(text_lines)][1])
+
+    return None
+
+
 def strip_copyright(
-    args: argparse.Namespace, content: str, copyright_matches: list[re.Match]
+    args: argparse.Namespace, lines: Lines, copyright_matches: list[re.Match]
 ) -> list[str]:
-    if args.spdx or args.force_spdx:
-        content = re.sub(SPDX_LICENSE_LINE_RE, "", content)
+    segments = []
 
-    lines = []
+    def calculate_start(first: bool, start: int) -> int:
+        if (args.spdx or args.force_spdx) and not first:
+            if match := SPDX_LICENSE_LINE_RE.search(lines.content, start):
+                start = match.end()
+            if pos := find_long_form_text(
+                lines, args.spdx_license_identifier, start
+            ):
+                start = pos[1]
+        return start
 
-    def append_stripped(start: int, item: re.Match):
-        lines.append(content[start : item.start()])
-        return item.end()
+    def append_segment(
+        first_and_start: tuple[bool, int], item: re.Match
+    ) -> tuple[bool, int]:
+        first, start = first_and_start
+        segments.append(
+            lines.content[calculate_start(first, start) : item.start()]
+        )
+        return False, item.end()
 
-    start = functools.reduce(append_stripped, copyright_matches, 0)
-    lines.append(content[start:])
-    return lines
+    first, start = functools.reduce(
+        append_segment, copyright_matches, (True, 0)
+    )
+    segments.append(lines.content[calculate_start(first, start) :])
+    return segments
 
 
 def add_copy_rename_note(
@@ -160,16 +229,28 @@ def apply_spdx_license_insert(
     w = linter.add_warning((0, 0), "no SPDX-License-Identifier header found")
     for match in matches:
         match_start_pos = match.span()[0]
-        line = linter.line_for_pos(match_start_pos)
-        line_start_pos = linter.lines[line][0]
+        line = linter.lines.line_for_pos(match_start_pos)
+        line_start_pos = linter.lines.pos[line][0]
         line_start = linter.content[line_start_pos:match_start_pos]
         if C_STYLE_COMMENTS_RE.search(linter.filename):
             line_start = line_start.replace("/*", " *")
-        next_line_start_pos = linter.lines[line + 1][0]
+        next_line_start_pos = linter.lines.pos[line][1]
         w.add_replacement(
             (next_line_start_pos, next_line_start_pos),
-            f"{line_start}SPDX-License-Identifier: {identifier}\n",
+            f"\n{line_start}SPDX-License-Identifier: {identifier}",
         )
+
+
+def apply_spdx_long_form_text_removal(
+    linter: Linter, args: argparse.Namespace, match: re.Match
+) -> None:
+    if (
+        pos := find_long_form_text(
+            linter.lines, args.spdx_license_identifier, match.span()[0]
+        )
+    ) is not None:
+        w = linter.add_warning(pos, "remove long-form copyright text")
+        w.add_replacement(pos, "")
 
 
 def apply_copyright_check(
@@ -195,8 +276,8 @@ def apply_copyright_check(
             old_copyright_matches = match_copyright(old_content)
 
         if old_content is not None and strip_copyright(
-            args, old_content, old_copyright_matches
-        ) == strip_copyright(args, linter.content, new_copyright_matches):
+            args, Lines(old_content), old_copyright_matches
+        ) == strip_copyright(args, linter.lines, new_copyright_matches):
             if content_changed or args.force_spdx:
                 for old_match, new_match in zip(
                     old_copyright_matches, new_copyright_matches
@@ -212,8 +293,12 @@ def apply_copyright_check(
                             old_match,
                             new_match,
                         )
-                    if args.force_spdx and not new_match.group("spdx"):
-                        apply_spdx_text_insert(linter, new_match)
+                    if args.force_spdx:
+                        if not new_match.group("spdx"):
+                            apply_spdx_text_insert(linter, new_match)
+                        apply_spdx_long_form_text_removal(
+                            linter, args, new_match
+                        )
         elif new_copyright_matches:
             for match in new_copyright_matches:
                 if (
@@ -221,8 +306,10 @@ def apply_copyright_check(
                     < current_year
                 ) and linter.content != old_content:
                     apply_copyright_update(linter, match, current_year)
-                if (args.spdx or args.force_spdx) and not match.group("spdx"):
-                    apply_spdx_text_insert(linter, match)
+                if args.spdx or args.force_spdx:
+                    if not match.group("spdx"):
+                        apply_spdx_text_insert(linter, match)
+                    apply_spdx_long_form_text_removal(linter, args, match)
         elif linter.content != old_content:
             linter.add_warning((0, 0), "no copyright notice found")
 
@@ -234,6 +321,7 @@ def apply_copyright_check(
                 apply_spdx_license_update(
                     linter, match, args.spdx_license_identifier
                 )
+            apply_spdx_long_form_text_removal(linter, args, match)
         if not found:
             apply_spdx_license_insert(
                 linter,

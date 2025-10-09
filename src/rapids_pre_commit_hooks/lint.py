@@ -64,6 +64,69 @@ class LintWarning:
         self.notes.append(Note(pos, msg))
 
 
+class Lines:
+    @functools.total_ordering
+    class _LineComparator:
+        def __init__(self, pos: _PosType) -> None:
+            self.pos: _PosType = pos
+
+        def __lt__(self, other: object) -> bool:
+            assert isinstance(other, int)
+            return self.pos[1] < other
+
+        def __gt__(self, other: object) -> bool:
+            assert isinstance(other, int)
+            return self.pos[0] > other
+
+        def __eq__(self, other: object) -> bool:
+            assert isinstance(other, int)
+            return self.pos[0] <= other <= self.pos[1]
+
+    def __init__(self, content: str) -> None:
+        self.content: str = content
+        self.pos: list[_PosType] = []
+
+        line_begin = 0
+        line_end = 0
+        state = "c"
+
+        for c in content:
+            if state == "c":
+                if c == "\r":
+                    self.pos.append((line_begin, line_end))
+                    line_end = line_begin = line_end + 1
+                    state = "r"
+                elif c == "\n":
+                    self.pos.append((line_begin, line_end))
+                    line_end = line_begin = line_end + 1
+                else:
+                    line_end += 1
+            elif state == "r":
+                if c == "\r":
+                    self.pos.append((line_begin, line_end))
+                    line_end = line_begin = line_end + 1
+                elif c == "\n":
+                    line_end = line_begin = line_end + 1
+                    state = "c"
+                else:
+                    line_end += 1
+                    state = "c"
+
+        self.pos.append((line_begin, line_end))
+
+    def line_for_pos(self, index: int) -> int:
+        line_index = bisect.bisect_left(
+            [Lines._LineComparator(line) for line in self.pos], index
+        )
+        try:
+            line_pos = self.pos[line_index]
+        except IndexError:
+            raise IndexError(f"Position {index} is not in the string")
+        if not (line_pos[0] <= index <= line_pos[1]):
+            raise IndexError(f"Position {index} is inside a line separator")
+        return line_index
+
+
 class Linter:
     NEWLINE_RE: re.Pattern = re.compile("[\r\n]")
 
@@ -72,7 +135,7 @@ class Linter:
         self.content: str = content
         self.warnings: list[LintWarning] = []
         self.console: "Console" = Console(highlight=False)
-        self._calculate_lines()
+        self.lines = Lines(content)
 
     def add_warning(self, pos: _PosType, msg: str) -> LintWarning:
         w = LintWarning(pos, msg)
@@ -110,8 +173,8 @@ class Linter:
         msg: str,
         newtext: str | None = None,
     ) -> None:
-        line_index = self.line_for_pos(pos[0])
-        line_pos = self.lines[line_index]
+        line_index = self.lines.line_for_pos(pos[0])
+        line_pos = self.lines.pos[line_index]
         self.console.print(
             f"In file [bold]{escape(self.filename)}:{line_index + 1}:"
             f"{pos[0] - line_pos[0] + 1}[/bold]:"
@@ -132,8 +195,8 @@ class Linter:
                 self._print_note("note", note.pos, note.msg)
 
             for replacement in warning.replacements:
-                line_index = self.line_for_pos(replacement.pos[0])
-                line_pos = self.lines[line_index]
+                line_index = self.lines.line_for_pos(replacement.pos[0])
+                line_pos = self.lines.pos[line_index]
                 newtext = replacement.newtext
                 if match := self.NEWLINE_RE.search(newtext):
                     newtext = newtext[: match.start()]
@@ -165,11 +228,11 @@ class Linter:
     def _print_highlighted_code(
         self, pos: _PosType, replacement: str | None = None
     ) -> None:
-        line_index = self.line_for_pos(pos[0])
-        line_pos = self.lines[line_index]
+        line_index = self.lines.line_for_pos(pos[0])
+        line_pos = self.lines.pos[line_index]
         left = pos[0]
 
-        if self.line_for_pos(pos[1]) == line_index:
+        if self.lines.line_for_pos(pos[1]) == line_index:
             right = pos[1]
         else:
             right = line_pos[1]
@@ -191,66 +254,6 @@ class Linter:
                 f"[bold]{escape(replacement)}[/bold]"
                 f"{escape(self.content[right : line_pos[1]])}[/green]"
             )
-
-    def line_for_pos(self, index: int) -> int:
-        @functools.total_ordering
-        class LineComparator:
-            def __init__(self, pos: _PosType) -> None:
-                self.pos: _PosType = pos
-
-            def __lt__(self, other: object) -> bool:
-                assert isinstance(other, int)
-                return self.pos[1] < other
-
-            def __gt__(self, other: object) -> bool:
-                assert isinstance(other, int)
-                return self.pos[0] > other
-
-            def __eq__(self, other: object) -> bool:
-                assert isinstance(other, int)
-                return self.pos[0] <= other <= self.pos[1]
-
-        line_index = bisect.bisect_left(
-            [LineComparator(line) for line in self.lines], index
-        )
-        try:
-            line_pos = self.lines[line_index]
-        except IndexError:
-            raise IndexError(f"Position {index} is not in the string")
-        if not (line_pos[0] <= index <= line_pos[1]):
-            raise IndexError(f"Position {index} is inside a line separator")
-        return line_index
-
-    def _calculate_lines(self) -> None:
-        self.lines: list[_PosType] = []
-
-        line_begin = 0
-        line_end = 0
-        state = "c"
-
-        for c in self.content:
-            if state == "c":
-                if c == "\r":
-                    self.lines.append((line_begin, line_end))
-                    line_end = line_begin = line_end + 1
-                    state = "r"
-                elif c == "\n":
-                    self.lines.append((line_begin, line_end))
-                    line_end = line_begin = line_end + 1
-                else:
-                    line_end += 1
-            elif state == "r":
-                if c == "\r":
-                    self.lines.append((line_begin, line_end))
-                    line_end = line_begin = line_end + 1
-                elif c == "\n":
-                    line_end = line_begin = line_end + 1
-                    state = "c"
-                else:
-                    line_end += 1
-                    state = "c"
-
-        self.lines.append((line_begin, line_end))
 
 
 class ExecutionContext(contextlib.AbstractContextManager):

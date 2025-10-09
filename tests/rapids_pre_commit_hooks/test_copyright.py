@@ -24,7 +24,13 @@ import pytest
 from freezegun import freeze_time
 
 from rapids_pre_commit_hooks import copyright
-from rapids_pre_commit_hooks.lint import Linter, LintWarning, Note, Replacement
+from rapids_pre_commit_hooks.lint import (
+    Lines,
+    Linter,
+    LintWarning,
+    Note,
+    Replacement,
+)
 
 
 @pytest.mark.parametrize(
@@ -100,6 +106,131 @@ def test_match_copyright(content, expected_matches):
 
 
 @pytest.mark.parametrize(
+    ["content", "index", "expected_pos"],
+    [
+        pytest.param(
+            dedent(
+                r"""
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This is a file
+                """  # noqa: E501
+            ),
+            67,
+            (102, 648),
+            id="correct",
+        ),
+        pytest.param(
+            dedent(
+                r"""
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This is a file
+                """  # noqa: E501
+            ),
+            3,
+            None,
+            id="wrong-start-line",
+        ),
+        pytest.param(
+            dedent(
+                r"""
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                *
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This is a file
+                """  # noqa: E501
+            ),
+            67,
+            None,
+            id="mismatched-prefix",
+        ),
+        pytest.param(
+            dedent(
+                r"""
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at:
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This is a file
+                """  # noqa: E501
+            ),
+            67,
+            None,
+            id="mismatched-contents",
+        ),
+        pytest.param(
+            dedent(
+                r"""
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at:
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                """  # noqa: E501
+            ),
+            67,
+            None,
+            id="too-short",
+        ),
+    ],
+)
+def test_find_long_form_text(content, index, expected_pos):
+    assert (
+        copyright.find_long_form_text(Lines(content), "Apache-2.0", index)
+        == expected_pos
+    )
+
+
+@pytest.mark.parametrize(
     ["content", "expected_stripped", "spdx", "force_spdx"],
     [
         pytest.param(
@@ -166,13 +297,105 @@ def test_match_copyright(content, expected_matches):
             True,
             id="force-spdx",
         ),
+        pytest.param(
+            dedent(
+                """
+                # Copyright (c) 2024 NVIDIA CORPORATION
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This is a line after the license text
+                """  # noqa: E501
+            ),
+            [
+                "\n# ",
+                "\nThis is a line after the license text\n",
+            ],
+            True,
+            False,
+            id="basic-long-form-text",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This is a line after the license text
+                """  # noqa: E501
+            ),
+            [
+                "\n# ",
+                "\nThis is a line after the license text\n",
+            ],
+            True,
+            False,
+            id="spdx-long-form-text",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This is a line after the license text
+                # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                """  # noqa: E501
+            ),
+            [
+                "\n# ",
+                "\nThis is a line after the license text\n# ",
+                "\n",
+            ],
+            True,
+            False,
+            id="spdx-long-form-text-multiple-headers",
+        ),
     ],
 )
 def test_strip_copyright(content, expected_stripped, spdx, force_spdx):
     matches = copyright.match_copyright(content)
     assert (
         copyright.strip_copyright(
-            Mock(spdx=spdx, force_spdx=force_spdx), content, matches
+            Mock(
+                spdx=spdx,
+                force_spdx=force_spdx,
+                spdx_license_identifier="Apache-2.0",
+            ),
+            Lines(content),
+            matches,
         )
         == expected_stripped
     )
@@ -729,8 +952,8 @@ def test_strip_copyright(content, expected_stripped, spdx, force_spdx):
                     "no SPDX-License-Identifier header found",
                     replacements=[
                         Replacement(
-                            (39, 39),
-                            "SPDX-License-Identifier: Apache-2.0\n",
+                            (38, 38),
+                            "\nSPDX-License-Identifier: Apache-2.0",
                         ),
                     ],
                 ),
@@ -781,8 +1004,8 @@ def test_strip_copyright(content, expected_stripped, spdx, force_spdx):
                     "no SPDX-License-Identifier header found",
                     replacements=[
                         Replacement(
-                            (39, 39),
-                            "SPDX-License-Identifier: Apache-2.0\n",
+                            (38, 38),
+                            "\nSPDX-License-Identifier: Apache-2.0",
                         ),
                     ],
                 ),
@@ -878,8 +1101,8 @@ def test_strip_copyright(content, expected_stripped, spdx, force_spdx):
                     "no SPDX-License-Identifier header found",
                     replacements=[
                         Replacement(
-                            (42, 42),
-                            "// SPDX-License-Identifier: Apache-2.0\n",
+                            (41, 41),
+                            "\n// SPDX-License-Identifier: Apache-2.0",
                         ),
                     ],
                 ),
@@ -910,8 +1133,8 @@ def test_strip_copyright(content, expected_stripped, spdx, force_spdx):
                     "no SPDX-License-Identifier header found",
                     replacements=[
                         Replacement(
-                            (65, 65),
-                            " * SPDX-License-Identifier: Apache-2.0\n",
+                            (64, 64),
+                            "\n * SPDX-License-Identifier: Apache-2.0",
                         ),
                     ],
                 ),
@@ -939,6 +1162,185 @@ def test_strip_copyright(content, expected_stripped, spdx, force_spdx):
             False,
             [],
             id="spdx-headers-added-and-no-other-changes",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                r"""
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This file has not been changed
+                """  # noqa: E501
+            ),
+            "file1.txt",
+            dedent(
+                r"""
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This file has not been changed
+                """  # noqa: E501
+            ),
+            False,
+            True,
+            [
+                LintWarning(
+                    (102, 648),
+                    "remove long-form copyright text",
+                    replacements=[
+                        Replacement((102, 648), ""),
+                    ],
+                ),
+            ],
+            id="force-spdx-with-headers-and-long-form-text",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                r"""
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This file has not been changed
+                """  # noqa: E501
+            ),
+            "file1.txt",
+            dedent(
+                r"""
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This file has not been changed
+                """  # noqa: E501
+            ),
+            False,
+            True,
+            [
+                LintWarning(
+                    (64, 610),
+                    "remove long-form copyright text",
+                    replacements=[
+                        Replacement((64, 610), ""),
+                    ],
+                ),
+                LintWarning(
+                    (0, 0),
+                    "no SPDX-License-Identifier header found",
+                    replacements=[
+                        Replacement(
+                            (64, 64), "\n# SPDX-License-Identifier: Apache-2.0"
+                        ),
+                    ],
+                ),
+            ],
+            id="force-spdx-unchanged-with-no-headers-and-long-form-text",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                r"""
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This file has not been changed
+                """  # noqa: E501
+            ),
+            "file1.txt",
+            dedent(
+                r"""
+                # SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This file has been changed
+                """  # noqa: E501
+            ),
+            False,
+            True,
+            [
+                LintWarning(
+                    (70, 616),
+                    "remove long-form copyright text",
+                    replacements=[
+                        Replacement((70, 616), ""),
+                    ],
+                ),
+                LintWarning(
+                    (0, 0),
+                    "no SPDX-License-Identifier header found",
+                    replacements=[
+                        Replacement(
+                            (70, 70), "\n# SPDX-License-Identifier: Apache-2.0"
+                        ),
+                    ],
+                ),
+            ],
+            id="force-spdx-changed-with-no-identifier-and-long-form-text",
         ),
     ],
 )
