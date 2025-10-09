@@ -66,7 +66,7 @@ from rapids_pre_commit_hooks.lint import (
             "# Copyright 2021,  NVIDIA Corporation and affiliates",
             [
                 {
-                    "span": (2, 37),
+                    "span": (2, 52),
                     "spdx": (-1, -1),
                     "text": (2, 37),
                     "years": (12, 16),
@@ -251,8 +251,7 @@ def test_find_long_form_text(content, index, expected_pos):
                 "\n",
                 "\nThis is a line between the next two copyright statements"
                 "\n# ",
-                " and affiliates\nThis is a line after the last copyright "
-                "statement\n",
+                "\nThis is a line after the last copyright statement\n",
             ],
             False,
             False,

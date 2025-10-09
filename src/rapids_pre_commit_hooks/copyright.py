@@ -29,7 +29,7 @@ SPDX_COPYRIGHT_RE: re.Pattern = re.compile(
     r"(?P<spdx>SPDX-FileCopyrightText: )?"
     r"(?P<text>Copyright *(?:\(c\))? *"
     r"(?P<years>(?P<first_year>\d{4})(-(?P<last_year>\d{4}))?),?"
-    r" *NVIDIA C(?:ORPORATION|orporation))"
+    r" *NVIDIA C(?:ORPORATION|orporation))[^\r\n]*"
 )
 SPDX_LICENSE_PATTERN: str = (
     r"SPDX-License-Identifier: (?P<identifier>[a-zA-Z0-9.-]+)"
