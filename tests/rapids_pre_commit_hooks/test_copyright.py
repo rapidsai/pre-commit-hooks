@@ -68,7 +68,7 @@ from rapids_pre_commit_hooks.lint import (
                 {
                     "span": (2, 52),
                     "spdx": (-1, -1),
-                    "text": (2, 52),
+                    "text": (2, 37),
                     "years": (12, 16),
                     "first_year": (12, 16),
                     "last_year": (-1, -1),
