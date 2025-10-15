@@ -235,8 +235,8 @@ def find_long_form_text(
 
                 break
             else:
-                assert prefix
-                assert first_line
+                assert prefix is not None
+                assert first_line is not None
                 return (
                     lines.pos[line + 1][0] + min(len(prefix), len(first_line)),
                     lines.pos[line + len(text_lines)][1],
@@ -461,8 +461,9 @@ def apply_copyright_check(
                     if args.force_spdx:
                         apply_spdx_updates(linter, args, new_match)
         elif new_copyright_matches:
-            for match in new_copyright_matches:
-                if (
+
+            def match_year_sort(match: CopyrightMatch) -> tuple[int, int]:
+                return (
                     int(
                         linter.content[
                             slice(
@@ -472,12 +473,34 @@ def apply_copyright_check(
                                 )
                             )
                         ]
-                    )
-                    < current_year
-                ) and linter.content != old_content:
-                    apply_copyright_update(linter, match, current_year)
+                    ),
+                    int(linter.content[slice(*match.first_year_span)]),
+                )
+
+            newest_match: CopyrightMatch | None = None
+            for match in new_copyright_matches:
+                if not newest_match or match_year_sort(
+                    match
+                ) > match_year_sort(newest_match):
+                    newest_match = match
                 if args.spdx or args.force_spdx:
                     apply_spdx_updates(linter, args, match)
+
+            assert newest_match
+            if (
+                int(
+                    linter.content[
+                        slice(
+                            *(
+                                newest_match.last_year_span
+                                or newest_match.first_year_span
+                            )
+                        )
+                    ]
+                )
+                < current_year
+            ) and linter.content != old_content:
+                apply_copyright_update(linter, newest_match, current_year)
         elif linter.content != old_content:
             linter.add_warning((0, 0), "no copyright notice found")
 
