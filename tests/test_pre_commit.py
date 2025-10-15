@@ -80,16 +80,29 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
     master_dir = os.path.join(example_dir, "master")
     shutil.copytree(master_dir, git_repo.working_tree_dir, dirs_exist_ok=True)
 
-    with open(os.path.join(git_repo.working_tree_dir, "VERSION"), "w") as f:
-        f.write(f"{max(all_metadata().versions.keys(), key=Version)}\n")
     try:
         f = open(os.path.join(example_dir, "metadata.yaml"))
     except FileNotFoundError:
         args_text = ""
+        write_version_file = False
     else:
         with f:
             metadata = yaml.safe_load(f)
-        args_text = f"args: {json.dumps(metadata['args'])}"
+        try:
+            args = metadata["args"]
+        except KeyError:
+            args_text = ""
+        else:
+            args_text = f"args: {json.dumps(args)}"
+        write_version_file = metadata.get("write_version_file", False)
+
+    if write_version_file:
+        with open(
+            os.path.join(git_repo.working_tree_dir, "VERSION"), "w"
+        ) as f:
+            f.write(f"{max(all_metadata().versions.keys(), key=Version)}\n")
+        git_repo.index.add("VERSION")
+
     with open(
         os.path.join(git_repo.working_tree_dir, ".pre-commit-config.yaml"), "w"
     ) as f:
@@ -105,8 +118,7 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
                 """
             )
         )
-
-    git_repo.index.add("VERSION", ".pre-commit-config.yaml")
+    git_repo.index.add(".pre-commit-config.yaml")
 
     git_repo.index.add(list(list_files(master_dir)))
     git_repo.index.commit(
