@@ -459,7 +459,6 @@ def apply_copyright_check(
                         != linter.content[
                             slice(*new_match.full_copyright_text_span)
                         ]
-                        and content_changed
                     ):
                         apply_copyright_revert(
                             linter,
@@ -477,23 +476,22 @@ def apply_copyright_check(
                     apply_spdx_updates(linter, args, newest_match)
         elif new_copyright_matches:
             newest_match = max(new_copyright_matches, key=match_year_sort)
-            if content_changed:
-                if (
-                    int(
-                        linter.content[
-                            slice(
-                                *(
-                                    newest_match.last_year_span
-                                    or newest_match.first_year_span
-                                )
+            if (
+                int(
+                    linter.content[
+                        slice(
+                            *(
+                                newest_match.last_year_span
+                                or newest_match.first_year_span
                             )
-                        ]
-                    )
-                    < current_year
-                ):
-                    apply_copyright_update(linter, newest_match, current_year)
-                if args.spdx or args.force_spdx:
-                    apply_spdx_updates(linter, args, newest_match)
+                        )
+                    ]
+                )
+                < current_year
+            ):
+                apply_copyright_update(linter, newest_match, current_year)
+            if args.spdx or args.force_spdx:
+                apply_spdx_updates(linter, args, newest_match)
         elif content_changed:
             linter.add_warning((0, 0), "no copyright notice found")
 
