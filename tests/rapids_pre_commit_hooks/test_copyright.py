@@ -1370,6 +1370,7 @@ def test_strip_copyright(content, expected_stripped):
             dedent(
                 """
                 // Copyright (c) 2024 NVIDIA CORPORATION
+                // Copyright (c) 2023 NVIDIA CORPORATION
                 // This file has not been changed
                 """
             ),
@@ -1377,6 +1378,7 @@ def test_strip_copyright(content, expected_stripped):
             dedent(
                 """
                 // Copyright (c) 2024 NVIDIA CORPORATION
+                // Copyright (c) 2023 NVIDIA CORPORATION
                 // This file has not been changed
                 """
             ),
