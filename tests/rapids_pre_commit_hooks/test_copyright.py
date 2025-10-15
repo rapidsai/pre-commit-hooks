@@ -1219,6 +1219,7 @@ def test_strip_copyright(content, expected_stripped):
             dedent(
                 """
                 Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) 2023 NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
@@ -1226,6 +1227,7 @@ def test_strip_copyright(content, expected_stripped):
             dedent(
                 """
                 Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) 2023 NVIDIA CORPORATION
                 This file has been changed
                 """
             ),
@@ -1275,6 +1277,16 @@ def test_strip_copyright(content, expected_stripped):
             False,
             [
                 LintWarning(
+                    (15, 19),
+                    "copyright is out of date",
+                    replacements=[
+                        Replacement(
+                            (1, 38),
+                            "Copyright (c) 2023-2024, NVIDIA CORPORATION",
+                        ),
+                    ],
+                ),
+                LintWarning(
                     (1, 38),
                     "include SPDX-FileCopyrightText header",
                     replacements=[
@@ -1291,16 +1303,6 @@ def test_strip_copyright(content, expected_stripped):
                         Replacement(
                             (38, 38),
                             "\nSPDX-License-Identifier: Apache-2.0",
-                        ),
-                    ],
-                ),
-                LintWarning(
-                    (15, 19),
-                    "copyright is out of date",
-                    replacements=[
-                        Replacement(
-                            (1, 38),
-                            "Copyright (c) 2023-2024, NVIDIA CORPORATION",
                         ),
                     ],
                 ),
