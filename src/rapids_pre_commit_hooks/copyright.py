@@ -450,7 +450,7 @@ def apply_copyright_check(
         if old_content is not None and strip_copyright(
             old_lines, old_copyright_matches
         ) == strip_copyright(linter.lines, new_copyright_matches):
-            if content_changed or args.force_spdx:
+            if content_changed:
                 for old_match, new_match in zip(
                     old_copyright_matches, new_copyright_matches
                 ):
@@ -469,11 +469,9 @@ def apply_copyright_check(
                             new_match,
                         )
 
-                if args.force_spdx:
-                    newest_match = max(
-                        new_copyright_matches, key=match_year_sort
-                    )
-                    apply_spdx_updates(linter, args, newest_match)
+            if args.force_spdx:
+                newest_match = max(new_copyright_matches, key=match_year_sort)
+                apply_spdx_updates(linter, args, newest_match)
         elif new_copyright_matches:
             newest_match = max(new_copyright_matches, key=match_year_sort)
             if (

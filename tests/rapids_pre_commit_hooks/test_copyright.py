@@ -1410,6 +1410,29 @@ def test_strip_copyright(content, expected_stripped):
         ),
         pytest.param(
             "M",
+            "file1.txt",
+            dedent(
+                """
+                SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                SPDX-License-Identifier: Apache-2.0
+                This file has not been changed
+                """
+            ),
+            "file1.txt",
+            dedent(
+                """
+                SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                SPDX-License-Identifier: Apache-2.0
+                This file has not been changed
+                """
+            ),
+            False,
+            True,
+            [],
+            id="force-spdx-unchanged-with-headers",
+        ),
+        pytest.param(
+            "M",
             "file1.cpp",
             dedent(
                 """
