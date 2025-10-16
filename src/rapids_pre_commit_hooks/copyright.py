@@ -92,57 +92,6 @@ LONG_FORM_LICENSE_TEXT_RAW: dict[str, list[str]] = {
         WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
         See the License for the specific language governing permissions and
         limitations under the License.""",  # noqa: E501
-        # This one is a weird typo, but I've seen it a few times
-        """
-        Licensed under the Apache License, Version 2.0 (the "License");
-        you may not use this file except in compliance with the License.
-        You may obtain a copy of the License at
-
-            h ttp://www.apache.org/licenses/LICENSE-2.0
-
-        Unless required by applicable law or agreed to in writing, software",  # noqa: E5
-        distributed under the License is distributed on an "AS IS" BASIS,',  # noqa: E5
-        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",  # noqa: E5
-        See the License for the specific language governing permissions and",  # noqa: E5
-        limitations under the License.""",  # noqa: E501
-        """
-        Licensed under the Apache License, Version 2.0 (the "License");
-        you may not use this file except in compliance with the License.
-        You may obtain a copy of the License at
-
-         http://www.apache.org/licenses/LICENSE-2.0
-
-        Unless required by applicable law or agreed to in writing, software
-        distributed under the License is distributed on an "AS IS" BASIS,
-        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-        See the License for the specific language governing permissions and
-        limitations under the License.""",  # noqa: E501
-        # Another weird typo
-        """
-        Licensed under the Apache License, Version 2.0 (the "License");
-        you may not use this file except in compliance with the License.
-        You may obtain a copy of the License at
-
-            http://www.apache.org/licenses/LICENSE-2.0
-
-        Unless required by applicable law or agreed to in writing, software
-        distributed under the License is distributed on an "AS IS" BASIS,
-        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-        See the License for the specific language governing permissions and
-        limitations under the License.`""",  # noqa: E501
-        # This one has smart quotes
-        """
-        Licensed under the Apache License, Version 2.0 (the “License”);
-        you may not use this file except in compliance with the License.
-        You may obtain a copy of the License at
-
-            http://www.apache.org/licenses/LICENSE-2.0
-
-        Unless required by applicable law or agreed to in writing, software
-        distributed under the License is distributed on an “AS IS” BASIS,
-        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-        See the License for the specific language governing permissions and
-        limitations under the License.""",  # noqa: E501
     ],
 }
 LONG_FORM_LICENSE_TEXT: dict[str, list[list[str]]] = {
