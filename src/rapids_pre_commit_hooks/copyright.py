@@ -469,7 +469,7 @@ def apply_copyright_check(
                             new_match,
                         )
 
-            if args.force_spdx:
+            if new_copyright_matches and args.force_spdx:
                 newest_match = max(new_copyright_matches, key=match_year_sort)
                 apply_spdx_updates(linter, args, newest_match)
         elif new_copyright_matches:

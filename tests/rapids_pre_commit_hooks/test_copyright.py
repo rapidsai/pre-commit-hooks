@@ -1433,6 +1433,25 @@ def test_strip_copyright(content, expected_stripped):
         ),
         pytest.param(
             "M",
+            "file1.txt",
+            dedent(
+                """
+                This file has not been changed
+                """
+            ),
+            "file1.txt",
+            dedent(
+                """
+                This file has not been changed
+                """
+            ),
+            False,
+            True,
+            [],
+            id="force-spdx-unchanged-with-no-copyright",
+        ),
+        pytest.param(
+            "M",
             "file1.cpp",
             dedent(
                 """
