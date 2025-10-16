@@ -27,16 +27,12 @@ import git
 
 from .lint import Lines, Linter, LintMain, LintWarning
 
-COPYRIGHT_PATTERN: str = (
+SPDX_COPYRIGHT_RE: re.Pattern = re.compile(
+    r"(?P<spdx_filecopyrighttext_tag>SPDX-FileCopyrightText: )?"
     r"(?P<full_copyright_text>"
     r"(?P<nvidia_copyright_text>Copyright *(?:\(c\))? *"
     r"(?P<years>(?P<first_year>\d{4})(-(?P<last_year>\d{4}))?),?"
     r" *NVIDIA C(?:ORPORATION|orporation))[^\r\n]*)"
-)
-COPYRIGHT_RE: re.Pattern = re.compile(COPYRIGHT_PATTERN)
-SPDX_COPYRIGHT_RE: re.Pattern = re.compile(
-    r"(?P<spdx_filecopyrighttext_tag>SPDX-FileCopyrightText: )"
-    rf"{COPYRIGHT_PATTERN}"
     r"(?:(?:\n|\r\n|\r)[^\r\n]*"
     r"(?P<spdx_license_identifier_tag>SPDX-License-Identifier: )"
     r"(?P<spdx_license_identifier_text>[^\r\n]+))?"
@@ -181,21 +177,7 @@ class ConflictingFilesWarning(RuntimeWarning):
 
 
 def match_copyright(lines: Lines, start: int = 0) -> CopyrightMatch | None:
-    def min_start(m: re.Match | None) -> int:
-        assert m
-        return m.start()
-
-    if re_match := min(
-        filter(
-            bool,
-            [
-                SPDX_COPYRIGHT_RE.search(lines.content, start),
-                COPYRIGHT_RE.search(lines.content, start),
-            ],
-        ),
-        default=None,
-        key=min_start,
-    ):
+    if re_match := SPDX_COPYRIGHT_RE.search(lines.content, start):
 
         def optional_match(name: str) -> _PosType | None:
             try:

@@ -324,6 +324,27 @@ from rapids_pre_commit_hooks.lint import (
             ),
             id="spdx-copyright-and-basic-copyright",
         ),
+        pytest.param(
+            dedent(
+                """
+                Copyright (c) 2021 NVIDIA CORPORATION
+                SPDX-License-Identifier: Apache-2.0
+                """
+            ),
+            0,
+            copyright.CopyrightMatch(
+                span=(1, 74),
+                spdx_filecopyrighttext_tag_span=None,
+                full_copyright_text_span=(1, 38),
+                nvidia_copyright_text_span=(1, 38),
+                years_span=(15, 19),
+                first_year_span=(15, 19),
+                last_year_span=None,
+                spdx_license_identifier_tag_span=(39, 64),
+                spdx_license_identifier_text_span=(64, 74),
+            ),
+            id="basic-copyright-with-license-identifier",
+        ),
     ],
 )
 def test_match_copyright(content, start, expected_match):
