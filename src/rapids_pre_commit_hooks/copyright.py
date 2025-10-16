@@ -20,6 +20,7 @@ import os
 import re
 import warnings
 from collections.abc import Callable, Generator, Iterable
+from textwrap import dedent
 from typing import Optional
 
 import git
@@ -48,76 +49,83 @@ C_STYLE_COMMENTS_RE: re.Pattern = re.compile(
     r"\.(?:c|cpp|cxx|cu|h|hpp|hxx|cuh|js|java|rs)$"
 )
 
-LONG_FORM_LICENSE_TEXT: dict[str, list[list[str]]] = {
+LONG_FORM_LICENSE_TEXT_RAW: dict[str, list[str]] = {
     "Apache-2.0": [
-        [
-            "",
-            'Licensed under the Apache License, Version 2.0 (the "License");',
-            "you may not use this file except in compliance with the License.",
-            "You may obtain a copy of the License at",
-            "",
-            "    http://www.apache.org/licenses/LICENSE-2.0",
-            "",
-            "Unless required by applicable law or agreed to in writing, software",  # noqa: E501
-            'distributed under the License is distributed on an "AS IS" BASIS,',  # noqa: E501
-            "WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",  # noqa: E501
-            "See the License for the specific language governing permissions and",  # noqa: E501
-            "limitations under the License.",
-        ],
-        [
-            "",
-            'Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except',  # noqa: E501
-            "in compliance with the License. You may obtain a copy of the License at",  # noqa: E501
-            "",
-            "http://www.apache.org/licenses/LICENSE-2.0",
-            "",
-            "Unless required by applicable law or agreed to in writing, software distributed under the License",  # noqa: E501
-            'is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express',  # noqa: E501
-            "or implied. See the License for the specific language governing permissions and limitations under",  # noqa: E501
-            "the License.",
-        ],
-        [
-            "",
-            'Licensed under the Apache License, Version 2.0 (the "License");',
-            "you may not use this file except in compliance with the License.",
-            "You may obtain a copy of the License at",
-            "",
-            "    http://www.apache.org/licenses/LICENSE-2.0",
-            "",
-            "Unless required by applicable law or agreed to in writing, software distributed under the License",  # noqa: E501
-            'is distributed on an "AS IS" BASIS,  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express',  # noqa: E501
-            "or implied. See the License for the specific language governing permissions and limitations under",  # noqa: E501
-            "the License.",
-        ],
-        [
-            'Licensed under the Apache License, Version 2.0 (the "License");',
-            "you may not use this file except in compliance with the License.",
-            "You may obtain a copy of the License at",
-            "",
-            "    http://www.apache.org/licenses/LICENSE-2.0",
-            "",
-            "Unless required by applicable law or agreed to in writing, software",  # noqa: E501
-            'distributed under the License is distributed on an "AS IS" BASIS,',  # noqa: E501
-            "WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",  # noqa: E501
-            "See the License for the specific language governing permissions and",  # noqa: E501
-            "limitations under the License.",
-        ],
-        [
-            "",
-            'Licensed under the Apache License, Version 2.0 (the "License");',
-            "you may not use this file except in compliance with the License.",
-            "You may obtain a copy of the License at",
-            "",
-            # This one is a weird typo, but I've seen it a few times
-            "    h ttp://www.apache.org/licenses/LICENSE-2.0",
-            "",
-            "Unless required by applicable law or agreed to in writing, software",  # noqa: E501
-            'distributed under the License is distributed on an "AS IS" BASIS,',  # noqa: E501
-            "WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",  # noqa: E501
-            "See the License for the specific language governing permissions and",  # noqa: E501
-            "limitations under the License.",
-        ],
+        """
+        Licensed under the Apache License, Version 2.0 (the "License");
+        you may not use this file except in compliance with the License.
+        You may obtain a copy of the License at
+
+            http://www.apache.org/licenses/LICENSE-2.0
+
+        Unless required by applicable law or agreed to in writing, software
+        distributed under the License is distributed on an "AS IS" BASIS,
+        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+        See the License for the specific language governing permissions and
+        limitations under the License.""",  # noqa: E501
+        """
+        Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+        in compliance with the License. You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+        Unless required by applicable law or agreed to in writing, software distributed under the License
+        is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+        or implied. See the License for the specific language governing permissions and limitations under
+        the License.""",  # noqa: E501
+        """
+        Licensed under the Apache License, Version 2.0 (the "License");
+        you may not use this file except in compliance with the License.
+        You may obtain a copy of the License at
+
+            http://www.apache.org/licenses/LICENSE-2.0
+
+        Unless required by applicable law or agreed to in writing, software distributed under the License
+        is distributed on an "AS IS" BASIS,  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+        or implied. See the License for the specific language governing permissions and limitations under
+        the License.""",  # noqa: E501
+        """\
+        Licensed under the Apache License, Version 2.0 (the "License");
+        you may not use this file except in compliance with the License.
+        You may obtain a copy of the License at
+
+            http://www.apache.org/licenses/LICENSE-2.0
+
+        Unless required by applicable law or agreed to in writing, software
+        distributed under the License is distributed on an "AS IS" BASIS,
+        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+        See the License for the specific language governing permissions and
+        limitations under the License.""",  # noqa: E501
+        # This one is a weird typo, but I've seen it a few times
+        """
+        Licensed under the Apache License, Version 2.0 (the "License");
+        you may not use this file except in compliance with the License.
+        You may obtain a copy of the License at
+
+            h ttp://www.apache.org/licenses/LICENSE-2.0
+
+        Unless required by applicable law or agreed to in writing, software",  # noqa: E5
+        distributed under the License is distributed on an "AS IS" BASIS,',  # noqa: E5
+        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.",  # noqa: E5
+        See the License for the specific language governing permissions and",  # noqa: E5
+        limitations under the License.""",  # noqa: E501
+        """
+        Licensed under the Apache License, Version 2.0 (the "License");
+        you may not use this file except in compliance with the License.
+        You may obtain a copy of the License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+        Unless required by applicable law or agreed to in writing, software
+        distributed under the License is distributed on an "AS IS" BASIS,
+        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+        See the License for the specific language governing permissions and
+        limitations under the License.""",  # noqa: E501
     ],
+}
+LONG_FORM_LICENSE_TEXT: dict[str, list[list[str]]] = {
+    license: [dedent(text).split("\n") for text in texts]
+    for license, texts in LONG_FORM_LICENSE_TEXT_RAW.items()
 }
 
 
