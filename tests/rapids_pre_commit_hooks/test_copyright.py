@@ -348,7 +348,10 @@ from rapids_pre_commit_hooks.lint import (
     ],
 )
 def test_match_copyright(content, start, expected_match):
-    assert copyright.match_copyright(Lines(content), start) == expected_match
+    assert (
+        copyright.match_copyright(Lines(content), "file.txt", start)
+        == expected_match
+    )
 
 
 @pytest.mark.parametrize(
@@ -479,8 +482,77 @@ def test_match_copyright(content, start, expected_match):
 )
 def test_match_all_copyright(content, expected_matches):
     assert (
-        list(copyright.match_all_copyright(Lines(content))) == expected_matches
+        list(copyright.match_all_copyright(Lines(content), "file.txt"))
+        == expected_matches
     )
+
+
+@pytest.mark.parametrize(
+    ["content", "filename", "index", "expected_prefix"],
+    [
+        pytest.param(
+            dedent(
+                """
+                # First comment
+                # Second comment
+                """
+            ),
+            "file.txt",
+            3,
+            "# ",
+            id="basic-comment-first-line",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # First comment
+                # Second comment
+                """
+            ),
+            "file.txt",
+            19,
+            "# ",
+            id="basic-comment-second-line",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # First comment
+                # Second comment
+                """
+            ),
+            "file.txt",
+            1,
+            "",
+            id="no-comment",
+        ),
+        pytest.param(
+            dedent(
+                """
+                /* Comment
+                """
+            ),
+            "file.txt",
+            4,
+            "/* ",
+            id="c-style-comment-in-non-c-style-file",
+        ),
+        pytest.param(
+            dedent(
+                """
+                /* Comment
+                """
+            ),
+            "file.cpp",
+            4,
+            " * ",
+            id="c-style-comment-in-c-style-file",
+        ),
+    ],
+)
+def test_compute_prefix(content, filename, index, expected_prefix):
+    lines = Lines(content)
+    assert copyright.compute_prefix(lines, filename, index) == expected_prefix
 
 
 @pytest.mark.parametrize(
@@ -488,7 +560,7 @@ def test_match_all_copyright(content, expected_matches):
     [
         pytest.param(
             dedent(
-                r"""
+                """
                 # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 #
@@ -512,7 +584,7 @@ def test_match_all_copyright(content, expected_matches):
         ),
         pytest.param(
             dedent(
-                r"""
+                """
                 # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 #
@@ -536,7 +608,7 @@ def test_match_all_copyright(content, expected_matches):
         ),
         pytest.param(
             dedent(
-                r"""
+                """
                 # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 #
@@ -560,7 +632,7 @@ def test_match_all_copyright(content, expected_matches):
         ),
         pytest.param(
             dedent(
-                r"""
+                """
                 # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 #
@@ -584,7 +656,7 @@ def test_match_all_copyright(content, expected_matches):
         ),
         pytest.param(
             dedent(
-                r"""
+                """
                 # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 #
@@ -603,7 +675,9 @@ def test_match_all_copyright(content, expected_matches):
 )
 def test_find_long_form_text(content, index, expected_pos):
     assert (
-        copyright.find_long_form_text(Lines(content), "Apache-2.0", index)
+        copyright.find_long_form_text(
+            Lines(content), "file.txt", "Apache-2.0", index
+        )
         == expected_pos
     )
 
@@ -736,7 +810,7 @@ def test_find_long_form_text(content, index, expected_pos):
 )
 def test_strip_copyright(content, expected_stripped):
     lines = Lines(content)
-    matches = copyright.match_all_copyright(lines)
+    matches = copyright.match_all_copyright(lines, "file.txt")
     assert (
         copyright.strip_copyright(
             lines,

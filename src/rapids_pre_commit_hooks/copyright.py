@@ -137,7 +137,9 @@ class ConflictingFilesWarning(RuntimeWarning):
     pass
 
 
-def match_copyright(lines: Lines, start: int = 0) -> CopyrightMatch | None:
+def match_copyright(
+    lines: Lines, filename: str | os.PathLike[str], start: int = 0
+) -> CopyrightMatch | None:
     if re_match := SPDX_COPYRIGHT_RE.search(lines.content, start):
 
         def optional_match(name: str) -> _PosType | None:
@@ -172,7 +174,14 @@ def match_copyright(lines: Lines, start: int = 0) -> CopyrightMatch | None:
             license_identifier = None
 
         if pos := find_long_form_text(
-            lines, license_identifier, re_match.end()
+            lines,
+            filename,
+            license_identifier,
+            (
+                match.spdx_license_identifier_tag_span
+                or match.spdx_filecopyrighttext_tag_span
+                or match.full_copyright_text_span
+            )[0],
         ):
             match.long_form_text_span = pos
             match.span = (match.span[0], pos[1])
@@ -182,17 +191,33 @@ def match_copyright(lines: Lines, start: int = 0) -> CopyrightMatch | None:
     return None
 
 
-def match_all_copyright(lines: Lines) -> Generator[CopyrightMatch]:
+def match_all_copyright(
+    lines: Lines, filename: str | os.PathLike[str]
+) -> Generator[CopyrightMatch]:
     start = 0
 
-    while match := match_copyright(lines, start):
+    while match := match_copyright(lines, filename, start):
         yield match
         start = match.span[1]
 
 
+def compute_prefix(
+    lines: Lines, filename: str | os.PathLike[str], index: int
+) -> str:
+    line = lines.line_for_pos(index)
+    prefix = lines.content[lines.pos[line][0] : index]
+    if C_STYLE_COMMENTS_RE.search(str(filename)):
+        prefix = prefix.replace("/*", " *")
+    return prefix
+
+
 def find_long_form_text(
-    lines: Lines, identifier: str | None, index: int
+    lines: Lines,
+    filename: str | os.PathLike[str],
+    identifier: str | None,
+    index: int,
 ) -> _PosType | None:
+    prefix = compute_prefix(lines, filename, index)
     line = lines.line_for_pos(index)
     rest_of_lines = lines.pos[line + 1 :]
 
@@ -208,26 +233,19 @@ def find_long_form_text(
             if len(rest_of_lines) < len(text_lines):
                 continue
 
-            prefix: str | None = None
             first_line: str | None = None
             for file_pos, text_line in zip(rest_of_lines, text_lines):
                 file_line = lines.content[file_pos[0] : file_pos[1]]
                 if first_line is None:
                     first_line = file_line
                 if text_line == "":
-                    if prefix is None or prefix.startswith(file_line):
+                    if prefix.startswith(file_line):
                         continue
-                else:
-                    if prefix is None:
-                        if file_line.endswith(text_line):
-                            prefix = file_line[: -len(text_line)]
-                            continue
-                    elif file_line == f"{prefix}{text_line}":
-                        continue
+                elif file_line == f"{prefix}{text_line}":
+                    continue
 
                 break
             else:
-                assert prefix is not None
                 assert first_line is not None
                 return (
                     lines.pos[line + 1][0] + min(len(prefix), len(first_line)),
@@ -355,11 +373,7 @@ def apply_spdx_license_insert(
     )[0]
     line = linter.lines.line_for_pos(match_start_pos)
 
-    line_start_pos = linter.lines.pos[line][0]
-    line_start = linter.content[line_start_pos:match_start_pos]
-
-    if C_STYLE_COMMENTS_RE.search(linter.filename):
-        line_start = line_start.replace("/*", " *")
+    prefix = compute_prefix(linter.lines, linter.filename, match_start_pos)
 
     next_line_start_pos = linter.lines.pos[line][1]
     w = linter.add_warning(
@@ -368,7 +382,7 @@ def apply_spdx_license_insert(
     )
     w.add_replacement(
         (next_line_start_pos, next_line_start_pos),
-        f"\n{line_start}SPDX-License-Identifier: {identifier}",
+        f"\n{prefix}SPDX-License-Identifier: {identifier}",
     )
 
 
@@ -423,11 +437,16 @@ def apply_copyright_check(
                 current_year = datetime.datetime.now().year
         else:
             current_year = datetime.datetime.now().year
-        new_copyright_matches = list(match_all_copyright(linter.lines))
+        new_copyright_matches = list(
+            match_all_copyright(linter.lines, linter.filename)
+        )
 
         if old_content is not None:
+            assert old_filename is not None
             old_lines = Lines(old_content)
-            old_copyright_matches = list(match_all_copyright(old_lines))
+            old_copyright_matches = list(
+                match_all_copyright(old_lines, old_filename)
+            )
 
         def match_year_sort(match: CopyrightMatch) -> tuple[int, int]:
             return (
