@@ -16,6 +16,7 @@ import argparse
 import dataclasses
 import datetime
 import functools
+import itertools
 import os
 import re
 import warnings
@@ -49,45 +50,6 @@ C_STYLE_COMMENTS_RE: re.Pattern = re.compile(
 LONG_FORM_LICENSE_TEXT: dict[str, list[str]] = {
     "Apache-2.0": [
         dedent(
-            """
-            Licensed under the Apache License, Version 2.0 (the "License");
-            you may not use this file except in compliance with the License.
-            You may obtain a copy of the License at
-
-                http://www.apache.org/licenses/LICENSE-2.0
-
-            Unless required by applicable law or agreed to in writing, software
-            distributed under the License is distributed on an "AS IS" BASIS,
-            WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-            See the License for the specific language governing permissions and
-            limitations under the License."""  # noqa: E501
-        ),
-        dedent(
-            """
-            Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
-            in compliance with the License. You may obtain a copy of the License at
-
-            http://www.apache.org/licenses/LICENSE-2.0
-
-            Unless required by applicable law or agreed to in writing, software distributed under the License
-            is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
-            or implied. See the License for the specific language governing permissions and limitations under
-            the License."""  # noqa: E501
-        ),
-        dedent(
-            """
-            Licensed under the Apache License, Version 2.0 (the "License");
-            you may not use this file except in compliance with the License.
-            You may obtain a copy of the License at
-
-                http://www.apache.org/licenses/LICENSE-2.0
-
-            Unless required by applicable law or agreed to in writing, software distributed under the License
-            is distributed on an "AS IS" BASIS,  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
-            or implied. See the License for the specific language governing permissions and limitations under
-            the License."""  # noqa: E501
-        ),
-        dedent(
             """\
             Licensed under the Apache License, Version 2.0 (the "License");
             you may not use this file except in compliance with the License.
@@ -100,6 +62,31 @@ LONG_FORM_LICENSE_TEXT: dict[str, list[str]] = {
             WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
             See the License for the specific language governing permissions and
             limitations under the License."""  # noqa: E501
+        ),
+        dedent(
+            """\
+            Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+            in compliance with the License. You may obtain a copy of the License at
+
+            http://www.apache.org/licenses/LICENSE-2.0
+
+            Unless required by applicable law or agreed to in writing, software distributed under the License
+            is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+            or implied. See the License for the specific language governing permissions and limitations under
+            the License."""  # noqa: E501
+        ),
+        dedent(
+            """\
+            Licensed under the Apache License, Version 2.0 (the "License");
+            you may not use this file except in compliance with the License.
+            You may obtain a copy of the License at
+
+                http://www.apache.org/licenses/LICENSE-2.0
+
+            Unless required by applicable law or agreed to in writing, software distributed under the License
+            is distributed on an "AS IS" BASIS,  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+            or implied. See the License for the specific language governing permissions and limitations under
+            the License."""  # noqa: E501
         ),
     ],
 }
@@ -266,12 +253,25 @@ def find_long_form_text(
             score,
         )
 
-    scores: Generator[tuple[str, _PosType, int]] = (
-        score_tuple
-        for license_texts in licenses
-        for license_text in license_texts
-        if (score_tuple := license_levenshtein_distance(license_text))
-        is not None
+    scores: itertools.chain[tuple[str, _PosType, int]] = itertools.chain(
+        (
+            score_tuple
+            for license_texts in licenses
+            for license_text in license_texts
+            if (
+                score_tuple := license_levenshtein_distance(
+                    f"\n{license_text}"
+                )
+            )
+            is not None
+        ),
+        (
+            score_tuple
+            for license_texts in licenses
+            for license_text in license_texts
+            if (score_tuple := license_levenshtein_distance(license_text))
+            is not None
+        ),
     )
     license_text, pos, score = min(
         scores, key=lambda score: score[2], default=(None, None, None)
