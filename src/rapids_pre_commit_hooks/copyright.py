@@ -210,7 +210,7 @@ def find_long_form_text(
 
     def license_levenshtein_distance(
         license_text: str,
-    ) -> tuple[str, _PosType, int] | None:
+    ) -> tuple[_PosType, int] | None:
         """Do a line-by-line Levenshtein comparison between the license and \
         the text.
 
@@ -242,10 +242,11 @@ def find_long_form_text(
             actual_license_line = file_line[len(prefix) :]
             actual_license_lines.append(actual_license_line)
             score += Levenshtein.distance(license_line, actual_license_line)
+            if score >= 0.05 * len(license_text):
+                return None
 
         assert first_line is not None
         return (
-            license_text,
             (
                 lines.pos[line + 1][0] + min(len(prefix), len(first_line)),
                 lines.pos[line + len(actual_license_lines)][1],
@@ -253,7 +254,7 @@ def find_long_form_text(
             score,
         )
 
-    scores: itertools.chain[tuple[str, _PosType, int]] = itertools.chain(
+    scores: itertools.chain[tuple[_PosType, int]] = itertools.chain(
         (
             score_tuple
             for license_texts in licenses
@@ -273,14 +274,8 @@ def find_long_form_text(
             is not None
         ),
     )
-    license_text, pos, score = min(
-        scores, key=lambda score: score[2], default=(None, None, None)
-    )
-    if (
-        score is not None
-        and license_text is not None
-        and score < 0.05 * len(license_text)
-    ):
+    pos, score = min(scores, key=lambda score: score[1], default=(None, None))
+    if score is not None:
         return pos
 
     return None
