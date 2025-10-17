@@ -224,6 +224,19 @@ def find_long_form_text(
     def license_levenshtein_distance(
         license_text: str,
     ) -> tuple[str, _PosType, int] | None:
+        """Do a line-by-line Levenshtein comparison between the license and \
+        the text.
+
+        Using Levenshtein edit distance allows us to detect slight variations
+        and typos on the license text. We have seen enough such variations
+        throughout RAPIDS to make a smart comparison worthwhile. This will help
+        not only for the initial migration to SPDX but for enforcing the
+        no-long-form-text rule for future contributions.
+
+        We do a line-by-line cumulative score to avoid weird mismatching issues
+        when the license text doesn't start on the same line as the actual
+        text.
+        """
         license_lines = license_text.split("\n")
         if len(rest_of_lines) < len(license_lines):
             return None
