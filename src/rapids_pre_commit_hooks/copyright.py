@@ -229,28 +229,29 @@ def find_long_form_text(
             return None
 
     for license in licenses:
-        for text_lines in license:
-            if len(rest_of_lines) < len(text_lines):
+        for license_lines in license:
+            if len(rest_of_lines) < len(license_lines):
                 continue
 
             first_line: str | None = None
-            for file_pos, text_line in zip(rest_of_lines, text_lines):
+            actual_license_lines: list[str] = []
+            for file_pos in rest_of_lines[: len(license_lines)]:
                 file_line = lines.content[file_pos[0] : file_pos[1]]
                 if first_line is None:
                     first_line = file_line
-                if text_line == "":
-                    if prefix.startswith(file_line):
-                        continue
-                elif file_line == f"{prefix}{text_line}":
-                    continue
-
-                break
+                if not file_line.startswith(prefix) and not prefix.startswith(
+                    file_line
+                ):
+                    break
+                actual_license_lines.append(file_line[len(prefix) :])
             else:
-                assert first_line is not None
-                return (
-                    lines.pos[line + 1][0] + min(len(prefix), len(first_line)),
-                    lines.pos[line + len(text_lines)][1],
-                )
+                if actual_license_lines == license_lines:
+                    assert first_line is not None
+                    return (
+                        lines.pos[line + 1][0]
+                        + min(len(prefix), len(first_line)),
+                        lines.pos[line + len(license_lines)][1],
+                    )
 
     return None
 
