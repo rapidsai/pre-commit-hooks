@@ -23,6 +23,7 @@ from collections.abc import Callable, Generator, Iterable
 from textwrap import dedent
 from typing import Optional
 
+import Levenshtein
 import git
 
 from .lint import Lines, Linter, LintMain, LintWarning
@@ -45,70 +46,62 @@ C_STYLE_COMMENTS_RE: re.Pattern = re.compile(
     r"\.(?:c|cpp|cxx|cu|h|hpp|hxx|cuh|js|java|rs)$"
 )
 
-LONG_FORM_LICENSE_TEXT_RAW: dict[str, list[str]] = {
+LONG_FORM_LICENSE_TEXT: dict[str, list[str]] = {
     "Apache-2.0": [
-        """
-        Licensed under the Apache License, Version 2.0 (the "License");
-        you may not use this file except in compliance with the License.
-        You may obtain a copy of the License at
+        dedent(
+            """
+            Licensed under the Apache License, Version 2.0 (the "License");
+            you may not use this file except in compliance with the License.
+            You may obtain a copy of the License at
+
+                http://www.apache.org/licenses/LICENSE-2.0
+
+            Unless required by applicable law or agreed to in writing, software
+            distributed under the License is distributed on an "AS IS" BASIS,
+            WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+            See the License for the specific language governing permissions and
+            limitations under the License."""  # noqa: E501
+        ),
+        dedent(
+            """
+            Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+            in compliance with the License. You may obtain a copy of the License at
 
             http://www.apache.org/licenses/LICENSE-2.0
 
-        Unless required by applicable law or agreed to in writing, software
-        distributed under the License is distributed on an "AS IS" BASIS,
-        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-        See the License for the specific language governing permissions and
-        limitations under the License.""",  # noqa: E501
-        """
-        Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
-        in compliance with the License. You may obtain a copy of the License at
+            Unless required by applicable law or agreed to in writing, software distributed under the License
+            is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+            or implied. See the License for the specific language governing permissions and limitations under
+            the License."""  # noqa: E501
+        ),
+        dedent(
+            """
+            Licensed under the Apache License, Version 2.0 (the "License");
+            you may not use this file except in compliance with the License.
+            You may obtain a copy of the License at
 
-        http://www.apache.org/licenses/LICENSE-2.0
+                http://www.apache.org/licenses/LICENSE-2.0
 
-        Unless required by applicable law or agreed to in writing, software distributed under the License
-        is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
-        or implied. See the License for the specific language governing permissions and limitations under
-        the License.""",  # noqa: E501
-        """
-        Licensed under the Apache License, Version 2.0 (the "License");
-        you may not use this file except in compliance with the License.
-        You may obtain a copy of the License at
+            Unless required by applicable law or agreed to in writing, software distributed under the License
+            is distributed on an "AS IS" BASIS,  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+            or implied. See the License for the specific language governing permissions and limitations under
+            the License."""  # noqa: E501
+        ),
+        dedent(
+            """\
+            Licensed under the Apache License, Version 2.0 (the "License");
+            you may not use this file except in compliance with the License.
+            You may obtain a copy of the License at
 
-            http://www.apache.org/licenses/LICENSE-2.0
+                http://www.apache.org/licenses/LICENSE-2.0
 
-        Unless required by applicable law or agreed to in writing, software distributed under the License
-        is distributed on an "AS IS" BASIS,  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
-        or implied. See the License for the specific language governing permissions and limitations under
-        the License.""",  # noqa: E501
-        """\
-        Licensed under the Apache License, Version 2.0 (the "License");
-        you may not use this file except in compliance with the License.
-        You may obtain a copy of the License at
-
-            http://www.apache.org/licenses/LICENSE-2.0
-
-        Unless required by applicable law or agreed to in writing, software
-        distributed under the License is distributed on an "AS IS" BASIS,
-        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-        See the License for the specific language governing permissions and
-        limitations under the License.""",  # noqa: E501
-        """\
-        Licensed under the Apache License, Version 2.0 (the "License");
-        you may not use this file except in compliance with the License.
-        You may obtain a copy of the License at
-
-             http://www.apache.org/licenses/LICENSE-2.0
-
-        Unless required by applicable law or agreed to in writing, software
-        distributed under the License is distributed on an "AS IS" BASIS,
-        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-        See the License for the specific language governing permissions and
-        limitations under the License.""",  # noqa: E501
+            Unless required by applicable law or agreed to in writing, software
+            distributed under the License is distributed on an "AS IS" BASIS,
+            WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+            See the License for the specific language governing permissions and
+            limitations under the License."""  # noqa: E501
+        ),
     ],
-}
-LONG_FORM_LICENSE_TEXT: dict[str, list[list[str]]] = {
-    license: [dedent(text).split("\n") for text in texts]
-    for license, texts in LONG_FORM_LICENSE_TEXT_RAW.items()
 }
 
 
@@ -221,37 +214,61 @@ def find_long_form_text(
     line = lines.line_for_pos(index)
     rest_of_lines = lines.pos[line + 1 :]
 
-    licenses: Iterable[list[list[str]]] = LONG_FORM_LICENSE_TEXT.values()
+    licenses: Iterable[list[str]] = LONG_FORM_LICENSE_TEXT.values()
     if identifier:
         try:
             licenses = [LONG_FORM_LICENSE_TEXT[identifier]]
         except KeyError:
             return None
 
-    for license in licenses:
-        for license_lines in license:
-            if len(rest_of_lines) < len(license_lines):
-                continue
+    def license_levenshtein_distance(
+        license_text: str,
+    ) -> tuple[str, _PosType, int] | None:
+        license_lines = license_text.split("\n")
+        if len(rest_of_lines) < len(license_lines):
+            return None
 
-            first_line: str | None = None
-            actual_license_lines: list[str] = []
-            for file_pos in rest_of_lines[: len(license_lines)]:
-                file_line = lines.content[file_pos[0] : file_pos[1]]
-                if first_line is None:
-                    first_line = file_line
-                if not file_line.startswith(prefix) and not prefix.startswith(
-                    file_line
-                ):
-                    break
-                actual_license_lines.append(file_line[len(prefix) :])
-            else:
-                if actual_license_lines == license_lines:
-                    assert first_line is not None
-                    return (
-                        lines.pos[line + 1][0]
-                        + min(len(prefix), len(first_line)),
-                        lines.pos[line + len(license_lines)][1],
-                    )
+        first_line: str | None = None
+        actual_license_lines: list[str] = []
+        score = 0
+        for license_line, file_pos in zip(license_lines, rest_of_lines):
+            file_line = lines.content[file_pos[0] : file_pos[1]]
+            if first_line is None:
+                first_line = file_line
+            if not file_line.startswith(prefix) and not prefix.startswith(
+                file_line
+            ):
+                return None
+            actual_license_line = file_line[len(prefix) :]
+            actual_license_lines.append(actual_license_line)
+            score += Levenshtein.distance(license_line, actual_license_line)
+
+        assert first_line is not None
+        return (
+            license_text,
+            (
+                lines.pos[line + 1][0] + min(len(prefix), len(first_line)),
+                lines.pos[line + len(actual_license_lines)][1],
+            ),
+            score,
+        )
+
+    scores: Generator[tuple[str, _PosType, int]] = (
+        score_tuple
+        for license_texts in licenses
+        for license_text in license_texts
+        if (score_tuple := license_levenshtein_distance(license_text))
+        is not None
+    )
+    license_text, pos, score = min(
+        scores, key=lambda score: score[2], default=(None, None, None)
+    )
+    if (
+        score is not None
+        and license_text is not None
+        and score < 0.05 * len(license_text)
+    ):
+        return pos
 
     return None
 

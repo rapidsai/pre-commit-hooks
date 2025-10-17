@@ -35,6 +35,7 @@ dependencies = [
     "PyYAML",
     "bashlex",
     "gitpython",
+    "levenshtein",
     "packaging",
     "rich",
     "tomlkit",
