@@ -232,7 +232,7 @@ def find_long_form_text(
         actual_license_lines: list[str] = []
         score = 0
         for license_line, file_pos in zip(license_lines, rest_of_lines):
-            file_line = lines.content[file_pos[0] : file_pos[1]]
+            file_line = lines.content[slice(*file_pos)]
             if first_line is None:
                 first_line = file_line
             if not file_line.startswith(prefix) and not prefix.startswith(
