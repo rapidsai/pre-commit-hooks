@@ -40,9 +40,6 @@ SPDX_COPYRIGHT_RE: re.Pattern = re.compile(
     r"(?P<spdx_license_identifier_text>[^\r\n]+))?"
 )
 BRANCH_RE: re.Pattern = re.compile(r"^branch-(?P<major>\d+)\.(?P<minor>\d+)$")
-COPYRIGHT_REPLACEMENT: str = (
-    "Copyright (c) {first_year}-{last_year}, NVIDIA CORPORATION"
-)
 C_STYLE_COMMENTS_RE: re.Pattern = re.compile(
     r"\.(?:c|cpp|cxx|cu|h|hpp|hxx|cuh|js|java|rs)$"
 )
@@ -356,10 +353,9 @@ def apply_copyright_update(
     w = linter.add_warning(match.years_span, "copyright is out of date")
     w.add_replacement(
         match.nvidia_copyright_text_span,
-        COPYRIGHT_REPLACEMENT.format(
-            first_year=linter.content[slice(*match.first_year_span)],
-            last_year=year,
-        ),
+        "Copyright (c) "
+        f"{linter.content[slice(*match.first_year_span)]}-{year}, "
+        "NVIDIA CORPORATION",
     )
 
 
