@@ -21,59 +21,75 @@ import pytest
 
 from rapids_pre_commit_hooks.lint import (
     BinaryFileWarning,
+    Lines,
     Linter,
     LintMain,
     OverlappingReplacementsError,
 )
 
 
-class TestLinter:
+class TestLines:
     LONG_CONTENTS = (
         "line 1\nline 2\rline 3\r\nline 4\r\n\nline 6\r\n\r\nline 8\n\r\n"
         "line 10\r\r\nline 12\r\n\rline 14\n\nline 16\r\rline 18\n\rline 20"
     )
 
-    def test_lines(self):
-        linter = Linter("test.txt", self.LONG_CONTENTS)
-        assert linter.lines == [
-            (0, 6),
-            (7, 13),
-            (14, 20),
-            (22, 28),
-            (30, 30),
-            (31, 37),
-            (39, 39),
-            (41, 47),
-            (48, 48),
-            (50, 57),
-            (58, 58),
-            (60, 67),
-            (69, 69),
-            (70, 77),
-            (78, 78),
-            (79, 86),
-            (87, 87),
-            (88, 95),
-            (96, 96),
-            (97, 104),
-        ]
-
-        linter = Linter("test.txt", "line 1\n")
-        assert linter.lines == [
-            (0, 6),
-            (7, 7),
-        ]
-
-        linter = Linter("test.txt", "line 1\r\n")
-        assert linter.lines == [
-            (0, 6),
-            (8, 8),
-        ]
-
-        linter = Linter("test.txt", "")
-        assert linter.lines == [
-            (0, 0),
-        ]
+    @pytest.mark.parametrize(
+        ["content", "expected_pos"],
+        [
+            pytest.param(
+                "line 1\n",
+                [
+                    (0, 6),
+                    (7, 7),
+                ],
+                id="lf",
+            ),
+            pytest.param(
+                "line 1\r\n",
+                [
+                    (0, 6),
+                    (8, 8),
+                ],
+                id="crlf",
+            ),
+            pytest.param(
+                "",
+                [
+                    (0, 0),
+                ],
+                id="empty",
+            ),
+            pytest.param(
+                LONG_CONTENTS,
+                [
+                    (0, 6),
+                    (7, 13),
+                    (14, 20),
+                    (22, 28),
+                    (30, 30),
+                    (31, 37),
+                    (39, 39),
+                    (41, 47),
+                    (48, 48),
+                    (50, 57),
+                    (58, 58),
+                    (60, 67),
+                    (69, 69),
+                    (70, 77),
+                    (78, 78),
+                    (79, 86),
+                    (87, 87),
+                    (88, 95),
+                    (96, 96),
+                    (97, 104),
+                ],
+                id="complex",
+            ),
+        ],
+    )
+    def test_pos(self, content, expected_pos):
+        assert Lines(content).pos == expected_pos
 
     @pytest.mark.parametrize(
         ["contents", "pos", "line", "raises"],
@@ -114,10 +130,12 @@ class TestLinter:
         line,
         raises,
     ):
-        linter = Linter("test.txt", contents)
+        lines = Lines(contents)
         with raises:
-            assert linter._line_for_pos(pos) == line
+            assert lines.line_for_pos(pos) == line
 
+
+class TestLinter:
     def test_fix(self):
         linter = Linter("test.txt", "Hello world!")
         assert linter.fix() == "Hello world!"

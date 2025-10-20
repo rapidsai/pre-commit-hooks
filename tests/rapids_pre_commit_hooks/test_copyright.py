@@ -24,73 +24,874 @@ import pytest
 from freezegun import freeze_time
 
 from rapids_pre_commit_hooks import copyright
-from rapids_pre_commit_hooks.lint import Linter, LintWarning, Note, Replacement
+from rapids_pre_commit_hooks.lint import (
+    Lines,
+    Linter,
+    LintWarning,
+    Note,
+    Replacement,
+)
 
 
-def test_match_copyright():
-    CONTENT = dedent(
-        r"""
-        Copyright (c) 2024 NVIDIA CORPORATION
-        Copyright (c) 2021-2024 NVIDIA CORPORATION
-        # Copyright 2021,  NVIDIA Corporation and affiliates
-        """
+@pytest.mark.parametrize(
+    ["content", "start", "expected_match"],
+    [
+        pytest.param(
+            dedent(
+                """
+                Copyright (c) 2021 NVIDIA CORPORATION
+                Copyright (c) 2025 NVIDIA CORPORATION
+                """
+            ),
+            0,
+            copyright.CopyrightMatch(
+                span=(1, 38),
+                spdx_filecopyrighttext_tag_span=None,
+                full_copyright_text_span=(1, 38),
+                nvidia_copyright_text_span=(1, 38),
+                years_span=(15, 19),
+                first_year_span=(15, 19),
+                last_year_span=None,
+                spdx_license_identifier_tag_span=None,
+                spdx_license_identifier_text_span=None,
+            ),
+            id="basic-copyright-single-year",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # Copyright  (c)  2021-2025,  NVIDIA Corporation and affiliates
+                """
+            ),
+            0,
+            copyright.CopyrightMatch(
+                span=(3, 64),
+                spdx_filecopyrighttext_tag_span=None,
+                full_copyright_text_span=(3, 64),
+                nvidia_copyright_text_span=(3, 49),
+                years_span=(19, 28),
+                first_year_span=(19, 23),
+                last_year_span=(24, 28),
+                spdx_license_identifier_tag_span=None,
+                spdx_license_identifier_text_span=None,
+            ),
+            id="basic-copyright-multi-year-with-extras",
+        ),
+        pytest.param(
+            dedent(
+                """
+                Copyright (c) 2021 NVIDIA CORPORATION
+                """
+            ),
+            2,
+            None,
+            id="basic-copyright-late-start-no-match",
+        ),
+        pytest.param(
+            dedent(
+                """
+                Copyright (c) 2021 NVIDIA CORPORATION
+                Copyright (c) 2025 NVIDIA CORPORATION
+                """
+            ),
+            38,
+            copyright.CopyrightMatch(
+                span=(39, 76),
+                spdx_filecopyrighttext_tag_span=None,
+                full_copyright_text_span=(39, 76),
+                nvidia_copyright_text_span=(39, 76),
+                years_span=(53, 57),
+                first_year_span=(53, 57),
+                last_year_span=None,
+                spdx_license_identifier_tag_span=None,
+                spdx_license_identifier_text_span=None,
+            ),
+            id="basic-copyright-late-start-second-match",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # Copyright (c) 2021-2025, NVIDIA CORPORATION.
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                """  # noqa: E501
+            ),
+            0,
+            copyright.CopyrightMatch(
+                span=(3, 593),
+                spdx_filecopyrighttext_tag_span=None,
+                full_copyright_text_span=(3, 47),
+                nvidia_copyright_text_span=(3, 46),
+                years_span=(17, 26),
+                first_year_span=(17, 21),
+                last_year_span=(22, 26),
+                long_form_text_span=(49, 593),
+                spdx_license_identifier_tag_span=None,
+                spdx_license_identifier_text_span=None,
+            ),
+            id="basic-copyright-long-form-text",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # Copyright (c) 2021-2025, NVIDIA CORPORATION.
+                #
+                # Redistribution and use in source and binary forms, with or without
+                # modification, are permitted provided that the following conditions are met:
+                #
+                # * Redistributions of source code must retain the above copyright notice, this
+                #   list of conditions and the following disclaimer.
+                #
+                # * Redistributions in binary form must reproduce the above copyright notice,
+                #   this list of conditions and the following disclaimer in the documentation
+                #   and/or other materials provided with the distribution.
+                #
+                # * Neither the name of the copyright holder nor the names of its
+                #   contributors may be used to endorse or promote products derived from
+                #   this software without specific prior written permission.
+                #
+                # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+                # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+                # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+                # DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+                # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+                # DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+                # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+                # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+                # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+                # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+                """  # noqa: E501
+            ),
+            0,
+            copyright.CopyrightMatch(
+                span=(3, 47),
+                spdx_filecopyrighttext_tag_span=None,
+                full_copyright_text_span=(3, 47),
+                nvidia_copyright_text_span=(3, 46),
+                years_span=(17, 26),
+                first_year_span=(17, 21),
+                last_year_span=(22, 26),
+                long_form_text_span=None,
+                spdx_license_identifier_tag_span=None,
+                spdx_license_identifier_text_span=None,
+            ),
+            id="basic-copyright-wrong-long-form-text",
+        ),
+        pytest.param(
+            dedent(
+                """
+                SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION
+                """
+            ),
+            0,
+            copyright.CopyrightMatch(
+                span=(1, 62),
+                spdx_filecopyrighttext_tag_span=(1, 25),
+                full_copyright_text_span=(25, 62),
+                nvidia_copyright_text_span=(25, 62),
+                years_span=(39, 43),
+                first_year_span=(39, 43),
+                last_year_span=None,
+                spdx_license_identifier_tag_span=None,
+                spdx_license_identifier_text_span=None,
+            ),
+            id="spdx-copyright",
+        ),
+        pytest.param(
+            dedent(
+                """
+                SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION
+                SPDX-License-Identifier: Apache-2.0
+                """
+            ),
+            0,
+            copyright.CopyrightMatch(
+                span=(1, 98),
+                spdx_filecopyrighttext_tag_span=(1, 25),
+                full_copyright_text_span=(25, 62),
+                nvidia_copyright_text_span=(25, 62),
+                years_span=(39, 43),
+                first_year_span=(39, 43),
+                last_year_span=None,
+                spdx_license_identifier_tag_span=(63, 88),
+                spdx_license_identifier_text_span=(88, 98),
+            ),
+            id="spdx-copyright-with-license-identifier",
+        ),
+        pytest.param(
+            dedent(
+                """
+                SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION
+                Licensed under the Apache License, Version 2.0 (the "License");
+                you may not use this file except in compliance with the License.
+                You may obtain a copy of the License at
+
+                    http://www.apache.org/licenses/LICENSE-2.0
+
+                Unless required by applicable law or agreed to in writing, software
+                distributed under the License is distributed on an "AS IS" BASIS,
+                WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                See the License for the specific language governing permissions and
+                limitations under the License.
+                """  # noqa: E501
+            ),
+            0,
+            copyright.CopyrightMatch(
+                span=(1, 586),
+                spdx_filecopyrighttext_tag_span=(1, 25),
+                full_copyright_text_span=(25, 62),
+                nvidia_copyright_text_span=(25, 62),
+                years_span=(39, 43),
+                first_year_span=(39, 43),
+                last_year_span=None,
+                long_form_text_span=(63, 586),
+                spdx_license_identifier_tag_span=None,
+                spdx_license_identifier_text_span=None,
+            ),
+            id="spdx-copyright-with-long-form-text",
+        ),
+        pytest.param(
+            dedent(
+                """
+                SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION
+                SPDX-License-Identifier: Apache-2.0
+
+                Licensed under the Apache License, Version 2.0 (the "License");
+                you may not use this file except in compliance with the License.
+                You may obtain a copy of the License at
+
+                    http://www.apache.org/licenses/LICENSE-2.0
+
+                Unless required by applicable law or agreed to in writing, software
+                distributed under the License is distributed on an "AS IS" BASIS,
+                WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                See the License for the specific language governing permissions and
+                limitations under the License.
+                """  # noqa: E501
+            ),
+            0,
+            copyright.CopyrightMatch(
+                span=(1, 623),
+                spdx_filecopyrighttext_tag_span=(1, 25),
+                full_copyright_text_span=(25, 62),
+                nvidia_copyright_text_span=(25, 62),
+                years_span=(39, 43),
+                first_year_span=(39, 43),
+                last_year_span=None,
+                spdx_license_identifier_tag_span=(63, 88),
+                spdx_license_identifier_text_span=(88, 98),
+                long_form_text_span=(99, 623),
+            ),
+            id="spdx-copyright-with-license-identifier-and-long-form-text",
+        ),
+        pytest.param(
+            dedent(
+                """
+                Copyright (c) 2021 NVIDIA CORPORATION
+                SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION
+                """
+            ),
+            0,
+            copyright.CopyrightMatch(
+                span=(1, 38),
+                spdx_filecopyrighttext_tag_span=None,
+                full_copyright_text_span=(1, 38),
+                nvidia_copyright_text_span=(1, 38),
+                years_span=(15, 19),
+                first_year_span=(15, 19),
+                last_year_span=None,
+                spdx_license_identifier_tag_span=None,
+                spdx_license_identifier_text_span=None,
+            ),
+            id="basic-copyright-and-spdx-copyright",
+        ),
+        pytest.param(
+            dedent(
+                """
+                SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION
+                Copyright (c) 2021 NVIDIA CORPORATION
+                """
+            ),
+            0,
+            copyright.CopyrightMatch(
+                span=(1, 62),
+                spdx_filecopyrighttext_tag_span=(1, 25),
+                full_copyright_text_span=(25, 62),
+                nvidia_copyright_text_span=(25, 62),
+                years_span=(39, 43),
+                first_year_span=(39, 43),
+                last_year_span=None,
+                spdx_license_identifier_tag_span=None,
+                spdx_license_identifier_text_span=None,
+            ),
+            id="spdx-copyright-and-basic-copyright",
+        ),
+        pytest.param(
+            dedent(
+                """
+                Copyright (c) 2021 NVIDIA CORPORATION
+                SPDX-License-Identifier: Apache-2.0
+                """
+            ),
+            0,
+            copyright.CopyrightMatch(
+                span=(1, 74),
+                spdx_filecopyrighttext_tag_span=None,
+                full_copyright_text_span=(1, 38),
+                nvidia_copyright_text_span=(1, 38),
+                years_span=(15, 19),
+                first_year_span=(15, 19),
+                last_year_span=None,
+                spdx_license_identifier_tag_span=(39, 64),
+                spdx_license_identifier_text_span=(64, 74),
+            ),
+            id="basic-copyright-with-license-identifier",
+        ),
+    ],
+)
+def test_match_copyright(content, start, expected_match):
+    assert (
+        copyright.match_copyright(Lines(content), "file.txt", start)
+        == expected_match
     )
 
-    re_matches = copyright.match_copyright(CONTENT)
-    matches = [
-        {
-            "span": match.span(),
-            "years": match.span("years"),
-            "first_year": match.span("first_year"),
-            "last_year": match.span("last_year"),
-        }
-        for match in re_matches
-    ]
-    assert matches == [
-        {
-            "span": (1, 38),
-            "years": (15, 19),
-            "first_year": (15, 19),
-            "last_year": (-1, -1),
-        },
-        {
-            "span": (39, 81),
-            "years": (53, 62),
-            "first_year": (53, 57),
-            "last_year": (58, 62),
-        },
-        {
-            "span": (84, 119),
-            "years": (94, 98),
-            "first_year": (94, 98),
-            "last_year": (-1, -1),
-        },
-    ]
 
+@pytest.mark.parametrize(
+    ["content", "expected_matches"],
+    [
+        pytest.param(
+            dedent(
+                """
+                Copyright (c) 2021 NVIDIA CORPORATION
+                """
+            ),
+            [
+                copyright.CopyrightMatch(
+                    span=(1, 38),
+                    spdx_filecopyrighttext_tag_span=None,
+                    full_copyright_text_span=(1, 38),
+                    nvidia_copyright_text_span=(1, 38),
+                    years_span=(15, 19),
+                    first_year_span=(15, 19),
+                    last_year_span=None,
+                    spdx_license_identifier_tag_span=None,
+                    spdx_license_identifier_text_span=None,
+                ),
+            ],
+            id="basic-copyright-single",
+        ),
+        pytest.param(
+            dedent(
+                """
+                Copyright (c) 2021 NVIDIA CORPORATION
+                Copyright (c) 2025 NVIDIA CORPORATION
+                """
+            ),
+            [
+                copyright.CopyrightMatch(
+                    span=(1, 38),
+                    spdx_filecopyrighttext_tag_span=None,
+                    full_copyright_text_span=(1, 38),
+                    nvidia_copyright_text_span=(1, 38),
+                    years_span=(15, 19),
+                    first_year_span=(15, 19),
+                    last_year_span=None,
+                    spdx_license_identifier_tag_span=None,
+                    spdx_license_identifier_text_span=None,
+                ),
+                copyright.CopyrightMatch(
+                    span=(39, 76),
+                    spdx_filecopyrighttext_tag_span=None,
+                    full_copyright_text_span=(39, 76),
+                    nvidia_copyright_text_span=(39, 76),
+                    years_span=(53, 57),
+                    first_year_span=(53, 57),
+                    last_year_span=None,
+                    spdx_license_identifier_tag_span=None,
+                    spdx_license_identifier_text_span=None,
+                ),
+            ],
+            id="basic-copyright-multiple",
+        ),
+        pytest.param(
+            dedent(
+                """
+                SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION
+                SPDX-License-Identifier: Apache-2.0
 
-def test_strip_copyright():
-    CONTENT = dedent(
-        r"""
-        This is a line before the first copyright statement
-        Copyright (c) 2024 NVIDIA CORPORATION
-        This is a line between the first two copyright statements
-        Copyright (c) 2021-2024 NVIDIA CORPORATION
-        This is a line between the next two copyright statements
-        # Copyright 2021,  NVIDIA Corporation and affiliates
-        This is a line after the last copyright statement
-        """
+                Licensed under the Apache License, Version 2.0 (the "License");
+                you may not use this file except in compliance with the License.
+                You may obtain a copy of the License at
+
+                    http://www.apache.org/licenses/LICENSE-2.0
+
+                Unless required by applicable law or agreed to in writing, software
+                distributed under the License is distributed on an "AS IS" BASIS,
+                WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                See the License for the specific language governing permissions and
+                limitations under the License.
+
+                SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION
+                SPDX-License-Identifier: Apache-2.0
+
+                Licensed under the Apache License, Version 2.0 (the "License");
+                you may not use this file except in compliance with the License.
+                You may obtain a copy of the License at
+
+                    http://www.apache.org/licenses/LICENSE-2.0
+
+                Unless required by applicable law or agreed to in writing, software
+                distributed under the License is distributed on an "AS IS" BASIS,
+                WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                See the License for the specific language governing permissions and
+                limitations under the License.
+                """  # noqa: E501
+            ),
+            [
+                copyright.CopyrightMatch(
+                    span=(1, 623),
+                    spdx_filecopyrighttext_tag_span=(1, 25),
+                    full_copyright_text_span=(25, 62),
+                    nvidia_copyright_text_span=(25, 62),
+                    years_span=(39, 43),
+                    first_year_span=(39, 43),
+                    last_year_span=None,
+                    spdx_license_identifier_tag_span=(63, 88),
+                    spdx_license_identifier_text_span=(88, 98),
+                    long_form_text_span=(99, 623),
+                ),
+                copyright.CopyrightMatch(
+                    span=(625, 1247),
+                    spdx_filecopyrighttext_tag_span=(625, 649),
+                    full_copyright_text_span=(649, 686),
+                    nvidia_copyright_text_span=(649, 686),
+                    years_span=(663, 667),
+                    first_year_span=(663, 667),
+                    last_year_span=None,
+                    spdx_license_identifier_tag_span=(687, 712),
+                    spdx_license_identifier_text_span=(712, 722),
+                    long_form_text_span=(723, 1247),
+                ),
+            ],
+            id="spdx-copyright-multiple-with-long-form-text",
+        ),
+        pytest.param(
+            "Hello world",
+            [],
+            id="no-copyright",
+        ),
+    ],
+)
+def test_match_all_copyright(content, expected_matches):
+    assert (
+        list(copyright.match_all_copyright(Lines(content), "file.txt"))
+        == expected_matches
     )
-    matches = copyright.match_copyright(CONTENT)
-    stripped = copyright.strip_copyright(CONTENT, matches)
-    assert stripped == [
-        "\nThis is a line before the first copyright statement\n",
-        "\nThis is a line between the first two copyright statements\n",
-        "\nThis is a line between the next two copyright statements\n# ",
-        " and affiliates\nThis is a line after the last copyright statement\n",
-    ]
 
-    stripped = copyright.strip_copyright("No copyright here", [])
-    assert stripped == ["No copyright here"]
+
+@pytest.mark.parametrize(
+    ["content", "filename", "index", "expected_prefix"],
+    [
+        pytest.param(
+            dedent(
+                """
+                # First comment
+                # Second comment
+                """
+            ),
+            "file.txt",
+            3,
+            "# ",
+            id="basic-comment-first-line",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # First comment
+                # Second comment
+                """
+            ),
+            "file.txt",
+            19,
+            "# ",
+            id="basic-comment-second-line",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # First comment
+                # Second comment
+                """
+            ),
+            "file.txt",
+            1,
+            "",
+            id="no-comment",
+        ),
+        pytest.param(
+            dedent(
+                """
+                /* Comment
+                """
+            ),
+            "file.txt",
+            4,
+            "/* ",
+            id="c-style-comment-in-non-c-style-file",
+        ),
+        pytest.param(
+            dedent(
+                """
+                /* Comment
+                """
+            ),
+            "file.cpp",
+            4,
+            " * ",
+            id="c-style-comment-in-c-style-file",
+        ),
+    ],
+)
+def test_compute_prefix(content, filename, index, expected_prefix):
+    lines = Lines(content)
+    assert copyright.compute_prefix(lines, filename, index) == expected_prefix
+
+
+@pytest.mark.parametrize(
+    ["content", "index", "expected_pos"],
+    [
+        pytest.param(
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This is a file
+                """  # noqa: E501
+            ),
+            67,
+            (104, 648),
+            id="correct",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This is a file
+                """  # noqa: E501
+            ),
+            3,
+            None,
+            id="wrong-start-line",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                *
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This is a file
+                """  # noqa: E501
+            ),
+            67,
+            None,
+            id="mismatched-prefix",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #   http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANintentional typoTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This is a file
+                """  # noqa: E501
+            ),
+            67,
+            (104, 662),
+            id="close-enough-contents",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #   http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANintentional typoTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This is a file
+                """  # noqa: E501
+            ),
+            67,
+            None,
+            id="mismatched-line-start",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Redistribution and use in source and binary forms, with or without
+                # modification, are permitted provided that the following conditions are met:
+                #
+                # * Redistributions of source code must retain the above copyright notice, this
+                #   list of conditions and the following disclaimer.
+                #
+                # * Redistributions in binary form must reproduce the above copyright notice,
+                #   this list of conditions and the following disclaimer in the documentation
+                #   and/or other materials provided with the distribution.
+                #
+                # * Neither the name of the copyright holder nor the names of its
+                #   contributors may be used to endorse or promote products derived from
+                #   this software without specific prior written permission.
+                #
+                # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+                # AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+                # IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+                # DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+                # FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+                # DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+                # SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+                # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+                # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+                # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+                This is a file
+                """  # noqa: E501
+            ),
+            67,
+            None,
+            id="mismatched-contents",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at:
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                """  # noqa: E501
+            ),
+            67,
+            None,
+            id="too-short",
+        ),
+    ],
+)
+def test_find_long_form_text(content, index, expected_pos):
+    assert (
+        copyright.find_long_form_text(
+            Lines(content), "file.txt", "Apache-2.0", index
+        )
+        == expected_pos
+    )
+
+
+@pytest.mark.parametrize(
+    ["content", "expected_stripped"],
+    [
+        pytest.param(
+            dedent(
+                """
+                This is a line before the first copyright statement
+                Copyright (c) 2024 NVIDIA CORPORATION
+                This is a line between the first two copyright statements
+                Copyright (c) 2021-2024 NVIDIA CORPORATION
+                This is a line between the next two copyright statements
+                # Copyright 2021,  NVIDIA Corporation and affiliates
+                This is a line after the last copyright statement
+                """
+            ),
+            [
+                "\nThis is a line before the first copyright statement\n",
+                "\nThis is a line between the first two copyright statements"
+                "\n",
+                "\nThis is a line between the next two copyright statements"
+                "\n# ",
+                "\nThis is a line after the last copyright statement\n",
+            ],
+            id="basic-copyright",
+        ),
+        pytest.param(
+            "No copyright here",
+            ["No copyright here"],
+            id="no-copyright",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                This is a line after the license identifier
+                """
+            ),
+            [
+                "\n# ",
+                "\nThis is a line after the license identifier\n",
+            ],
+            id="spdx",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # Copyright (c) 2024 NVIDIA CORPORATION
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This is a line after the license text
+                """  # noqa: E501
+            ),
+            [
+                "\n# ",
+                "\nThis is a line after the license text\n",
+            ],
+            id="basic-long-form-text",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This is a line after the license text
+                """  # noqa: E501
+            ),
+            [
+                "\n# ",
+                "\nThis is a line after the license text\n",
+            ],
+            id="spdx-long-form-text",
+        ),
+        pytest.param(
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This is a line after the license text
+                # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                """  # noqa: E501
+            ),
+            [
+                "\n# ",
+                "\nThis is a line after the license text\n# ",
+                "\n",
+            ],
+            id="spdx-long-form-text-multiple-headers",
+        ),
+    ],
+)
+def test_strip_copyright(content, expected_stripped):
+    lines = Lines(content)
+    matches = copyright.match_all_copyright(lines, "file.txt")
+    assert (
+        copyright.strip_copyright(
+            lines,
+            matches,
+        )
+        == expected_stripped
+    )
 
 
 @pytest.mark.parametrize(
@@ -100,32 +901,40 @@ def test_strip_copyright():
         "old_content",
         "new_filename",
         "new_content",
+        "spdx",
+        "force_spdx",
         "warnings",
     ],
     [
-        (
+        pytest.param(
             "A",
             None,
             None,
             "file.txt",
             "No copyright notice",
+            False,
+            False,
             [
                 LintWarning((0, 0), "no copyright notice found"),
             ],
+            id="added-with-no-copyright-notice",
         ),
-        (
+        pytest.param(
             "M",
             "file.txt",
             "No copyright notice",
             "file.txt",
             "No copyright notice",
+            False,
+            False,
             [],
+            id="unchanged-with-no-copyright-notice",
         ),
-        (
+        pytest.param(
             "M",
             "file.txt",
             dedent(
-                r"""
+                """
                 Copyright (c) 2021-2023 NVIDIA CORPORATION
                 Copyright (c) 2023 NVIDIA CORPORATION
                 Copyright (c) 2024 NVIDIA CORPORATION
@@ -135,7 +944,7 @@ def test_strip_copyright():
             ),
             "file.txt",
             dedent(
-                r"""
+                """
                 Copyright (c) 2021-2023 NVIDIA CORPORATION
                 Copyright (c) 2023 NVIDIA CORPORATION
                 Copyright (c) 2024 NVIDIA CORPORATION
@@ -143,41 +952,32 @@ def test_strip_copyright():
                 This file has not been changed
                 """
             ),
+            False,
+            False,
             [],
+            id="unchanged-with-copyright-notice",
         ),
-        (
+        pytest.param(
             "M",
             "file.txt",
             dedent(
-                r"""
+                """
                 Copyright (c) 2021-2023 NVIDIA CORPORATION
                 Copyright (c) 2023 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
             "file.txt",
             dedent(
-                r"""
+                """
                 Copyright (c) 2021-2023 NVIDIA CORPORATION
                 Copyright (c) 2023 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA CORPORATION
                 This file has been changed
                 """
             ),
+            False,
+            False,
             [
-                LintWarning(
-                    (15, 24),
-                    "copyright is out of date",
-                    replacements=[
-                        Replacement(
-                            (1, 43),
-                            "Copyright (c) 2021-2024, NVIDIA CORPORATION",
-                        ),
-                    ],
-                ),
                 LintWarning(
                     (58, 62),
                     "copyright is out of date",
@@ -189,32 +989,48 @@ def test_strip_copyright():
                     ],
                 ),
             ],
+            id="changed-with-no-copyright-update",
         ),
-        (
+        pytest.param(
+            "M",
+            "file.txt",
+            dedent(
+                """
+                Copyright (c) 2021-2023 NVIDIA CORPORATION
+                Copyright (c) 2023 NVIDIA CORPORATION
+                Copyright (c) 2024 NVIDIA CORPORATION
+                This file has not been changed
+                """
+            ),
+            "file.txt",
+            dedent(
+                """
+                Copyright (c) 2021-2023 NVIDIA CORPORATION
+                Copyright (c) 2023 NVIDIA CORPORATION
+                Copyright (c) 2024 NVIDIA CORPORATION
+                This file has been changed
+                """
+            ),
+            False,
+            False,
+            [],
+            id="changed-with-no-copyright-update-newest-up-to-date",
+        ),
+        pytest.param(
             "A",
             None,
             None,
             "file.txt",
             dedent(
-                r"""
+                """
                 Copyright (c) 2021-2023 NVIDIA CORPORATION
                 Copyright (c) 2023 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA CORPORATION
                 This file has been changed
                 """
             ),
+            False,
+            False,
             [
-                LintWarning(
-                    (15, 24),
-                    "copyright is out of date",
-                    replacements=[
-                        Replacement(
-                            (1, 43),
-                            "Copyright (c) 2021-2024, NVIDIA CORPORATION",
-                        ),
-                    ],
-                ),
                 LintWarning(
                     (58, 62),
                     "copyright is out of date",
@@ -226,12 +1042,13 @@ def test_strip_copyright():
                     ],
                 ),
             ],
+            id="added-with-out-of-date-copyright",
         ),
-        (
+        pytest.param(
             "M",
             "file.txt",
             dedent(
-                r"""
+                """
                 Copyright (c) 2021-2023 NVIDIA CORPORATION
                 Copyright (c) 2023 NVIDIA CORPORATION
                 Copyright (c) 2024 NVIDIA CORPORATION
@@ -241,7 +1058,7 @@ def test_strip_copyright():
             ),
             "file.txt",
             dedent(
-                r"""
+                """
                 Copyright (c) 2021-2024 NVIDIA CORPORATION
                 Copyright (c) 2023 NVIDIA CORPORATION
                 Copyright (c) 2024 NVIDIA CORPORATION
@@ -249,6 +1066,8 @@ def test_strip_copyright():
                 This file has not been changed
                 """
             ),
+            False,
+            False,
             [
                 LintWarning(
                     (15, 24),
@@ -270,40 +1089,29 @@ def test_strip_copyright():
                     ],
                 ),
             ],
+            id="unchanged-with-copyright-update",
         ),
-        (
+        pytest.param(
             "R",
             "file1.txt",
             dedent(
-                r"""
+                """
                 Copyright (c) 2021-2023 NVIDIA CORPORATION
                 Copyright (c) 2023 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
             "file2.txt",
             dedent(
-                r"""
+                """
                 Copyright (c) 2021-2023 NVIDIA CORPORATION
                 Copyright (c) 2023 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA CORPORATION
                 This file has been changed
                 """
             ),
+            False,
+            False,
             [
-                LintWarning(
-                    (15, 24),
-                    "copyright is out of date",
-                    replacements=[
-                        Replacement(
-                            (1, 43),
-                            "Copyright (c) 2021-2024, NVIDIA CORPORATION",
-                        ),
-                    ],
-                ),
                 LintWarning(
                     (58, 62),
                     "copyright is out of date",
@@ -315,40 +1123,29 @@ def test_strip_copyright():
                     ],
                 ),
             ],
+            id="renamed-and-changed-with-no-copyright-update",
         ),
-        (
+        pytest.param(
             "C",
             "file1.txt",
             dedent(
-                r"""
+                """
                 Copyright (c) 2021-2023 NVIDIA CORPORATION
                 Copyright (c) 2023 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
             "file2.txt",
             dedent(
-                r"""
+                """
                 Copyright (c) 2021-2023 NVIDIA CORPORATION
                 Copyright (c) 2023 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA CORPORATION
                 This file has been changed
                 """
             ),
+            False,
+            False,
             [
-                LintWarning(
-                    (15, 24),
-                    "copyright is out of date",
-                    replacements=[
-                        Replacement(
-                            (1, 43),
-                            "Copyright (c) 2021-2024, NVIDIA CORPORATION",
-                        ),
-                    ],
-                ),
                 LintWarning(
                     (58, 62),
                     "copyright is out of date",
@@ -360,12 +1157,13 @@ def test_strip_copyright():
                     ],
                 ),
             ],
+            id="copied-and-changed-with-no-copyright-update",
         ),
-        (
+        pytest.param(
             "R",
             "file1.txt",
             dedent(
-                r"""
+                """
                 Copyright (c) 2021-2023 NVIDIA CORPORATION
                 Copyright (c) 2023 NVIDIA CORPORATION
                 Copyright (c) 2024 NVIDIA CORPORATION
@@ -375,7 +1173,7 @@ def test_strip_copyright():
             ),
             "file2.txt",
             dedent(
-                r"""
+                """
                 Copyright (c) 2024 NVIDIA CORPORATION
                 Copyright (c) 2023-2024 NVIDIA CORPORATION
                 Copyright (c) 2024 NVIDIA CORPORATION
@@ -383,13 +1181,16 @@ def test_strip_copyright():
                 This file has been changed
                 """
             ),
+            False,
+            False,
             [],
+            id="renamed-and-changed-with-copyright-update",
         ),
-        (
+        pytest.param(
             "C",
             "file1.txt",
             dedent(
-                r"""
+                """
                 Copyright (c) 2021-2023 NVIDIA CORPORATION
                 Copyright (c) 2023 NVIDIA CORPORATION
                 Copyright (c) 2024 NVIDIA CORPORATION
@@ -399,7 +1200,7 @@ def test_strip_copyright():
             ),
             "file2.txt",
             dedent(
-                r"""
+                """
                 Copyright (c) 2024 NVIDIA CORPORATION
                 Copyright (c) 2023-2024 NVIDIA CORPORATION
                 Copyright (c) 2024 NVIDIA CORPORATION
@@ -407,13 +1208,16 @@ def test_strip_copyright():
                 This file has been changed
                 """
             ),
+            False,
+            False,
             [],
+            id="copied-and-changed-with-copyright-update",
         ),
-        (
+        pytest.param(
             "R",
             "file1.txt",
             dedent(
-                r"""
+                """
                 Copyright (c) 2021-2023 NVIDIA CORPORATION
                 Copyright (c) 2023 NVIDIA CORPORATION
                 Copyright (c) 2024 NVIDIA CORPORATION
@@ -423,7 +1227,7 @@ def test_strip_copyright():
             ),
             "file2.txt",
             dedent(
-                r"""
+                """
                 Copyright (c) 2021-2024 NVIDIA CORPORATION
                 Copyright (c) 2023 NVIDIA CORPORATION
                 Copyright (c) 2024 NVIDIA CORPORATION
@@ -431,6 +1235,8 @@ def test_strip_copyright():
                 This file has not been changed
                 """
             ),
+            False,
+            False,
             [
                 LintWarning(
                     (15, 24),
@@ -478,12 +1284,13 @@ def test_strip_copyright():
                     ],
                 ),
             ],
+            id="renamed-and-unchanged-with-copyright-update",
         ),
-        (
+        pytest.param(
             "C",
             "file1.txt",
             dedent(
-                r"""
+                """
                 Copyright (c) 2021-2023 NVIDIA CORPORATION
                 Copyright (c) 2023 NVIDIA CORPORATION
                 Copyright (c) 2024 NVIDIA CORPORATION
@@ -493,7 +1300,7 @@ def test_strip_copyright():
             ),
             "file2.txt",
             dedent(
-                r"""
+                """
                 Copyright (c) 2021-2024 NVIDIA CORPORATION
                 Copyright (c) 2023 NVIDIA CORPORATION
                 Copyright (c) 2024 NVIDIA CORPORATION
@@ -501,6 +1308,8 @@ def test_strip_copyright():
                 This file has not been changed
                 """
             ),
+            False,
+            False,
             [
                 LintWarning(
                     (15, 24),
@@ -548,16 +1357,522 @@ def test_strip_copyright():
                     ],
                 ),
             ],
+            id="copied-and-unchanged-with-copyright-update",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                """
+                SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                SPDX-License-Identifier: Apache-2.0
+                This file has not been changed
+                """
+            ),
+            "file1.txt",
+            dedent(
+                """
+                SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                SPDX-License-Identifier: Apache-2.0
+                This file has been changed
+                """
+            ),
+            True,
+            False,
+            [],
+            id="spdx-changed-with-headers",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                """
+                Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) 2023 NVIDIA CORPORATION
+                This file has not been changed
+                """
+            ),
+            "file1.txt",
+            dedent(
+                """
+                Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) 2023 NVIDIA CORPORATION
+                This file has been changed
+                """
+            ),
+            True,
+            False,
+            [
+                LintWarning(
+                    (1, 38),
+                    "include SPDX-FileCopyrightText header",
+                    replacements=[
+                        Replacement(
+                            (1, 1),
+                            "SPDX-FileCopyrightText: ",
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (1, 38),
+                    "no SPDX-License-Identifier header found",
+                    replacements=[
+                        Replacement(
+                            (38, 38),
+                            "\nSPDX-License-Identifier: Apache-2.0",
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-changed-with-no-headers",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                """
+                Copyright (c) 2023 NVIDIA CORPORATION
+                This file has not been changed
+                """
+            ),
+            "file1.txt",
+            dedent(
+                """
+                Copyright (c) 2023 NVIDIA CORPORATION
+                This file has been changed
+                """
+            ),
+            True,
+            False,
+            [
+                LintWarning(
+                    (15, 19),
+                    "copyright is out of date",
+                    replacements=[
+                        Replacement(
+                            (1, 38),
+                            "Copyright (c) 2023-2024, NVIDIA CORPORATION",
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (1, 38),
+                    "include SPDX-FileCopyrightText header",
+                    replacements=[
+                        Replacement(
+                            (1, 1),
+                            "SPDX-FileCopyrightText: ",
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (1, 38),
+                    "no SPDX-License-Identifier header found",
+                    replacements=[
+                        Replacement(
+                            (38, 38),
+                            "\nSPDX-License-Identifier: Apache-2.0",
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-changed-with-no-headers-and-out-of-date-copyright",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                """
+                SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                SPDX-License-Identifier: BSD-3-Clause
+                This file has not been changed
+                """
+            ),
+            "file1.txt",
+            dedent(
+                """
+                SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                SPDX-License-Identifier: BSD-3-Clause
+                This file has been changed
+                """
+            ),
+            True,
+            False,
+            [
+                LintWarning(
+                    (63, 100),
+                    "SPDX-License-Identifier is incorrect",
+                    replacements=[
+                        Replacement(
+                            (88, 100),
+                            "Apache-2.0",
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-changed-with-headers-and-incorrect-license-identifier",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                """
+                Copyright (c) 2024 NVIDIA CORPORATION
+                This file has not been changed
+                """
+            ),
+            "file1.txt",
+            dedent(
+                """
+                Copyright (c) 2024 NVIDIA CORPORATION
+                This file has not been changed
+                """
+            ),
+            True,
+            False,
+            [],
+            id="spdx-unchanged-with-no-headers",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                """
+                // Copyright (c) 2024 NVIDIA CORPORATION
+                // Copyright (c) 2023 NVIDIA CORPORATION
+                // This file has not been changed
+                """
+            ),
+            "file1.txt",
+            dedent(
+                """
+                // Copyright (c) 2024 NVIDIA CORPORATION
+                // Copyright (c) 2023 NVIDIA CORPORATION
+                // This file has not been changed
+                """
+            ),
+            False,
+            True,
+            [
+                LintWarning(
+                    (4, 41),
+                    "include SPDX-FileCopyrightText header",
+                    replacements=[
+                        Replacement(
+                            (4, 4),
+                            "SPDX-FileCopyrightText: ",
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (4, 41),
+                    "no SPDX-License-Identifier header found",
+                    replacements=[
+                        Replacement(
+                            (41, 41),
+                            "\n// SPDX-License-Identifier: Apache-2.0",
+                        ),
+                    ],
+                ),
+            ],
+            id="force-spdx-unchanged-with-comments-and-no-headers",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                """
+                SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                SPDX-License-Identifier: Apache-2.0
+                This file has not been changed
+                """
+            ),
+            "file1.txt",
+            dedent(
+                """
+                SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                SPDX-License-Identifier: Apache-2.0
+                This file has not been changed
+                """
+            ),
+            False,
+            True,
+            [],
+            id="force-spdx-unchanged-with-headers",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                """
+                This file has not been changed
+                """
+            ),
+            "file1.txt",
+            dedent(
+                """
+                This file has not been changed
+                """
+            ),
+            False,
+            True,
+            [],
+            id="force-spdx-unchanged-with-no-copyright",
+        ),
+        pytest.param(
+            "M",
+            "file1.cpp",
+            dedent(
+                """
+                /* SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                 */
+                This file has not been changed
+                """  # noqa: E501
+            ),
+            "file1.cpp",
+            dedent(
+                """
+                /* SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                 */
+                This file has been changed
+                """  # noqa: E501
+            ),
+            True,
+            False,
+            [
+                LintWarning(
+                    (4, 65),
+                    "no SPDX-License-Identifier header found",
+                    replacements=[
+                        Replacement(
+                            (65, 65),
+                            "\n * SPDX-License-Identifier: Apache-2.0",
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-changed-with-c-style-comments-and-no-license-header",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                """
+                Copyright (c) 2023 NVIDIA CORPORATION
+                This file has not been changed
+                """
+            ),
+            "file1.txt",
+            dedent(
+                """
+                SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                SPDX-License-Identifier: Apache-2.0
+                This file has not been changed
+                """
+            ),
+            True,
+            False,
+            [],
+            id="spdx-headers-added-and-no-other-changes",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This file has not been changed
+                """  # noqa: E501
+            ),
+            "file1.txt",
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This file has not been changed
+                """  # noqa: E501
+            ),
+            False,
+            True,
+            [
+                LintWarning(
+                    (104, 648),
+                    "remove long-form copyright text",
+                    replacements=[
+                        Replacement((102, 648), ""),
+                    ],
+                ),
+            ],
+            id="force-spdx-with-headers-and-long-form-text",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This file has not been changed
+                """  # noqa: E501
+            ),
+            "file1.txt",
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This file has not been changed
+                """  # noqa: E501
+            ),
+            False,
+            True,
+            [
+                LintWarning(
+                    (3, 64),
+                    "no SPDX-License-Identifier header found",
+                    replacements=[
+                        Replacement(
+                            (64, 64), "\n# SPDX-License-Identifier: Apache-2.0"
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (66, 610),
+                    "remove long-form copyright text",
+                    replacements=[
+                        Replacement((64, 610), ""),
+                    ],
+                ),
+            ],
+            id="force-spdx-unchanged-with-no-headers-and-long-form-text",
+        ),
+        pytest.param(
+            "M",
+            "file1.txt",
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This file has not been changed
+                """  # noqa: E501
+            ),
+            "file1.txt",
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                This file has been changed
+                """  # noqa: E501
+            ),
+            False,
+            True,
+            [
+                LintWarning(
+                    (3, 70),
+                    "no SPDX-License-Identifier header found",
+                    replacements=[
+                        Replacement(
+                            (70, 70), "\n# SPDX-License-Identifier: Apache-2.0"
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (72, 616),
+                    "remove long-form copyright text",
+                    replacements=[
+                        Replacement((70, 616), ""),
+                    ],
+                ),
+            ],
+            id="force-spdx-changed-with-no-identifier-and-long-form-text",
         ),
     ],
 )
 @freeze_time("2024-01-18")
 def test_apply_copyright_check(
-    change_type, old_filename, old_content, new_filename, new_content, warnings
+    change_type,
+    old_filename,
+    old_content,
+    new_filename,
+    new_content,
+    spdx,
+    force_spdx,
+    warnings,
 ):
     linter = Linter(new_filename, new_content)
+    mock_args = Mock(
+        spdx=spdx, force_spdx=force_spdx, spdx_license_identifier="Apache-2.0"
+    )
     copyright.apply_copyright_check(
-        linter, change_type, old_filename, old_content
+        linter, mock_args, change_type, old_filename, old_content
     )
     assert linter.warnings == warnings
 
@@ -1316,6 +2631,7 @@ def test_find_blob(git_repo, path, present):
         "op",
         "old_filename",
         "old_contents",
+        "force_spdx",
     ],
     [
         (
@@ -1326,6 +2642,7 @@ def test_find_blob(git_repo, path, present):
             None,
             None,
             None,
+            False,
         ),
         (
             "branch-1",
@@ -1335,6 +2652,7 @@ def test_find_blob(git_repo, path, present):
             "R",
             "dir/file2.txt",
             "File 2",
+            False,
         ),
         (
             "branch-1",
@@ -1344,6 +2662,7 @@ def test_find_blob(git_repo, path, present):
             "M",
             "file3.txt",
             "File 3",
+            False,
         ),
         (
             "branch-1",
@@ -1353,6 +2672,7 @@ def test_find_blob(git_repo, path, present):
             "M",
             "file4.txt",
             "File 4",
+            False,
         ),
         (
             "branch-1",
@@ -1362,6 +2682,7 @@ def test_find_blob(git_repo, path, present):
             "A",
             None,
             None,
+            False,
         ),
         (
             "branch-2",
@@ -1371,6 +2692,7 @@ def test_find_blob(git_repo, path, present):
             "M",
             "file1.txt",
             "File 1",
+            False,
         ),
         (
             "branch-2",
@@ -1380,6 +2702,7 @@ def test_find_blob(git_repo, path, present):
             "M",
             "file1.txt",
             "File 1",
+            False,
         ),
         (
             "branch-2",
@@ -1395,6 +2718,7 @@ def test_find_blob(git_repo, path, present):
             None,
             None,
             None,
+            False,
         ),
         (
             "branch-2",
@@ -1404,6 +2728,7 @@ def test_find_blob(git_repo, path, present):
             "R",
             "dir/file2.txt",
             "File 2",
+            False,
         ),
         (
             "branch-2",
@@ -1413,6 +2738,7 @@ def test_find_blob(git_repo, path, present):
             "M",
             "file3.txt",
             "File 3",
+            False,
         ),
         (
             "branch-2",
@@ -1422,6 +2748,7 @@ def test_find_blob(git_repo, path, present):
             "M",
             "file4.txt",
             "File 4",
+            False,
         ),
         (
             "branch-2",
@@ -1431,6 +2758,17 @@ def test_find_blob(git_repo, path, present):
             "A",
             None,
             None,
+            False,
+        ),
+        (
+            "branch-1",
+            "file1.txt",
+            "File 1 modified",
+            contextlib.nullcontext(),
+            "M",
+            "file1.txt",
+            "File 1 modified",
+            True,
         ),
     ],
 )
@@ -1443,6 +2781,7 @@ def test_check_copyright(
     op,
     old_filename,
     old_contents,
+    force_spdx,
 ):
     def fn(filename):
         return os.path.join(git_repo.working_tree_dir, filename)
@@ -1516,7 +2855,12 @@ def test_check_copyright(
             "rapids_pre_commit_hooks.copyright.apply_copyright_check", Mock()
         )
 
-    mock_args = Mock(target_branch=target_branch, batch=False)
+    mock_args = Mock(
+        target_branch=target_branch,
+        batch=False,
+        spdx=False,
+        force_spdx=force_spdx,
+    )
 
     with mock_repo_cwd(), mock_target_branch_upstream_commit(target_branch):
         copyright_checker = copyright.check_copyright(mock_args)
@@ -1530,6 +2874,7 @@ def test_check_copyright(
         else:
             apply_copyright_check.assert_called_once_with(
                 linter,
+                mock_args,
                 op,
                 old_filename,
                 None if old_contents is None else file_contents(old_contents),
