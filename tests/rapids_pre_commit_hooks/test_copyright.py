@@ -1886,96 +1886,125 @@ def git_repo(tmp_path):
     return repo
 
 
-def test_get_target_branch(git_repo):
-    with patch.dict("os.environ", {}, clear=True):
-        args = Mock(main_branch=None, target_branch=None)
+@pytest.mark.parametrize(
+    [
+        "target_branch_arg",
+        "target_branch_env",
+        "github_base_ref_env",
+        "rapids_base_branch_env",
+        "rapids_base_branch_config",
+        "main_branch_arg",
+        "expected_target_branch",
+    ],
+    [
+        pytest.param(
+            None,
+            None,
+            None,
+            None,
+            None,
+            "main",
+            "main",
+            id="main-branch",
+        ),
+        pytest.param(
+            None,
+            None,
+            None,
+            None,
+            "config-branch",
+            "main",
+            "config-branch",
+            id="git-config",
+        ),
+        pytest.param(
+            None,
+            None,
+            None,
+            "rapids-base-branch",
+            "config-branch",
+            "main",
+            "rapids-base-branch",
+            id="rapids-base-branch-env",
+        ),
+        pytest.param(
+            None,
+            None,
+            "github-base-ref",
+            "rapids-base-branch",
+            "config-branch",
+            "main",
+            "github-base-ref",
+            id="github-base-ref-env",
+        ),
+        pytest.param(
+            None,
+            "target-branch-env",
+            "github-base-ref",
+            "rapids-base-branch",
+            "config-branch",
+            "main",
+            "target-branch-env",
+            id="target-branch-env",
+        ),
+        pytest.param(
+            "target-branch-arg",
+            "target-branch-env",
+            "github-base-ref",
+            "rapids-base-branch",
+            "config-branch",
+            "main",
+            "target-branch-arg",
+            id="target-branch-arg",
+        ),
+    ],
+)
+def test_get_target_branch(
+    git_repo,
+    target_branch_arg,
+    target_branch_env,
+    github_base_ref_env,
+    rapids_base_branch_env,
+    rapids_base_branch_config,
+    main_branch_arg,
+    expected_target_branch,
+):
+    with open(os.path.join(git_repo.working_tree_dir, "file.txt"), "w") as f:
+        f.write("File\n")
+    git_repo.index.add(["file.txt"])
+    git_repo.index.commit("Initial commit")
 
-        with open(
-            os.path.join(git_repo.working_tree_dir, "file.txt"), "w"
-        ) as f:
-            f.write("File\n")
-        git_repo.index.add(["file.txt"])
-        git_repo.index.commit("Initial commit")
-        with pytest.warns(
-            copyright.NoTargetBranchWarning,
-            match=r"^Could not determine target branch[.] Try setting the "
-            r"TARGET_BRANCH environment variable, or setting the "
-            r"rapidsai[.]baseBranch configuration option[.]$",
-        ):
-            assert copyright.get_target_branch(git_repo, args) is None
-
-        git_repo.create_head("branch-24.02")
-        assert copyright.get_target_branch(git_repo, args) == "branch-24.02"
-
-        args.main_branch = ""
-        args.target_branch = ""
-
-        git_repo.create_head("branch-24.04")
-        git_repo.create_head("branch-24.03")
-        assert copyright.get_target_branch(git_repo, args) == "branch-24.04"
-
-        git_repo.create_head("branch-25.01")
-        assert copyright.get_target_branch(git_repo, args) == "branch-25.01"
-
-        args.main_branch = "main"
-        assert copyright.get_target_branch(git_repo, args) == "main"
-
+    if rapids_base_branch_config:
         with git_repo.config_writer() as w:
-            w.set_value("rapidsai", "baseBranch", "nonexistent")
-        assert copyright.get_target_branch(git_repo, args) == "nonexistent"
+            w.set_value("rapidsai", "baseBranch", rapids_base_branch_config)
 
-        with git_repo.config_writer() as w:
-            w.set_value("rapidsai", "baseBranch", "branch-24.03")
-        assert copyright.get_target_branch(git_repo, args) == "branch-24.03"
+    args = Mock(main_branch=main_branch_arg, target_branch=target_branch_arg)
 
-        with patch.dict("os.environ", {"RAPIDS_BASE_BRANCH": "nonexistent"}):
-            assert copyright.get_target_branch(git_repo, args) == "nonexistent"
-
-        with patch.dict("os.environ", {"RAPIDS_BASE_BRANCH": "master"}):
-            assert copyright.get_target_branch(git_repo, args) == "master"
-
-        with patch.dict(
-            "os.environ",
-            {"GITHUB_BASE_REF": "nonexistent", "RAPIDS_BASE_BRANCH": "master"},
-        ):
-            assert copyright.get_target_branch(git_repo, args) == "nonexistent"
-
-        with patch.dict(
-            "os.environ",
-            {
-                "GITHUB_BASE_REF": "branch-24.02",
-                "RAPIDS_BASE_BRANCH": "master",
-            },
-        ):
-            assert (
-                copyright.get_target_branch(git_repo, args) == "branch-24.02"
-            )
-
-        with patch.dict(
-            "os.environ",
-            {
-                "GITHUB_BASE_REF": "branch-24.02",
-                "RAPIDS_BASE_BRANCH": "master",
-                "TARGET_BRANCH": "nonexistent",
-            },
-        ):
-            assert copyright.get_target_branch(git_repo, args) == "nonexistent"
-
-        with patch.dict(
-            "os.environ",
-            {
-                "GITHUB_BASE_REF": "branch-24.02",
-                "RAPIDS_BASE_BRANCH": "master",
-                "TARGET_BRANCH": "branch-24.04",
-            },
-        ):
-            assert (
-                copyright.get_target_branch(git_repo, args) == "branch-24.04"
-            )
-            args.target_branch = "nonexistent"
-            assert copyright.get_target_branch(git_repo, args) == "nonexistent"
-            args.target_branch = "master"
-            assert copyright.get_target_branch(git_repo, args) == "master"
+    with patch.dict(
+        "os.environ",
+        {
+            **(
+                {"TARGET_BRANCH": target_branch_env}
+                if target_branch_env
+                else {}
+            ),
+            **(
+                {"GITHUB_BASE_REF": github_base_ref_env}
+                if github_base_ref_env
+                else {}
+            ),
+            **(
+                {"RAPIDS_BASE_BRANCH": rapids_base_branch_env}
+                if rapids_base_branch_env
+                else {}
+            ),
+        },
+        clear=True,
+    ):
+        assert (
+            copyright.get_target_branch(git_repo, args)
+            == expected_target_branch
+        )
 
 
 def test_get_target_branch_upstream_commit(git_repo):

@@ -39,7 +39,6 @@ SPDX_COPYRIGHT_RE: re.Pattern = re.compile(
     r"(?P<spdx_license_identifier_tag>SPDX-License-Identifier: )"
     r"(?P<spdx_license_identifier_text>[^\r\n]+))?"
 )
-BRANCH_RE: re.Pattern = re.compile(r"^branch-(?P<major>\d+)\.(?P<minor>\d+)$")
 C_STYLE_COMMENTS_RE: re.Pattern = re.compile(
     r"\.(?:c|cpp|cxx|cu|h|hpp|hxx|cuh|js|java|rs)$"
 )
@@ -527,9 +526,7 @@ def apply_copyright_check(
             linter.add_warning((0, 0), "no copyright notice found")
 
 
-def get_target_branch(
-    repo: "git.Repo", args: argparse.Namespace
-) -> str | None:
+def get_target_branch(repo: "git.Repo", args: argparse.Namespace) -> str:
     """Determine which branch is the "target" branch.
 
     The target branch is determined in the following order:
@@ -546,13 +543,9 @@ def get_target_branch(
     * If the Git configuration option ``rapidsai.baseBranch`` is defined, that
       branch is used. This allows users to locally set a base branch on a
       long-term basis.
-    * If the ``--main-branch`` argument is passed, that branch is used. This
-      allows projects to use a branching strategy other than
-      ``branch-<major>.<minor>``.
-    * If a ``branch-<major>.<minor>`` branch exists, that branch is used. If
-      more than one such branch exists, the one with the latest version is
-      used. This supports the expected default.
-    * Otherwise, None is returned and a warning is issued.
+    * If the ``--main-branch`` argument is passed, that branch is used. If no
+      ``--main-branch`` argument is explicitly passed, ``main`` is used by
+      default.
     """
     # Try --target-branch
     if args.target_branch:
@@ -572,31 +565,8 @@ def get_target_branch(
     if target_branch_name:
         return target_branch_name
 
-    # Try --main-branch
-    if args.main_branch:
-        return args.main_branch
-
-    # Try newest branch-xx.yy
-    try:
-        return max(
-            (
-                (branch, (match.group("major"), match.group("minor")))
-                for branch in repo.heads
-                if (match := BRANCH_RE.search(branch.name))
-            ),
-            key=lambda i: i[1],
-        )[0].name
-    except ValueError:
-        pass
-
-    # Appropriate branch not found
-    warnings.warn(
-        "Could not determine target branch. Try setting the TARGET_BRANCH "
-        "environment variable, or setting the rapidsai.baseBranch "
-        "configuration option.",
-        NoTargetBranchWarning,
-    )
-    return None
+    # Default to --main-branch
+    return args.main_branch
 
 
 def get_target_branch_upstream_commit(
