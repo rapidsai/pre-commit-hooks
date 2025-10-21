@@ -98,7 +98,7 @@ def test_force_spdx(arg, env, raises, expected_value):
     with (
         patch.dict(
             "os.environ",
-            {"FORCE_SPDX": env} if env is not None else {},
+            {"RAPIDS_COPYRIGHT_FORCE_SPDX": env} if env is not None else {},
             clear=True,
         ),
         raises,

@@ -115,7 +115,9 @@ class ConflictingFilesWarning(RuntimeWarning):
 
 
 def force_spdx(args: argparse.Namespace) -> bool:
-    return args.force_spdx or bool(int(os.getenv("FORCE_SPDX", default="0")))
+    return args.force_spdx or bool(
+        int(os.getenv("RAPIDS_COPYRIGHT_FORCE_SPDX", default="0"))
+    )
 
 
 def match_copyright(
