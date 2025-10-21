@@ -789,7 +789,8 @@ def main() -> None:
     m.argparser.add_argument(
         "--main-branch",
         metavar="<main branch>",
-        help="main branch to use instead of branch-<major>.<minor>",
+        help="main branch to use (defaults to main)",
+        default="main",
     )
     m.argparser.add_argument(
         "--target-branch",
