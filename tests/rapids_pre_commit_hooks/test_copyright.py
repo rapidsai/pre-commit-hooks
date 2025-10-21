@@ -34,6 +34,79 @@ from rapids_pre_commit_hooks.lint import (
 
 
 @pytest.mark.parametrize(
+    ["arg", "env", "raises", "expected_value"],
+    [
+        pytest.param(
+            False,
+            None,
+            contextlib.nullcontext(),
+            False,
+            id="default",
+        ),
+        pytest.param(
+            True,
+            None,
+            contextlib.nullcontext(),
+            True,
+            id="arg",
+        ),
+        pytest.param(
+            False,
+            "0",
+            contextlib.nullcontext(),
+            False,
+            id="env-0",
+        ),
+        pytest.param(
+            True,
+            "0",
+            contextlib.nullcontext(),
+            True,
+            id="env-0-arg",
+        ),
+        pytest.param(
+            False,
+            "1",
+            contextlib.nullcontext(),
+            True,
+            id="env-1",
+        ),
+        pytest.param(
+            True,
+            "1",
+            contextlib.nullcontext(),
+            True,
+            id="env-1-arg",
+        ),
+        pytest.param(
+            False,
+            "invalid",
+            pytest.raises(ValueError),
+            None,
+            id="env-invalid",
+        ),
+        pytest.param(
+            True,
+            "invalid",
+            contextlib.nullcontext(),
+            True,
+            id="env-invalid-arg",
+        ),
+    ],
+)
+def test_force_spdx(arg, env, raises, expected_value):
+    with (
+        patch.dict(
+            "os.environ",
+            {"RAPIDS_COPYRIGHT_FORCE_SPDX": env} if env is not None else {},
+            clear=True,
+        ),
+        raises,
+    ):
+        assert copyright.force_spdx(Mock(force_spdx=arg)) == expected_value
+
+
+@pytest.mark.parametrize(
     ["content", "start", "expected_match"],
     [
         pytest.param(

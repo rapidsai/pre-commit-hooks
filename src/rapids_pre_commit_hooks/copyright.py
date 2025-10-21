@@ -113,6 +113,12 @@ class ConflictingFilesWarning(RuntimeWarning):
     pass
 
 
+def force_spdx(args: argparse.Namespace) -> bool:
+    return args.force_spdx or bool(
+        int(os.getenv("RAPIDS_COPYRIGHT_FORCE_SPDX", default="0"))
+    )
+
+
 def match_copyright(
     lines: Lines, filename: str | os.PathLike[str], start: int = 0
 ) -> CopyrightMatch | None:
@@ -449,7 +455,7 @@ def apply_copyright_check(
 ) -> None:
     content_changed = linter.content != old_content
 
-    if content_changed or args.force_spdx:
+    if content_changed or force_spdx(args):
         year_env = os.getenv("RAPIDS_TEST_YEAR")
         if year_env:
             try:
@@ -501,7 +507,7 @@ def apply_copyright_check(
                             new_match,
                         )
 
-            if new_copyright_matches and args.force_spdx:
+            if new_copyright_matches and force_spdx(args):
                 newest_match = max(new_copyright_matches, key=match_year_sort)
                 apply_spdx_updates(linter, args, newest_match)
         elif new_copyright_matches:
@@ -520,7 +526,7 @@ def apply_copyright_check(
                 < current_year
             ):
                 apply_copyright_update(linter, newest_match, current_year)
-            if args.spdx or args.force_spdx:
+            if args.spdx or force_spdx(args):
                 apply_spdx_updates(linter, args, newest_match)
         elif content_changed:
             linter.add_warning((0, 0), "no copyright notice found")
@@ -724,7 +730,7 @@ def check_copyright(
         try:
             change_type, changed_file = changed_files[git_filename]
         except KeyError:
-            if args.force_spdx:
+            if force_spdx(args):
                 change_type = "M"
                 old_filename = linter.filename
                 old_content = linter.content
