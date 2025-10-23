@@ -119,6 +119,10 @@ def force_spdx(args: argparse.Namespace) -> bool:
     )
 
 
+def spdx(args: argparse.Namespace) -> bool:
+    return args.spdx or force_spdx(args)
+
+
 def match_copyright(
     lines: Lines, filename: str | os.PathLike[str], start: int = 0
 ) -> CopyrightMatch | None:
@@ -446,7 +450,70 @@ def apply_spdx_updates(
         apply_spdx_long_form_text_removal(linter, match)
 
 
+def apply_copyright_insert(
+    repo: "git.Repo | None", linter: Linter, args: argparse.Namespace
+) -> None:
+    last_year = datetime.date.today().year
+    first_year = last_year
+    if repo:
+        log_commits = repo.git.log(
+            "--format=format:%H",
+            "--reverse",
+            "-z",
+            "--find-copies",
+            "--find-copies-harder",
+            "--",
+            linter.filename,
+        ).split("\0")
+        first_commit = log_commits[0]
+        if first_commit:
+            first_year = datetime.datetime.fromtimestamp(
+                repo.commit(first_commit).authored_date
+            ).year
+    first_year_str = "" if first_year == last_year else f"{first_year}-"
+
+    if spdx(args):
+        lines = [
+            (
+                "SPDX-FileCopyrightText: Copyright (c) "
+                f"{first_year_str}{last_year}, NVIDIA CORPORATION. All "
+                "rights reserved."
+            ),
+            f"SPDX-License-Identifier: {args.spdx_license_identifier}",
+        ]
+    else:
+        lines = [
+            (
+                f"Copyright (c) {first_year_str}{last_year}, NVIDIA "
+                "CORPORATION. All rights reserved."
+            ),
+        ]
+
+    extra_newline = "" if linter.content == "" else "\n"
+
+    if C_STYLE_COMMENTS_RE.search(linter.filename):
+        lines_str = "\n * ".join(lines)
+        content = f"/*\n * {lines_str}\n */\n{extra_newline}"
+    elif linter.filename.endswith(".bat"):
+        lines_str = "\nREM ".join(lines)
+        content = f"REM {lines_str}\n{extra_newline}"
+    elif linter.filename.endswith(".xml"):
+        lines_str = "\n".join(lines)
+        content = f"<!--\n{lines_str}\n-->\n{extra_newline}"
+    else:
+        lines_str = "\n# ".join(lines)
+        content = f"# {lines_str}\n{extra_newline}"
+
+    pos = 0
+    if linter.content.startswith("#!"):
+        pos = linter.lines.pos[1][0]
+
+    w = linter.add_warning((0, 0), "no copyright notice found")
+    w.add_replacement((pos, pos), content)
+
+
 def apply_copyright_check(
+    repo: "git.Repo | None",
     linter: Linter,
     args: argparse.Namespace,
     change_type: str,
@@ -507,9 +574,14 @@ def apply_copyright_check(
                             new_match,
                         )
 
-            if new_copyright_matches and force_spdx(args):
-                newest_match = max(new_copyright_matches, key=match_year_sort)
-                apply_spdx_updates(linter, args, newest_match)
+            if force_spdx(args):
+                if new_copyright_matches:
+                    newest_match = max(
+                        new_copyright_matches, key=match_year_sort
+                    )
+                    apply_spdx_updates(linter, args, newest_match)
+                else:
+                    apply_copyright_insert(repo, linter, args)
         elif new_copyright_matches:
             newest_match = max(new_copyright_matches, key=match_year_sort)
             if (
@@ -526,10 +598,10 @@ def apply_copyright_check(
                 < current_year
             ):
                 apply_copyright_update(linter, newest_match, current_year)
-            if args.spdx or force_spdx(args):
+            if spdx(args):
                 apply_spdx_updates(linter, args, newest_match)
-        elif content_changed:
-            linter.add_warning((0, 0), "no copyright notice found")
+        else:
+            apply_copyright_insert(repo, linter, args)
 
 
 def get_target_branch(repo: "git.Repo", args: argparse.Namespace) -> str:
@@ -638,11 +710,10 @@ def get_target_branch_upstream_commit(
 
 
 def get_changed_files(
+    repo: "git.Repo | None",
     args: argparse.Namespace,
 ) -> dict[str | os.PathLike[str], tuple[str, Optional["git.Blob"]]]:
-    try:
-        repo = git.Repo()
-    except git.InvalidGitRepositoryError:
+    if not repo:
         return {
             os.path.relpath(os.path.join(dirpath, filename), "."): ("A", None)
             for dirpath, dirnames, filenames in os.walk(".")
@@ -714,7 +785,11 @@ def find_blob(
 def check_copyright(
     args: argparse.Namespace,
 ) -> Callable[[Linter, argparse.Namespace], None]:
-    changed_files = get_changed_files(args)
+    try:
+        repo = git.Repo()
+    except git.InvalidGitRepositoryError:
+        repo = None
+    changed_files = get_changed_files(repo, args)
 
     def the_check(linter: Linter, args: argparse.Namespace) -> None:
         if not (git_filename := normalize_git_filename(linter.filename)):
@@ -744,7 +819,7 @@ def check_copyright(
                 old_filename = changed_file.path
                 old_content = changed_file.data_stream.read().decode()
         apply_copyright_check(
-            linter, args, change_type, old_filename, old_content
+            repo, linter, args, change_type, old_filename, old_content
         )
 
     return the_check
