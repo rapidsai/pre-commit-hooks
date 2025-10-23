@@ -988,9 +988,51 @@ def test_strip_copyright(content, expected_stripped):
             False,
             False,
             [
-                LintWarning((0, 0), "no copyright notice found"),
+                LintWarning(
+                    (0, 0),
+                    "no copyright notice found",
+                    replacements=[
+                        Replacement(
+                            (0, 0),
+                            "# Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.\n\n",  # noqa: E501
+                        ),
+                    ],
+                ),
             ],
-            id="added-with-no-copyright-notice",
+            id="added-with-no-copyright-notice-plain-text",
+        ),
+        pytest.param(
+            "M",
+            "file_with_history.txt",
+            "No copyright notice",
+            "file_with_history.txt",
+            "No copyright notice",
+            False,
+            False,
+            [],
+            id="unchanged-with-no-copyright-notice",
+        ),
+        pytest.param(
+            "M",
+            "file_with_history.txt",
+            "No copyright notice",
+            "file_with_history.txt",
+            "No copyright notice and changed",
+            False,
+            False,
+            [
+                LintWarning(
+                    (0, 0),
+                    "no copyright notice found",
+                    replacements=[
+                        Replacement(
+                            (0, 0),
+                            "# Copyright (c) 2023-2024, NVIDIA CORPORATION. All rights reserved.\n\n",  # noqa: E501
+                        ),
+                    ],
+                ),
+            ],
+            id="changed-with-history-and-no-copyright-notice",
         ),
         pytest.param(
             "M",
@@ -1689,7 +1731,24 @@ def test_strip_copyright(content, expected_stripped):
             ),
             False,
             True,
-            [],
+            [
+                LintWarning(
+                    (0, 0),
+                    "no copyright notice found",
+                    replacements=[
+                        Replacement(
+                            (0, 0),
+                            dedent(
+                                """\
+                                # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                # SPDX-License-Identifier: Apache-2.0
+
+                                """  # noqa: E501
+                            ),
+                        ),
+                    ],
+                ),
+            ],
             id="force-spdx-unchanged-with-no-copyright",
         ),
         pytest.param(
@@ -1927,10 +1986,204 @@ def test_strip_copyright(content, expected_stripped):
             ],
             id="force-spdx-changed-with-no-identifier-and-long-form-text",
         ),
+        pytest.param(
+            "M",
+            "file.txt",
+            "No copyright notice",
+            "file.txt",
+            "No copyright notice",
+            True,
+            False,
+            [],
+            id="spdx-unchanged-with-no-copyright-notice",
+        ),
+        pytest.param(
+            "M",
+            "file_with_history.txt",
+            "No copyright notice",
+            "file_with_history.txt",
+            "No copyright notice",
+            True,
+            False,
+            [],
+            id="spdx-unchanged-with-history-and-no-copyright-notice",
+        ),
+        pytest.param(
+            "M",
+            "file_with_history.txt",
+            "No copyright notice",
+            "file_with_history.txt",
+            "No copyright notice",
+            False,
+            True,
+            [
+                LintWarning(
+                    (0, 0),
+                    "no copyright notice found",
+                    replacements=[
+                        Replacement(
+                            (0, 0),
+                            dedent(
+                                """\
+                                # SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION. All rights reserved.
+                                # SPDX-License-Identifier: Apache-2.0
+
+                                """  # noqa: E501
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+            id="force-spdx-unchanged-with-history-and-no-copyright-notice",
+        ),
+        pytest.param(
+            "A",
+            None,
+            None,
+            "file.sh",
+            "#!/bin/sh\nNo copyright notice",
+            True,
+            False,
+            [
+                LintWarning(
+                    (0, 0),
+                    "no copyright notice found",
+                    replacements=[
+                        Replacement(
+                            (10, 10),
+                            dedent(
+                                """\
+                                # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                # SPDX-License-Identifier: Apache-2.0
+
+                                """  # noqa: E501
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-added-with-no-copyright-notice-shebang",
+        ),
+        pytest.param(
+            "A",
+            None,
+            None,
+            "file.bat",
+            "No copyright notice",
+            True,
+            False,
+            [
+                LintWarning(
+                    (0, 0),
+                    "no copyright notice found",
+                    replacements=[
+                        Replacement(
+                            (0, 0),
+                            dedent(
+                                """\
+                                REM SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                REM SPDX-License-Identifier: Apache-2.0
+
+                                """  # noqa: E501
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-added-with-no-copyright-notice-batch-file",
+        ),
+        pytest.param(
+            "A",
+            None,
+            None,
+            "file.xml",
+            "No copyright notice",
+            True,
+            False,
+            [
+                LintWarning(
+                    (0, 0),
+                    "no copyright notice found",
+                    replacements=[
+                        Replacement(
+                            (0, 0),
+                            dedent(
+                                """\
+                                <!--
+                                SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                SPDX-License-Identifier: Apache-2.0
+                                -->
+
+                                """  # noqa: E501
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-added-with-no-copyright-notice-xml-file",
+        ),
+        pytest.param(
+            "A",
+            None,
+            None,
+            "file.cpp",
+            "No copyright notice",
+            True,
+            False,
+            [
+                LintWarning(
+                    (0, 0),
+                    "no copyright notice found",
+                    replacements=[
+                        Replacement(
+                            (0, 0),
+                            dedent(
+                                """\
+                                /*
+                                 * SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                 * SPDX-License-Identifier: Apache-2.0
+                                 */
+
+                                """  # noqa: E501
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-added-with-no-copyright-notice-c-style-comments",
+        ),
+        pytest.param(
+            "A",
+            None,
+            None,
+            "file.txt",
+            "",
+            True,
+            False,
+            [
+                LintWarning(
+                    (0, 0),
+                    "no copyright notice found",
+                    replacements=[
+                        Replacement(
+                            (0, 0),
+                            dedent(
+                                """\
+                                # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                # SPDX-License-Identifier: Apache-2.0
+                                """  # noqa: E501
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-added-with-no-copyright-notice-empty-file",
+        ),
     ],
 )
 @freeze_time("2024-01-18")
 def test_apply_copyright_check(
+    git_repo,
     change_type,
     old_filename,
     old_content,
@@ -1940,12 +2193,27 @@ def test_apply_copyright_check(
     force_spdx,
     warnings,
 ):
+    with open(
+        os.path.join(git_repo.working_tree_dir, "file_with_history.txt"), "w"
+    ) as f:
+        f.write("No copyright notice")
+    git_repo.index.add("file_with_history.txt")
+    git_repo.index.commit(
+        "Add file_with_history.txt",
+        author_date=datetime.datetime(
+            2023,
+            2,
+            1,
+            tzinfo=datetime.timezone.utc,
+        ),
+    )
+
     linter = Linter(new_filename, new_content)
     mock_args = Mock(
         spdx=spdx, force_spdx=force_spdx, spdx_license_identifier="Apache-2.0"
     )
     copyright.apply_copyright_check(
-        linter, mock_args, change_type, old_filename, old_content
+        git_repo, linter, mock_args, change_type, old_filename, old_content
     )
     assert linter.warnings == warnings
 
@@ -2385,7 +2653,7 @@ def test_get_changed_files(git_repo):
             os.path.join(non_git_dir, "subdir1", "subdir2", "sub.txt"), "w"
         ) as f:
             f.write("Subdir file\n")
-        assert copyright.get_changed_files(Mock()) == {
+        assert copyright.get_changed_files(None, Mock()) == {
             "top.txt": ("A", None),
             "subdir1/subdir2/sub.txt": ("A", None),
         }
@@ -2435,7 +2703,7 @@ def test_get_changed_files(git_repo):
             Mock(return_value=None),
         ),
     ):
-        assert copyright.get_changed_files(Mock()) == {
+        assert copyright.get_changed_files(git_repo, Mock()) == {
             "untouched.txt": ("A", None),
             "copied.txt": ("A", None),
             "modified_and_copied.txt": ("A", None),
@@ -2539,7 +2807,7 @@ def test_get_changed_files(git_repo):
             Mock(return_value=target_branch.commit),
         ),
     ):
-        changed_files = copyright.get_changed_files(Mock())
+        changed_files = copyright.get_changed_files(git_repo, Mock())
     assert {
         path: (change_type, old_blob.path if old_blob else None)
         for path, (change_type, old_blob) in changed_files.items()
@@ -2643,7 +2911,7 @@ def test_get_changed_files_multiple_merge_bases(git_repo):
             Mock(return_value="branch-1-2"),
         ),
     ):
-        changed_files = copyright.get_changed_files(Mock())
+        changed_files = copyright.get_changed_files(git_repo, Mock())
     assert {
         path: (change_type, old_blob.path if old_blob else None)
         for path, (change_type, old_blob) in changed_files.items()
@@ -2964,7 +3232,11 @@ def test_check_copyright(
         force_spdx=force_spdx,
     )
 
-    with mock_repo_cwd(), mock_target_branch_upstream_commit(target_branch):
+    with (
+        mock_repo_cwd(),
+        mock_target_branch_upstream_commit(target_branch),
+        patch("git.Repo", Mock(return_value=git_repo)),
+    ):
         copyright_checker = copyright.check_copyright(mock_args)
 
     linter = Linter(filename, file_contents(contents))
@@ -2975,6 +3247,7 @@ def test_check_copyright(
             apply_copyright_check.assert_not_called()
         else:
             apply_copyright_check.assert_called_once_with(
+                git_repo,
                 linter,
                 mock_args,
                 op,
