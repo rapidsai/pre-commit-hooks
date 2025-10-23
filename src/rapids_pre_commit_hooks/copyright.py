@@ -42,6 +42,9 @@ SPDX_COPYRIGHT_RE: re.Pattern = re.compile(
 C_STYLE_COMMENTS_RE: re.Pattern = re.compile(
     r"\.(?:c|cpp|cxx|cu|h|hpp|hxx|cuh|js|java|rs)$"
 )
+CMAKE_FILENAME_RE: re.Pattern = re.compile(
+    r"(?:\.cmake|(?:^|/)CMakeLists\.txt)$"
+)
 
 LONG_FORM_LICENSE_TEXT: dict[str, list[str]] = {
     "Apache-2.0": [
@@ -301,6 +304,26 @@ def strip_copyright(
     return segments
 
 
+def has_cmake_format_off_comment(
+    linter: Linter, match: CopyrightMatch
+) -> bool:
+    previous_line = linter.lines.line_for_pos(match.span[0]) - 1
+    return (
+        previous_line >= 0
+        and "cmake-format: off"
+        in linter.content[slice(*linter.lines.pos[previous_line])]
+    )
+
+
+def has_cmake_format_on_comment(linter: Linter, match: CopyrightMatch) -> bool:
+    next_line = linter.lines.line_for_pos(match.span[1]) + 1
+    return (
+        next_line < len(linter.lines.pos)
+        and "cmake-format: on"
+        in linter.content[slice(*linter.lines.pos[next_line])]
+    )
+
+
 def add_copy_rename_note(
     linter: Linter,
     warning: LintWarning,
@@ -369,16 +392,43 @@ def apply_copyright_update(
 
 
 def apply_spdx_filecopyrighttext_tag_insert(
-    linter: Linter, match: CopyrightMatch
+    linter: Linter, match: CopyrightMatch, cmake: bool
 ) -> None:
     span = (
         match.full_copyright_text_span[0],
         match.full_copyright_text_span[0],
     )
+
+    add_cmake_format_off = False
+    if cmake:
+        add_cmake_format_off = not has_cmake_format_off_comment(linter, match)
+
     w = linter.add_warning(
         match.full_copyright_text_span, "include SPDX-FileCopyrightText header"
     )
-    w.add_replacement(span, "SPDX-FileCopyrightText: ")
+    w.add_replacement(
+        span,
+        (
+            (
+                f"cmake-format: off{linter.lines.newline_style}"
+                + compute_prefix(
+                    linter.lines,
+                    linter.filename,
+                    match.full_copyright_text_span[0],
+                )
+            )
+            if add_cmake_format_off
+            else ""
+        )
+        + "SPDX-FileCopyrightText: ",
+    )
+    if add_cmake_format_off:
+        w.add_note(
+            linter.lines.pos[
+                linter.lines.line_for_pos(match.full_copyright_text_span[0])
+            ],
+            "no cmake-format: off comment before copyright notice",
+        )
 
 
 def apply_spdx_license_update(
@@ -397,7 +447,7 @@ def apply_spdx_license_update(
 
 
 def apply_spdx_license_insert(
-    linter: Linter, match: CopyrightMatch, identifier: str
+    linter: Linter, match: CopyrightMatch, identifier: str, cmake: bool
 ) -> None:
     match_start_pos = (
         match.spdx_filecopyrighttext_tag_span or match.full_copyright_text_span
@@ -405,6 +455,10 @@ def apply_spdx_license_insert(
     line = linter.lines.line_for_pos(match_start_pos)
 
     prefix = compute_prefix(linter.lines, linter.filename, match_start_pos)
+
+    add_cmake_format_on = False
+    if cmake and not match.long_form_text_span:
+        add_cmake_format_on = not has_cmake_format_on_comment(linter, match)
 
     next_line_start_pos = linter.lines.pos[line][1]
     w = linter.add_warning(
@@ -414,12 +468,22 @@ def apply_spdx_license_insert(
     w.add_replacement(
         (next_line_start_pos, next_line_start_pos),
         f"{linter.lines.newline_style}{prefix}SPDX-License-Identifier: "
-        + identifier,
+        f"{identifier}"
+        f"""{
+            f"{linter.lines.newline_style}{prefix}cmake-format: on"
+            if add_cmake_format_on
+            else ""
+        }""",
     )
+    if add_cmake_format_on:
+        w.add_note(
+            linter.lines.pos[line],
+            "no cmake-format: on comment after copyright notice",
+        )
 
 
 def apply_spdx_long_form_text_removal(
-    linter: Linter, match: CopyrightMatch
+    linter: Linter, match: CopyrightMatch, cmake: bool
 ) -> None:
     assert match.long_form_text_span
     span = (
@@ -429,26 +493,80 @@ def apply_spdx_long_form_text_removal(
         )[1],
         match.long_form_text_span[1],
     )
+
+    add_cmake_format_on = False
+    if cmake:
+        add_cmake_format_on = not has_cmake_format_on_comment(linter, match)
+
     w = linter.add_warning(
         match.long_form_text_span, "remove long-form copyright text"
     )
-    w.add_replacement(span, "")
+    w.add_replacement(
+        span, "\n# cmake-format: on" if add_cmake_format_on else ""
+    )
+    if add_cmake_format_on:
+        w.add_note(
+            match.long_form_text_span,
+            "no cmake-format: on comment after copyright notice",
+        )
+
+
+def apply_cmake_format_off_insert(
+    linter: Linter, match: CopyrightMatch
+) -> None:
+    line = linter.lines.pos[linter.lines.line_for_pos(match.span[0])]
+    w = linter.add_warning(
+        line, "no cmake-format: off comment before copyright notice"
+    )
+    w.add_replacement(
+        (line[0], line[0]), f"# cmake-format: off{linter.lines.newline_style}"
+    )
+
+
+def apply_cmake_format_on_insert(
+    linter: Linter, match: CopyrightMatch
+) -> None:
+    line = linter.lines.pos[linter.lines.line_for_pos(match.span[1])]
+    w = linter.add_warning(
+        line, "no cmake-format: on comment after copyright notice"
+    )
+    w.add_replacement(
+        (line[1], line[1]), f"{linter.lines.newline_style}# cmake-format: on"
+    )
 
 
 def apply_spdx_updates(
     linter: Linter, args: argparse.Namespace, match: CopyrightMatch
 ) -> None:
+    cmake = bool(CMAKE_FILENAME_RE.search(linter.filename))
+
     if not match.spdx_filecopyrighttext_tag_span:
-        apply_spdx_filecopyrighttext_tag_insert(linter, match)
+        apply_spdx_filecopyrighttext_tag_insert(linter, match, cmake)
+    elif cmake:
+        if not has_cmake_format_off_comment(linter, match):
+            apply_cmake_format_off_insert(linter, match)
+
     if not match.spdx_license_identifier_text_span:
-        apply_spdx_license_insert(linter, match, args.spdx_license_identifier)
-    elif (
-        linter.content[slice(*match.spdx_license_identifier_text_span)]
-        != args.spdx_license_identifier
-    ):
-        apply_spdx_license_update(linter, match, args.spdx_license_identifier)
+        apply_spdx_license_insert(
+            linter, match, args.spdx_license_identifier, cmake
+        )
+    else:
+        if (
+            cmake
+            and not match.long_form_text_span
+            and not has_cmake_format_on_comment(linter, match)
+        ):
+            apply_cmake_format_on_insert(linter, match)
+        if (
+            linter.content[slice(*match.spdx_license_identifier_text_span)]
+            != args.spdx_license_identifier
+        ):
+            apply_spdx_license_update(
+                linter, match, args.spdx_license_identifier
+            )
+
     if match.long_form_text_span:
-        apply_spdx_long_form_text_removal(linter, match)
+        apply_spdx_long_form_text_removal(linter, match, cmake)
 
 
 def apply_copyright_insert(
@@ -488,6 +606,12 @@ def apply_copyright_insert(
                 f"Copyright (c) {first_year_str}{last_year}, NVIDIA "
                 "CORPORATION. All rights reserved."
             ),
+        ]
+    if CMAKE_FILENAME_RE.search(linter.filename):
+        lines = [
+            "cmake-format: off",
+            *lines,
+            "cmake-format: on",
         ]
 
     extra_newline = "" if linter.content == "" else linter.lines.newline_style
