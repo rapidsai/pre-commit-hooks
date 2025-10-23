@@ -2156,6 +2156,36 @@ def test_strip_copyright(content, expected_stripped):
             "A",
             None,
             None,
+            "file.cmake",
+            "# No copyright notice",
+            True,
+            False,
+            [
+                LintWarning(
+                    (0, 0),
+                    "no copyright notice found",
+                    replacements=[
+                        Replacement(
+                            (0, 0),
+                            dedent(
+                                """\
+                                # cmake-format: off
+                                # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                # SPDX-License-Identifier: Apache-2.0
+                                # cmake-format: on
+
+                                """  # noqa: E501
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-added-with-no-copyright-notice-cmake",
+        ),
+        pytest.param(
+            "A",
+            None,
+            None,
             "file.txt",
             "",
             True,
@@ -2178,6 +2208,315 @@ def test_strip_copyright(content, expected_stripped):
                 ),
             ],
             id="spdx-added-with-no-copyright-notice-empty-file",
+        ),
+        pytest.param(
+            "A",
+            None,
+            None,
+            "file.cmake",
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+
+                # No cmake-format comments
+                """
+            ),
+            True,
+            False,
+            [
+                LintWarning(
+                    (1, 64),
+                    "no cmake-format: off comment before copyright notice",
+                    replacements=[
+                        Replacement(
+                            (1, 1),
+                            "# cmake-format: off\n",
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (65, 102),
+                    "no cmake-format: on comment after copyright notice",
+                    replacements=[
+                        Replacement(
+                            (102, 102),
+                            "\n# cmake-format: on",
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-cmake-with-no-cmake-format-comments",
+        ),
+        pytest.param(
+            "A",
+            None,
+            None,
+            "file.cmake",
+            dedent(
+                """
+                # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+
+                # No cmake-format comments
+                """  # noqa: E501
+            ),
+            True,
+            False,
+            [
+                LintWarning(
+                    (1, 64),
+                    "no cmake-format: off comment before copyright notice",
+                    replacements=[
+                        Replacement(
+                            (1, 1),
+                            "# cmake-format: off\n",
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (104, 648),
+                    "remove long-form copyright text",
+                    replacements=[
+                        Replacement(
+                            (102, 648),
+                            "\n# cmake-format: on",
+                        ),
+                    ],
+                    notes=[
+                        Note(
+                            (104, 648),
+                            "no cmake-format: on comment after copyright "
+                            "notice",
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-cmake-with-no-cmake-format-comments-long-form-text",
+        ),
+        pytest.param(
+            "A",
+            None,
+            None,
+            "file.cmake",
+            dedent(
+                """
+                # Copyright (c) 2024 NVIDIA CORPORATION
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+
+                # No cmake-format comments
+                """  # noqa: E501
+            ),
+            True,
+            False,
+            [
+                LintWarning(
+                    (3, 40),
+                    "include SPDX-FileCopyrightText header",
+                    replacements=[
+                        Replacement(
+                            (3, 3),
+                            "cmake-format: off\n# SPDX-FileCopyrightText: ",
+                        ),
+                    ],
+                    notes=[
+                        Note(
+                            (1, 40),
+                            "no cmake-format: off comment before copyright "
+                            "notice",
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (3, 40),
+                    "no SPDX-License-Identifier header found",
+                    replacements=[
+                        Replacement(
+                            (40, 40),
+                            "\n# SPDX-License-Identifier: Apache-2.0",
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (42, 586),
+                    "remove long-form copyright text",
+                    replacements=[
+                        Replacement(
+                            (40, 586),
+                            "\n# cmake-format: on",
+                        ),
+                    ],
+                    notes=[
+                        Note(
+                            (42, 586),
+                            "no cmake-format: on comment after copyright "
+                            "notice",
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-cmake-with-no-cmake-format-comments-long-form-text-no-headers",
+        ),
+        pytest.param(
+            "A",
+            None,
+            None,
+            "file.cmake",
+            dedent(
+                """
+                # Copyright (c) 2024 NVIDIA CORPORATION
+
+                # No cmake-format comments
+                """
+            ),
+            True,
+            False,
+            [
+                LintWarning(
+                    (3, 40),
+                    "include SPDX-FileCopyrightText header",
+                    replacements=[
+                        Replacement(
+                            (3, 3),
+                            "cmake-format: off\n# SPDX-FileCopyrightText: ",
+                        ),
+                    ],
+                    notes=[
+                        Note(
+                            (1, 40),
+                            "no cmake-format: off comment before copyright "
+                            "notice",
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (3, 40),
+                    "no SPDX-License-Identifier header found",
+                    replacements=[
+                        Replacement(
+                            (40, 40),
+                            dedent(
+                                """
+                                # SPDX-License-Identifier: Apache-2.0
+                                # cmake-format: on"""
+                            ),
+                        ),
+                    ],
+                    notes=[
+                        Note(
+                            (1, 40),
+                            "no cmake-format: on comment after copyright "
+                            "notice",
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-cmake-with-no-cmake-format-comments-no-headers",
+        ),
+        pytest.param(
+            "A",
+            None,
+            None,
+            "file.cmake",
+            dedent(
+                """
+                # cmake-format: off
+                # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                # SPDX-License-Identifier: Apache-2.0
+                # cmake-format: on
+
+                # Includes cmake-format comments
+                """
+            ),
+            True,
+            False,
+            [],
+            id="spdx-cmake-with-cmake-format-comments-and-headers",
+        ),
+        pytest.param(
+            "A",
+            None,
+            None,
+            "file.cmake",
+            dedent(
+                """
+                # cmake-format: off
+                # Copyright (c) 2024 NVIDIA CORPORATION
+                #
+                # Licensed under the Apache License, Version 2.0 (the "License");
+                # you may not use this file except in compliance with the License.
+                # You may obtain a copy of the License at
+                #
+                #     http://www.apache.org/licenses/LICENSE-2.0
+                #
+                # Unless required by applicable law or agreed to in writing, software
+                # distributed under the License is distributed on an "AS IS" BASIS,
+                # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                # See the License for the specific language governing permissions and
+                # limitations under the License.
+                # cmake-format: on
+
+                # Includes cmake-format comments
+                """  # noqa: E501
+            ),
+            True,
+            False,
+            [
+                LintWarning(
+                    (23, 60),
+                    "include SPDX-FileCopyrightText header",
+                    replacements=[
+                        Replacement(
+                            (23, 23),
+                            "SPDX-FileCopyrightText: ",
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (23, 60),
+                    "no SPDX-License-Identifier header found",
+                    replacements=[
+                        Replacement(
+                            (60, 60),
+                            "\n# SPDX-License-Identifier: Apache-2.0",
+                        ),
+                    ],
+                ),
+                LintWarning(
+                    (62, 606),
+                    "remove long-form copyright text",
+                    replacements=[
+                        Replacement(
+                            (60, 606),
+                            "",
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-cmake-with-cmake-format-comments-and-no-headers-long-form-text",
         ),
     ],
 )
