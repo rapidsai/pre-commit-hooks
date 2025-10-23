@@ -413,7 +413,8 @@ def apply_spdx_license_insert(
     )
     w.add_replacement(
         (next_line_start_pos, next_line_start_pos),
-        f"\n{prefix}SPDX-License-Identifier: {identifier}",
+        f"{linter.lines.newline_style}{prefix}SPDX-License-Identifier: "
+        + identifier,
     )
 
 
@@ -489,20 +490,28 @@ def apply_copyright_insert(
             ),
         ]
 
-    extra_newline = "" if linter.content == "" else "\n"
+    extra_newline = "" if linter.content == "" else linter.lines.newline_style
 
     if C_STYLE_COMMENTS_RE.search(linter.filename):
-        lines_str = "\n * ".join(lines)
-        content = f"/*\n * {lines_str}\n */\n{extra_newline}"
+        lines_str = f"{linter.lines.newline_style} * ".join(lines)
+        content = (
+            f"/*{linter.lines.newline_style} * {lines_str}"
+            f"{linter.lines.newline_style} */"
+            f"{linter.lines.newline_style}{extra_newline}"
+        )
     elif linter.filename.endswith(".bat"):
-        lines_str = "\nREM ".join(lines)
-        content = f"REM {lines_str}\n{extra_newline}"
+        lines_str = f"{linter.lines.newline_style}REM ".join(lines)
+        content = f"REM {lines_str}{linter.lines.newline_style}{extra_newline}"
     elif linter.filename.endswith(".xml"):
-        lines_str = "\n".join(lines)
-        content = f"<!--\n{lines_str}\n-->\n{extra_newline}"
+        lines_str = linter.lines.newline_style.join(lines)
+        content = (
+            f"<!--{linter.lines.newline_style}{lines_str}"
+            f"{linter.lines.newline_style}-->"
+            f"{linter.lines.newline_style}{extra_newline}"
+        )
     else:
-        lines_str = "\n# ".join(lines)
-        content = f"# {lines_str}\n{extra_newline}"
+        lines_str = f"{linter.lines.newline_style}# ".join(lines)
+        content = f"# {lines_str}{linter.lines.newline_style}{extra_newline}"
 
     pos = 0
     if linter.content.startswith("#!"):

@@ -258,10 +258,13 @@ def check_codeowners(linter: Linter, args: argparse.Namespace) -> None:
                 owner(project_prefix=args.project_prefix)
                 for owner in required_codeowners_line.owners
             )
-            new_text += f"{required_codeowners_line.file} {owners_text}\n"
+            new_text += (
+                f"{required_codeowners_line.file} {owners_text}"
+                + linter.lines.newline_style
+            )
     if new_text:
         if linter.content and not linter.content.endswith("\n"):
-            new_text = f"\n{new_text}"
+            new_text = f"{linter.lines.newline_style}{new_text}"
         content_len = len(linter.content)
         linter.add_warning(
             (0, 0), "missing required codeowners"

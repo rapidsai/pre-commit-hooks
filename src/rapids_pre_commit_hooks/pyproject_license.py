@@ -76,8 +76,9 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
                 f'{RAPIDS_LICENSE}" }}',
             ).add_replacement(
                 loc,
-                "[project]\nlicense = { text = "
-                f"{tomlkit.string(RAPIDS_LICENSE).as_string()} }}\n",
+                f"[project]{linter.lines.newline_style}license = {{ text = "
+                f"{tomlkit.string(RAPIDS_LICENSE).as_string()} }}"
+                + linter.lines.newline_style,
             )
         else:
             loc = find_value_location(document, ("project",), True)
@@ -88,7 +89,8 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
             ).add_replacement(
                 loc,
                 "license = { text = "
-                f"{tomlkit.string(RAPIDS_LICENSE).as_string()} }}\n",
+                f"{tomlkit.string(RAPIDS_LICENSE).as_string()} }}"
+                + linter.lines.newline_style,
             )
         return
 
