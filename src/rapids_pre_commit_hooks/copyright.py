@@ -493,10 +493,7 @@ def apply_copyright_insert(
 
     if C_STYLE_COMMENTS_RE.search(linter.filename):
         lines_str = "\n * ".join(lines)
-        content = (
-            f"/* clang-format off */\n/*\n * {lines_str}\n */\n"
-            f"/* clang-format on */\n{extra_newline}"
-        )
+        content = f"/*\n * {lines_str}\n */\n{extra_newline}"
     elif linter.filename.endswith(".bat"):
         lines_str = "\nREM ".join(lines)
         content = f"REM {lines_str}\n{extra_newline}"

@@ -2139,12 +2139,10 @@ def test_strip_copyright(content, expected_stripped):
                             (0, 0),
                             dedent(
                                 """\
-                                /* clang-format off */
                                 /*
                                  * SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
                                  * SPDX-License-Identifier: Apache-2.0
                                  */
-                                /* clang-format on */
 
                                 """  # noqa: E501
                             ),
