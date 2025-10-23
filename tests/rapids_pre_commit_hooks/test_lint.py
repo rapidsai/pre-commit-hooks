@@ -35,7 +35,14 @@ class TestLines:
     )
 
     @pytest.mark.parametrize(
-        ["content", "expected_pos"],
+        [
+            "content",
+            "expected_pos",
+            "expected_lf_count",
+            "expected_crlf_count",
+            "expected_cr_count",
+            "expected_newline_style",
+        ],
         [
             pytest.param(
                 "line 1\n",
@@ -43,6 +50,10 @@ class TestLines:
                     (0, 6),
                     (7, 7),
                 ],
+                1,
+                0,
+                0,
+                "\n",
                 id="lf",
             ),
             pytest.param(
@@ -51,13 +62,33 @@ class TestLines:
                     (0, 6),
                     (8, 8),
                 ],
+                0,
+                1,
+                0,
+                "\r\n",
                 id="crlf",
+            ),
+            pytest.param(
+                "line 1\r",
+                [
+                    (0, 6),
+                    (7, 7),
+                ],
+                0,
+                0,
+                1,
+                "\r",
+                id="cr",
             ),
             pytest.param(
                 "",
                 [
                     (0, 0),
                 ],
+                0,
+                0,
+                0,
+                "\n",
                 id="empty",
             ),
             pytest.param(
@@ -84,12 +115,46 @@ class TestLines:
                     (96, 96),
                     (97, 104),
                 ],
+                6,
+                7,
+                6,
+                "\r\n",
                 id="complex",
+            ),
+            pytest.param(
+                "a\nb\nc\r\nd\r\ne",
+                [
+                    (0, 1),
+                    (2, 3),
+                    (4, 5),
+                    (7, 8),
+                    (10, 11),
+                ],
+                2,
+                2,
+                0,
+                "\n",
+                id="tied",
             ),
         ],
     )
-    def test_pos(self, content, expected_pos):
-        assert Lines(content).pos == expected_pos
+    def test_pos(
+        self,
+        content,
+        expected_pos,
+        expected_lf_count,
+        expected_crlf_count,
+        expected_cr_count,
+        expected_newline_style,
+    ):
+        lines = Lines(content)
+        assert lines.pos == expected_pos
+        assert lines.newline_count == {
+            "\n": expected_lf_count,
+            "\r\n": expected_crlf_count,
+            "\r": expected_cr_count,
+        }
+        assert lines.newline_style == expected_newline_style
 
     @pytest.mark.parametrize(
         ["contents", "pos", "line", "raises"],
@@ -456,6 +521,36 @@ class TestLintMain:
             call().print("[bold]note:[/bold] suggested fix applied"),
             call().print(),
         ]
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            "\n",
+            "\r\n",
+            "\r",
+        ],
+    )
+    def test_newline_type(self, tmp_path, content):
+        with open(os.path.join(tmp_path, "file.txt"), "w") as f:
+            f.write(content)
+
+        the_check = Mock()
+
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "check-test",
+                    os.path.join(tmp_path, "file.txt"),
+                ],
+            ),
+        ):
+            m = LintMain()
+            with m.execute() as ctx:
+                ctx.add_check(the_check)
+        the_check.assert_called_once()
+        assert the_check.call_args[0][0].content == content
+        assert the_check.call_args[0][0].lines.newline_style == content
 
     def test_binary_file(self, binary_file):
         mock_linter = Mock(wraps=Linter)

@@ -90,6 +90,12 @@ class Lines:
         line_end = 0
         state = "c"
 
+        self.newline_count = {
+            "\n": 0,
+            "\r\n": 0,
+            "\r": 0,
+        }
+
         for c in content:
             if state == "c":
                 if c == "\r":
@@ -99,20 +105,30 @@ class Lines:
                 elif c == "\n":
                     self.pos.append((line_begin, line_end))
                     line_end = line_begin = line_end + 1
+                    self.newline_count["\n"] += 1
                 else:
                     line_end += 1
             elif state == "r":
                 if c == "\r":
                     self.pos.append((line_begin, line_end))
                     line_end = line_begin = line_end + 1
+                    self.newline_count["\r"] += 1
                 elif c == "\n":
                     line_end = line_begin = line_end + 1
                     state = "c"
+                    self.newline_count["\r\n"] += 1
                 else:
                     line_end += 1
                     state = "c"
+                    self.newline_count["\r"] += 1
 
         self.pos.append((line_begin, line_end))
+        if state == "r":
+            self.newline_count["\r"] += 1
+        self.newline_style, _ = max(
+            self.newline_count.items(),
+            key=lambda item: item[1],
+        )
 
     def line_for_pos(self, index: int) -> int:
         line_index = bisect.bisect_left(
@@ -273,7 +289,7 @@ class ExecutionContext(contextlib.AbstractContextManager):
         has_warnings = False
 
         for file in self.args.files:
-            with open(file) as f:
+            with open(file, newline="") as f:
                 try:
                     content = f.read()
                 except UnicodeDecodeError:
