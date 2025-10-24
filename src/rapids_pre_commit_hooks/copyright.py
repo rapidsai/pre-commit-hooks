@@ -614,7 +614,15 @@ def apply_copyright_insert(
             "cmake-format: on",
         ]
 
-    extra_newline = "" if linter.content == "" else linter.lines.newline_style
+    pos = 0
+    if linter.content.startswith("#!"):
+        pos = linter.lines.pos[1][0]
+
+    extra_newline = (
+        ""
+        if pos >= len(linter.content) or linter.content[pos] in "\r\n"
+        else linter.lines.newline_style
+    )
 
     if C_STYLE_COMMENTS_RE.search(linter.filename):
         lines_str = f"{linter.lines.newline_style} * ".join(lines)
@@ -636,10 +644,6 @@ def apply_copyright_insert(
     else:
         lines_str = f"{linter.lines.newline_style}# ".join(lines)
         content = f"# {lines_str}{linter.lines.newline_style}{extra_newline}"
-
-    pos = 0
-    if linter.content.startswith("#!"):
-        pos = linter.lines.pos[1][0]
 
     w = linter.add_warning((0, 0), "no copyright notice found")
     w.add_replacement((pos, pos), content)
