@@ -100,9 +100,9 @@ def test_force_spdx(arg, env, raises, expected_value):
     [
         pytest.param(
             dedent(
-                """
-                Copyright (c) 2021 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021} NVIDIA CORPORATION
+                Copyright (c) {2025} NVIDIA CORPORATION
                 """
             ),
             0,
@@ -121,9 +121,9 @@ def test_force_spdx(arg, env, raises, expected_value):
         ),
         pytest.param(
             dedent(
-                """
-                # Copyright  (c)  2021-2025,  NVIDIA Corporation and affiliates
-                """
+                f"""
+                # Copyright  (c)  {2021}-{2025},  NVIDIA Corporation and affiliates
+                """  # noqa: E501
             ),
             0,
             copyright.CopyrightMatch(
@@ -141,8 +141,8 @@ def test_force_spdx(arg, env, raises, expected_value):
         ),
         pytest.param(
             dedent(
-                """
-                Copyright (c) 2021 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021} NVIDIA CORPORATION
                 """
             ),
             2,
@@ -151,9 +151,9 @@ def test_force_spdx(arg, env, raises, expected_value):
         ),
         pytest.param(
             dedent(
-                """
-                Copyright (c) 2021 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021} NVIDIA CORPORATION
+                Copyright (c) {2025} NVIDIA CORPORATION
                 """
             ),
             38,
@@ -172,8 +172,8 @@ def test_force_spdx(arg, env, raises, expected_value):
         ),
         pytest.param(
             dedent(
-                """
-                # Copyright (c) 2021-2025, NVIDIA CORPORATION.
+                f"""
+                # Copyright (c) {2021}-{2025}, NVIDIA CORPORATION.
                 #
                 # Licensed under the Apache License, Version 2.0 (the "License");
                 # you may not use this file except in compliance with the License.
@@ -205,8 +205,8 @@ def test_force_spdx(arg, env, raises, expected_value):
         ),
         pytest.param(
             dedent(
-                """
-                # Copyright (c) 2021-2025, NVIDIA CORPORATION.
+                f"""
+                # Copyright (c) {2021}-{2025}, NVIDIA CORPORATION.
                 #
                 # Redistribution and use in source and binary forms, with or without
                 # modification, are permitted provided that the following conditions are met:
@@ -251,8 +251,8 @@ def test_force_spdx(arg, env, raises, expected_value):
         ),
         pytest.param(
             dedent(
-                """
-                SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION
+                f"""
+                SPDX-FileCopyrightText: Copyright (c) {2021} NVIDIA CORPORATION
                 """
             ),
             0,
@@ -271,8 +271,8 @@ def test_force_spdx(arg, env, raises, expected_value):
         ),
         pytest.param(
             dedent(
-                """
-                SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION
+                f"""
+                SPDX-FileCopyrightText: Copyright (c) {2021} NVIDIA CORPORATION
                 SPDX-License-Identifier: Apache-2.0
                 """
             ),
@@ -292,8 +292,8 @@ def test_force_spdx(arg, env, raises, expected_value):
         ),
         pytest.param(
             dedent(
-                """
-                SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION
+                f"""
+                SPDX-FileCopyrightText: Copyright (c) {2021} NVIDIA CORPORATION
                 Licensed under the Apache License, Version 2.0 (the "License");
                 you may not use this file except in compliance with the License.
                 You may obtain a copy of the License at
@@ -324,8 +324,8 @@ def test_force_spdx(arg, env, raises, expected_value):
         ),
         pytest.param(
             dedent(
-                """
-                SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION
+                f"""
+                SPDX-FileCopyrightText: Copyright (c) {2021} NVIDIA CORPORATION
                 SPDX-License-Identifier: Apache-2.0
 
                 Licensed under the Apache License, Version 2.0 (the "License");
@@ -358,9 +358,9 @@ def test_force_spdx(arg, env, raises, expected_value):
         ),
         pytest.param(
             dedent(
-                """
-                Copyright (c) 2021 NVIDIA CORPORATION
-                SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021} NVIDIA CORPORATION
+                SPDX-FileCopyrightText: Copyright (c) {2021} NVIDIA CORPORATION
                 """
             ),
             0,
@@ -379,9 +379,9 @@ def test_force_spdx(arg, env, raises, expected_value):
         ),
         pytest.param(
             dedent(
-                """
-                SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION
-                Copyright (c) 2021 NVIDIA CORPORATION
+                f"""
+                SPDX-FileCopyrightText: Copyright (c) {2021} NVIDIA CORPORATION
+                Copyright (c) {2021} NVIDIA CORPORATION
                 """
             ),
             0,
@@ -400,8 +400,8 @@ def test_force_spdx(arg, env, raises, expected_value):
         ),
         pytest.param(
             dedent(
-                """
-                Copyright (c) 2021 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021} NVIDIA CORPORATION
                 SPDX-License-Identifier: Apache-2.0
                 """
             ),
@@ -433,8 +433,8 @@ def test_match_copyright(content, start, expected_match):
     [
         pytest.param(
             dedent(
-                """
-                Copyright (c) 2021 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021} NVIDIA CORPORATION
                 """
             ),
             [
@@ -454,9 +454,9 @@ def test_match_copyright(content, start, expected_match):
         ),
         pytest.param(
             dedent(
-                """
-                Copyright (c) 2021 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021} NVIDIA CORPORATION
+                Copyright (c) {2025} NVIDIA CORPORATION
                 """
             ),
             [
@@ -487,8 +487,8 @@ def test_match_copyright(content, start, expected_match):
         ),
         pytest.param(
             dedent(
-                """
-                SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION
+                f"""
+                SPDX-FileCopyrightText: Copyright (c) {2021} NVIDIA CORPORATION
                 SPDX-License-Identifier: Apache-2.0
 
                 Licensed under the Apache License, Version 2.0 (the "License");
@@ -503,7 +503,7 @@ def test_match_copyright(content, start, expected_match):
                 See the License for the specific language governing permissions and
                 limitations under the License.
 
-                SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION
+                SPDX-FileCopyrightText: Copyright (c) {2025} NVIDIA CORPORATION
                 SPDX-License-Identifier: Apache-2.0
 
                 Licensed under the Apache License, Version 2.0 (the "License");
@@ -634,8 +634,8 @@ def test_compute_prefix(content, filename, index, expected_prefix):
     [
         pytest.param(
             dedent(
-                """
-                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                # SPDX-FileCopyrightText: Copyright (c) {2023} NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 #
                 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -658,8 +658,8 @@ def test_compute_prefix(content, filename, index, expected_prefix):
         ),
         pytest.param(
             dedent(
-                """
-                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                # SPDX-FileCopyrightText: Copyright (c) {2023} NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 #
                 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -682,8 +682,8 @@ def test_compute_prefix(content, filename, index, expected_prefix):
         ),
         pytest.param(
             dedent(
-                """
-                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                # SPDX-FileCopyrightText: Copyright (c) {2023} NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 #
                 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -706,8 +706,8 @@ def test_compute_prefix(content, filename, index, expected_prefix):
         ),
         pytest.param(
             dedent(
-                """
-                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                # SPDX-FileCopyrightText: Copyright (c) {2023} NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 #
                 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -730,8 +730,8 @@ def test_compute_prefix(content, filename, index, expected_prefix):
         ),
         pytest.param(
             dedent(
-                """
-                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                # SPDX-FileCopyrightText: Copyright (c) {2023} NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 #
                 #
@@ -755,8 +755,8 @@ def test_compute_prefix(content, filename, index, expected_prefix):
         ),
         pytest.param(
             dedent(
-                """
-                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                # SPDX-FileCopyrightText: Copyright (c) {2023} NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 #
                 # Redistribution and use in source and binary forms, with or without
@@ -792,8 +792,8 @@ def test_compute_prefix(content, filename, index, expected_prefix):
         ),
         pytest.param(
             dedent(
-                """
-                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                # SPDX-FileCopyrightText: Copyright (c) {2023} NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 #
                 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -823,13 +823,13 @@ def test_find_long_form_text(content, index, expected_pos):
     [
         pytest.param(
             dedent(
-                """
+                f"""
                 This is a line before the first copyright statement
-                Copyright (c) 2024 NVIDIA CORPORATION
+                Copyright (c) {2024} NVIDIA CORPORATION
                 This is a line between the first two copyright statements
-                Copyright (c) 2021-2024 NVIDIA CORPORATION
+                Copyright (c) {2021}-{2024} NVIDIA CORPORATION
                 This is a line between the next two copyright statements
-                # Copyright 2021,  NVIDIA Corporation and affiliates
+                # Copyright {2021},  NVIDIA Corporation and affiliates
                 This is a line after the last copyright statement
                 """
             ),
@@ -850,8 +850,8 @@ def test_find_long_form_text(content, index, expected_pos):
         ),
         pytest.param(
             dedent(
-                """
-                # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                # SPDX-FileCopyrightText: Copyright (c) {2024} NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 This is a line after the license identifier
                 """
@@ -864,8 +864,8 @@ def test_find_long_form_text(content, index, expected_pos):
         ),
         pytest.param(
             dedent(
-                """
-                # Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                # Copyright (c) {2024} NVIDIA CORPORATION
                 #
                 # Licensed under the Apache License, Version 2.0 (the "License");
                 # you may not use this file except in compliance with the License.
@@ -889,8 +889,8 @@ def test_find_long_form_text(content, index, expected_pos):
         ),
         pytest.param(
             dedent(
-                """
-                # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                # SPDX-FileCopyrightText: Copyright (c) {2024} NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 #
                 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -915,8 +915,8 @@ def test_find_long_form_text(content, index, expected_pos):
         ),
         pytest.param(
             dedent(
-                """
-                # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                # SPDX-FileCopyrightText: Copyright (c) {2024} NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 #
                 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -931,7 +931,7 @@ def test_find_long_form_text(content, index, expected_pos):
                 # See the License for the specific language governing permissions and
                 # limitations under the License.
                 This is a line after the license text
-                # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                # SPDX-FileCopyrightText: Copyright (c) {2024} NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 """  # noqa: E501
             ),
@@ -983,7 +983,7 @@ def test_strip_copyright(content, expected_stripped):
                     replacements=[
                         Replacement(
                             (0, 0),
-                            "# Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.\n\n",  # noqa: E501
+                            f"# Copyright (c) {2024}, NVIDIA CORPORATION. All rights reserved.\n\n",  # noqa: E501
                         ),
                     ],
                 ),
@@ -1016,7 +1016,7 @@ def test_strip_copyright(content, expected_stripped):
                     replacements=[
                         Replacement(
                             (0, 0),
-                            "# Copyright (c) 2023-2024, NVIDIA CORPORATION. All rights reserved.\n\n",  # noqa: E501
+                            f"# Copyright (c) {2023}-{2024}, NVIDIA CORPORATION. All rights reserved.\n\n",  # noqa: E501
                         ),
                     ],
                 ),
@@ -1038,21 +1038,21 @@ def test_strip_copyright(content, expected_stripped):
             "M",
             "file.txt",
             dedent(
-                """
-                Copyright (c) 2021-2023 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021}-{2023} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
+                Copyright (c) {2024} NVIDIA CORPORATION
+                Copyright (c) {2025} NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
             "file.txt",
             dedent(
-                """
-                Copyright (c) 2021-2023 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021}-{2023} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
+                Copyright (c) {2024} NVIDIA CORPORATION
+                Copyright (c) {2025} NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
@@ -1065,17 +1065,17 @@ def test_strip_copyright(content, expected_stripped):
             "M",
             "file.txt",
             dedent(
-                """
-                Copyright (c) 2021-2023 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021}-{2023} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
             "file.txt",
             dedent(
-                """
-                Copyright (c) 2021-2023 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021}-{2023} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
                 This file has been changed
                 """
             ),
@@ -1088,7 +1088,7 @@ def test_strip_copyright(content, expected_stripped):
                     replacements=[
                         Replacement(
                             (44, 81),
-                            "Copyright (c) 2023-2024, NVIDIA CORPORATION",
+                            f"Copyright (c) {2023}-{2024}, NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -1099,19 +1099,19 @@ def test_strip_copyright(content, expected_stripped):
             "M",
             "file.txt",
             dedent(
-                """
-                Copyright (c) 2021-2023 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021}-{2023} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
+                Copyright (c) {2024} NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
             "file.txt",
             dedent(
-                """
-                Copyright (c) 2021-2023 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021}-{2023} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
+                Copyright (c) {2024} NVIDIA CORPORATION
                 This file has been changed
                 """
             ),
@@ -1126,9 +1126,9 @@ def test_strip_copyright(content, expected_stripped):
             None,
             "file.txt",
             dedent(
-                """
-                Copyright (c) 2021-2023 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021}-{2023} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
                 This file has been changed
                 """
             ),
@@ -1141,7 +1141,7 @@ def test_strip_copyright(content, expected_stripped):
                     replacements=[
                         Replacement(
                             (44, 81),
-                            "Copyright (c) 2023-2024, NVIDIA CORPORATION",
+                            f"Copyright (c) {2023}-{2024}, NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -1152,21 +1152,21 @@ def test_strip_copyright(content, expected_stripped):
             "M",
             "file.txt",
             dedent(
-                """
-                Copyright (c) 2021-2023 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021}-{2023} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
+                Copyright (c) {2024} NVIDIA CORPORATION
+                Copyright (c) {2025} NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
             "file.txt",
             dedent(
-                """
-                Copyright (c) 2021-2024 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA Corporation
+                f"""
+                Copyright (c) {2021}-{2024} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
+                Copyright (c) {2024} NVIDIA CORPORATION
+                Copyright (c) {2025} NVIDIA Corporation
                 This file has not been changed
                 """
             ),
@@ -1179,7 +1179,7 @@ def test_strip_copyright(content, expected_stripped):
                     replacements=[
                         Replacement(
                             (1, 43),
-                            "Copyright (c) 2021-2023 NVIDIA CORPORATION",
+                            f"Copyright (c) {2021}-{2023} NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -1188,7 +1188,8 @@ def test_strip_copyright(content, expected_stripped):
                     "copyright is not out of date and should not be updated",
                     replacements=[
                         Replacement(
-                            (120, 157), "Copyright (c) 2025 NVIDIA CORPORATION"
+                            (120, 157),
+                            f"Copyright (c) {2025} NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -1199,17 +1200,17 @@ def test_strip_copyright(content, expected_stripped):
             "R",
             "file1.txt",
             dedent(
-                """
-                Copyright (c) 2021-2023 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021}-{2023} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
             "file2.txt",
             dedent(
-                """
-                Copyright (c) 2021-2023 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021}-{2023} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
                 This file has been changed
                 """
             ),
@@ -1222,7 +1223,7 @@ def test_strip_copyright(content, expected_stripped):
                     replacements=[
                         Replacement(
                             (44, 81),
-                            "Copyright (c) 2023-2024, NVIDIA CORPORATION",
+                            f"Copyright (c) {2023}-{2024}, NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -1233,17 +1234,17 @@ def test_strip_copyright(content, expected_stripped):
             "C",
             "file1.txt",
             dedent(
-                """
-                Copyright (c) 2021-2023 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021}-{2023} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
             "file2.txt",
             dedent(
-                """
-                Copyright (c) 2021-2023 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021}-{2023} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
                 This file has been changed
                 """
             ),
@@ -1256,7 +1257,7 @@ def test_strip_copyright(content, expected_stripped):
                     replacements=[
                         Replacement(
                             (44, 81),
-                            "Copyright (c) 2023-2024, NVIDIA CORPORATION",
+                            f"Copyright (c) {2023}-{2024}, NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -1267,21 +1268,21 @@ def test_strip_copyright(content, expected_stripped):
             "R",
             "file1.txt",
             dedent(
-                """
-                Copyright (c) 2021-2023 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021}-{2023} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
+                Copyright (c) {2024} NVIDIA CORPORATION
+                Copyright (c) {2025} NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
             "file2.txt",
             dedent(
-                """
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2023-2024 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2024} NVIDIA CORPORATION
+                Copyright (c) {2023}-{2024} NVIDIA CORPORATION
+                Copyright (c) {2024} NVIDIA CORPORATION
+                Copyright (c) {2025} NVIDIA CORPORATION
                 This file has been changed
                 """
             ),
@@ -1294,21 +1295,21 @@ def test_strip_copyright(content, expected_stripped):
             "C",
             "file1.txt",
             dedent(
-                """
-                Copyright (c) 2021-2023 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021}-{2023} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
+                Copyright (c) {2024} NVIDIA CORPORATION
+                Copyright (c) {2025} NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
             "file2.txt",
             dedent(
-                """
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2023-2024 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2024} NVIDIA CORPORATION
+                Copyright (c) {2023}-{2024} NVIDIA CORPORATION
+                Copyright (c) {2024} NVIDIA CORPORATION
+                Copyright (c) {2025} NVIDIA CORPORATION
                 This file has been changed
                 """
             ),
@@ -1321,21 +1322,21 @@ def test_strip_copyright(content, expected_stripped):
             "R",
             "file1.txt",
             dedent(
-                """
-                Copyright (c) 2021-2023 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021}-{2023} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
+                Copyright (c) {2024} NVIDIA CORPORATION
+                Copyright (c) {2025} NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
             "file2.txt",
             dedent(
-                """
-                Copyright (c) 2021-2024 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA Corporation
+                f"""
+                Copyright (c) {2021}-{2024} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
+                Copyright (c) {2024} NVIDIA CORPORATION
+                Copyright (c) {2025} NVIDIA Corporation
                 This file has not been changed
                 """
             ),
@@ -1361,7 +1362,7 @@ def test_strip_copyright(content, expected_stripped):
                     replacements=[
                         Replacement(
                             (1, 43),
-                            "Copyright (c) 2021-2023 NVIDIA CORPORATION",
+                            f"Copyright (c) {2021}-{2023} NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -1383,7 +1384,8 @@ def test_strip_copyright(content, expected_stripped):
                     ],
                     replacements=[
                         Replacement(
-                            (120, 157), "Copyright (c) 2025 NVIDIA CORPORATION"
+                            (120, 157),
+                            f"Copyright (c) {2025} NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -1394,21 +1396,21 @@ def test_strip_copyright(content, expected_stripped):
             "C",
             "file1.txt",
             dedent(
-                """
-                Copyright (c) 2021-2023 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2021}-{2023} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
+                Copyright (c) {2024} NVIDIA CORPORATION
+                Copyright (c) {2025} NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
             "file2.txt",
             dedent(
-                """
-                Copyright (c) 2021-2024 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2025 NVIDIA Corporation
+                f"""
+                Copyright (c) {2021}-{2024} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
+                Copyright (c) {2024} NVIDIA CORPORATION
+                Copyright (c) {2025} NVIDIA Corporation
                 This file has not been changed
                 """
             ),
@@ -1434,7 +1436,7 @@ def test_strip_copyright(content, expected_stripped):
                     replacements=[
                         Replacement(
                             (1, 43),
-                            "Copyright (c) 2021-2023 NVIDIA CORPORATION",
+                            f"Copyright (c) {2021}-{2023} NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -1456,7 +1458,8 @@ def test_strip_copyright(content, expected_stripped):
                     ],
                     replacements=[
                         Replacement(
-                            (120, 157), "Copyright (c) 2025 NVIDIA CORPORATION"
+                            (120, 157),
+                            f"Copyright (c) {2025} NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -1467,16 +1470,16 @@ def test_strip_copyright(content, expected_stripped):
             "M",
             "file1.txt",
             dedent(
-                """
-                SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                SPDX-FileCopyrightText: Copyright (c) {2024} NVIDIA CORPORATION
                 SPDX-License-Identifier: Apache-2.0
                 This file has not been changed
                 """
             ),
             "file1.txt",
             dedent(
-                """
-                SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                SPDX-FileCopyrightText: Copyright (c) {2024} NVIDIA CORPORATION
                 SPDX-License-Identifier: Apache-2.0
                 This file has been changed
                 """
@@ -1490,17 +1493,17 @@ def test_strip_copyright(content, expected_stripped):
             "M",
             "file1.txt",
             dedent(
-                """
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2024} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
             "file1.txt",
             dedent(
-                """
-                Copyright (c) 2024 NVIDIA CORPORATION
-                Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2024} NVIDIA CORPORATION
+                Copyright (c) {2023} NVIDIA CORPORATION
                 This file has been changed
                 """
             ),
@@ -1534,15 +1537,15 @@ def test_strip_copyright(content, expected_stripped):
             "M",
             "file1.txt",
             dedent(
-                """
-                Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2023} NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
             "file1.txt",
             dedent(
-                """
-                Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2023} NVIDIA CORPORATION
                 This file has been changed
                 """
             ),
@@ -1555,7 +1558,7 @@ def test_strip_copyright(content, expected_stripped):
                     replacements=[
                         Replacement(
                             (1, 38),
-                            "Copyright (c) 2023-2024, NVIDIA CORPORATION",
+                            f"Copyright (c) {2023}-{2024}, NVIDIA CORPORATION",
                         ),
                     ],
                 ),
@@ -1586,16 +1589,16 @@ def test_strip_copyright(content, expected_stripped):
             "M",
             "file1.txt",
             dedent(
-                """
-                SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                SPDX-FileCopyrightText: Copyright (c) {2024} NVIDIA CORPORATION
                 SPDX-License-Identifier: BSD-3-Clause
                 This file has not been changed
                 """
             ),
             "file1.txt",
             dedent(
-                """
-                SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                SPDX-FileCopyrightText: Copyright (c) {2024} NVIDIA CORPORATION
                 SPDX-License-Identifier: BSD-3-Clause
                 This file has been changed
                 """
@@ -1620,15 +1623,15 @@ def test_strip_copyright(content, expected_stripped):
             "M",
             "file1.txt",
             dedent(
-                """
-                Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2024} NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
             "file1.txt",
             dedent(
-                """
-                Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2024} NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
@@ -1641,17 +1644,17 @@ def test_strip_copyright(content, expected_stripped):
             "M",
             "file1.txt",
             dedent(
-                """
-                // Copyright (c) 2024 NVIDIA CORPORATION
-                // Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                // Copyright (c) {2024} NVIDIA CORPORATION
+                // Copyright (c) {2023} NVIDIA CORPORATION
                 // This file has not been changed
                 """
             ),
             "file1.txt",
             dedent(
-                """
-                // Copyright (c) 2024 NVIDIA CORPORATION
-                // Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                // Copyright (c) {2024} NVIDIA CORPORATION
+                // Copyright (c) {2023} NVIDIA CORPORATION
                 // This file has not been changed
                 """
             ),
@@ -1685,16 +1688,16 @@ def test_strip_copyright(content, expected_stripped):
             "M",
             "file1.txt",
             dedent(
-                """
-                SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                SPDX-FileCopyrightText: Copyright (c) {2024} NVIDIA CORPORATION
                 SPDX-License-Identifier: Apache-2.0
                 This file has not been changed
                 """
             ),
             "file1.txt",
             dedent(
-                """
-                SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                SPDX-FileCopyrightText: Copyright (c) {2024} NVIDIA CORPORATION
                 SPDX-License-Identifier: Apache-2.0
                 This file has not been changed
                 """
@@ -1728,8 +1731,8 @@ def test_strip_copyright(content, expected_stripped):
                         Replacement(
                             (0, 0),
                             dedent(
-                                """\
-                                # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                f"""\
+                                # SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION. All rights reserved.
                                 # SPDX-License-Identifier: Apache-2.0
                                 """  # noqa: E501
                             ),
@@ -1743,16 +1746,16 @@ def test_strip_copyright(content, expected_stripped):
             "M",
             "file1.cpp",
             dedent(
-                """
-                /* SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                /* SPDX-FileCopyrightText: Copyright (c) {2024} NVIDIA CORPORATION
                  */
                 This file has not been changed
                 """  # noqa: E501
             ),
             "file1.cpp",
             dedent(
-                """
-                /* SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                /* SPDX-FileCopyrightText: Copyright (c) {2024} NVIDIA CORPORATION
                  */
                 This file has been changed
                 """  # noqa: E501
@@ -1777,15 +1780,15 @@ def test_strip_copyright(content, expected_stripped):
             "M",
             "file1.txt",
             dedent(
-                """
-                Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                Copyright (c) {2023} NVIDIA CORPORATION
                 This file has not been changed
                 """
             ),
             "file1.txt",
             dedent(
-                """
-                SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                SPDX-FileCopyrightText: Copyright (c) {2023} NVIDIA CORPORATION
                 SPDX-License-Identifier: Apache-2.0
                 This file has not been changed
                 """
@@ -1799,8 +1802,8 @@ def test_strip_copyright(content, expected_stripped):
             "M",
             "file1.txt",
             dedent(
-                """
-                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                # SPDX-FileCopyrightText: Copyright (c) {2023} NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 #
                 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -1819,8 +1822,8 @@ def test_strip_copyright(content, expected_stripped):
             ),
             "file1.txt",
             dedent(
-                """
-                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                # SPDX-FileCopyrightText: Copyright (c) {2023} NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 #
                 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -1854,8 +1857,8 @@ def test_strip_copyright(content, expected_stripped):
             "M",
             "file1.txt",
             dedent(
-                """
-                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                # SPDX-FileCopyrightText: Copyright (c) {2023} NVIDIA CORPORATION
                 #
                 # Licensed under the Apache License, Version 2.0 (the "License");
                 # you may not use this file except in compliance with the License.
@@ -1873,8 +1876,8 @@ def test_strip_copyright(content, expected_stripped):
             ),
             "file1.txt",
             dedent(
-                """
-                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                # SPDX-FileCopyrightText: Copyright (c) {2023} NVIDIA CORPORATION
                 #
                 # Licensed under the Apache License, Version 2.0 (the "License");
                 # you may not use this file except in compliance with the License.
@@ -1916,8 +1919,8 @@ def test_strip_copyright(content, expected_stripped):
             "M",
             "file1.txt",
             dedent(
-                """
-                # SPDX-FileCopyrightText: Copyright (c) 2023 NVIDIA CORPORATION
+                f"""
+                # SPDX-FileCopyrightText: Copyright (c) {2023} NVIDIA CORPORATION
                 #
                 # Licensed under the Apache License, Version 2.0 (the "License");
                 # you may not use this file except in compliance with the License.
@@ -1935,8 +1938,8 @@ def test_strip_copyright(content, expected_stripped):
             ),
             "file1.txt",
             dedent(
-                """
-                # SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION
+                f"""
+                # SPDX-FileCopyrightText: Copyright (c) {2023}-{2024}, NVIDIA CORPORATION
                 #
                 # Licensed under the Apache License, Version 2.0 (the "License");
                 # you may not use this file except in compliance with the License.
@@ -2012,8 +2015,8 @@ def test_strip_copyright(content, expected_stripped):
                         Replacement(
                             (0, 0),
                             dedent(
-                                """\
-                                # SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION. All rights reserved.
+                                f"""\
+                                # SPDX-FileCopyrightText: Copyright (c) {2023}-{2024}, NVIDIA CORPORATION. All rights reserved.
                                 # SPDX-License-Identifier: Apache-2.0
 
                                 """  # noqa: E501
@@ -2040,8 +2043,8 @@ def test_strip_copyright(content, expected_stripped):
                         Replacement(
                             (10, 10),
                             dedent(
-                                """\
-                                # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                f"""\
+                                # SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION. All rights reserved.
                                 # SPDX-License-Identifier: Apache-2.0
 
                                 """  # noqa: E501
@@ -2122,8 +2125,8 @@ def test_strip_copyright(content, expected_stripped):
                         Replacement(
                             (0, 0),
                             dedent(
-                                """\
-                                REM SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                f"""\
+                                REM SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION. All rights reserved.
                                 REM SPDX-License-Identifier: Apache-2.0
 
                                 """  # noqa: E501
@@ -2150,9 +2153,9 @@ def test_strip_copyright(content, expected_stripped):
                         Replacement(
                             (0, 0),
                             dedent(
-                                """\
+                                f"""\
                                 <!--
-                                SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION. All rights reserved.
                                 SPDX-License-Identifier: Apache-2.0
                                 -->
 
@@ -2180,9 +2183,9 @@ def test_strip_copyright(content, expected_stripped):
                         Replacement(
                             (0, 0),
                             dedent(
-                                """\
+                                f"""\
                                 /*
-                                 * SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                 * SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION. All rights reserved.
                                  * SPDX-License-Identifier: Apache-2.0
                                  */
 
@@ -2210,9 +2213,9 @@ def test_strip_copyright(content, expected_stripped):
                         Replacement(
                             (0, 0),
                             dedent(
-                                """\
+                                f"""\
                                 # cmake-format: off
-                                # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                # SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION. All rights reserved.
                                 # SPDX-License-Identifier: Apache-2.0
                                 # cmake-format: on
 
@@ -2240,8 +2243,8 @@ def test_strip_copyright(content, expected_stripped):
                         Replacement(
                             (0, 0),
                             dedent(
-                                """\
-                                # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                f"""\
+                                # SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION. All rights reserved.
                                 # SPDX-License-Identifier: Apache-2.0
                                 """  # noqa: E501
                             ),
@@ -2284,8 +2287,8 @@ def test_strip_copyright(content, expected_stripped):
             None,
             "file.cmake",
             dedent(
-                """
-                # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                # SPDX-FileCopyrightText: Copyright (c) {2024} NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
 
                 # No cmake-format comments
@@ -2323,8 +2326,8 @@ def test_strip_copyright(content, expected_stripped):
             None,
             "file.cmake",
             dedent(
-                """
-                # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                # SPDX-FileCopyrightText: Copyright (c) {2024} NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 #
                 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -2381,8 +2384,8 @@ def test_strip_copyright(content, expected_stripped):
             None,
             "file.cmake",
             dedent(
-                """
-                # Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                # Copyright (c) {2024} NVIDIA CORPORATION
                 #
                 # Licensed under the Apache License, Version 2.0 (the "License");
                 # you may not use this file except in compliance with the License.
@@ -2455,8 +2458,8 @@ def test_strip_copyright(content, expected_stripped):
             None,
             "file.cmake",
             dedent(
-                """
-                # Copyright (c) 2024 NVIDIA CORPORATION
+                f"""
+                # Copyright (c) {2024} NVIDIA CORPORATION
 
                 # No cmake-format comments
                 """
@@ -2511,9 +2514,9 @@ def test_strip_copyright(content, expected_stripped):
             None,
             "file.cmake",
             dedent(
-                """
+                f"""
                 # cmake-format: off
-                # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION
+                # SPDX-FileCopyrightText: Copyright (c) {2024} NVIDIA CORPORATION
                 # SPDX-License-Identifier: Apache-2.0
                 # cmake-format: on
 
@@ -2531,9 +2534,9 @@ def test_strip_copyright(content, expected_stripped):
             None,
             "file.cmake",
             dedent(
-                """
+                f"""
                 # cmake-format: off
-                # Copyright (c) 2024 NVIDIA CORPORATION
+                # Copyright (c) {2024} NVIDIA CORPORATION
                 #
                 # Licensed under the Apache License, Version 2.0 (the "License");
                 # you may not use this file except in compliance with the License.
@@ -3571,7 +3574,7 @@ def test_check_copyright(
     def file_contents(contents):
         return dedent(
             f"""\
-            Copyright (c) 2021-2023 NVIDIA CORPORATION
+            Copyright (c) {2021}-{2023} NVIDIA CORPORATION
             {contents}
             """
         )

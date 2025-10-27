@@ -68,6 +68,5 @@ repos:
             [.]gitignore$
         exclude: |
           (?x)^(
-            tests/examples/|
-            tests/rapids_pre_commit_hooks/test_copyright[.]py$
+            tests/examples/
           )
