@@ -1742,7 +1742,6 @@ def test_strip_copyright(content, expected_stripped):
                                 """\
                                 # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
                                 # SPDX-License-Identifier: Apache-2.0
-
                                 """  # noqa: E501
                             ),
                         ),
@@ -2068,6 +2067,60 @@ def test_strip_copyright(content, expected_stripped):
             "A",
             None,
             None,
+            "file.sh",
+            "#!/bin/sh\n\nNo copyright notice",
+            True,
+            False,
+            [
+                LintWarning(
+                    (0, 0),
+                    "no copyright notice found",
+                    replacements=[
+                        Replacement(
+                            (10, 10),
+                            dedent(
+                                """\
+                                # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                # SPDX-License-Identifier: Apache-2.0
+                                """  # noqa: E501
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-added-with-no-copyright-notice-shebang-second-line-blank",
+        ),
+        pytest.param(
+            "A",
+            None,
+            None,
+            "file.sh",
+            "#!/bin/sh\n",
+            True,
+            False,
+            [
+                LintWarning(
+                    (0, 0),
+                    "no copyright notice found",
+                    replacements=[
+                        Replacement(
+                            (10, 10),
+                            dedent(
+                                """\
+                                # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                # SPDX-License-Identifier: Apache-2.0
+                                """  # noqa: E501
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-added-with-no-copyright-notice-shebang-no-contents",
+        ),
+        pytest.param(
+            "A",
+            None,
+            None,
             "file.bat",
             "No copyright notice",
             True,
@@ -2208,6 +2261,33 @@ def test_strip_copyright(content, expected_stripped):
                 ),
             ],
             id="spdx-added-with-no-copyright-notice-empty-file",
+        ),
+        pytest.param(
+            "A",
+            None,
+            None,
+            "file.txt",
+            "\nNo copyright notice",
+            True,
+            False,
+            [
+                LintWarning(
+                    (0, 0),
+                    "no copyright notice found",
+                    replacements=[
+                        Replacement(
+                            (0, 0),
+                            dedent(
+                                """\
+                                # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                # SPDX-License-Identifier: Apache-2.0
+                                """  # noqa: E501
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+            id="spdx-added-with-no-copyright-notice-first-line-blank",
         ),
         pytest.param(
             "A",
