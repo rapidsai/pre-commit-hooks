@@ -1197,6 +1197,27 @@ def test_strip_copyright(content, expected_stripped):
             id="unchanged-with-copyright-update",
         ),
         pytest.param(
+            "M",
+            "file.txt",
+            dedent(
+                f"""
+                Copyright (c) {2021}-{2023} NVIDIA CORPORATION
+                This file has not been changed
+                """
+            ),
+            "file.txt",
+            dedent(
+                f"""
+                Copyright (c) {2021}-{2023} NVIDIA CORPORATION. All rights reserved.
+                This file has not been changed
+                """  # noqa: E501
+            ),
+            False,
+            False,
+            [],
+            id="unchanged-with-copyright-affiliates-update",
+        ),
+        pytest.param(
             "R",
             "file1.txt",
             dedent(
