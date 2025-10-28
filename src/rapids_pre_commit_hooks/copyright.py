@@ -360,8 +360,8 @@ def apply_copyright_revert(
         "copyright is not out of date and should not be updated",
     )
     w.add_replacement(
-        new_match.full_copyright_text_span,
-        old_content[slice(*old_match.full_copyright_text_span)],
+        new_match.nvidia_copyright_text_span,
+        old_content[slice(*old_match.nvidia_copyright_text_span)],
     )
     add_copy_rename_note(linter, w, change_type, old_filename)
 
@@ -686,9 +686,11 @@ def apply_copyright_check(
                     old_copyright_matches, new_copyright_matches
                 ):
                     if (
-                        old_content[slice(*old_match.full_copyright_text_span)]
+                        old_content[
+                            slice(*old_match.nvidia_copyright_text_span)
+                        ]
                         != linter.content[
-                            slice(*new_match.full_copyright_text_span)
+                            slice(*new_match.nvidia_copyright_text_span)
                         ]
                     ):
                         apply_copyright_revert(
