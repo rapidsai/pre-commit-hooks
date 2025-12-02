@@ -40,6 +40,12 @@
         pyproject[.]toml$|
         setup[.]cfg$
   args: [--fix]
+- id: verify-hardcoded-version
+  name: verify-hardcoded-version
+  description: make sure RAPIDS version is not hard-coded in files
+  entry: verify-hardcoded-version
+  language: python
+  args: [--fix]
 - id: verify-pyproject-license
   name: verify-pyproject-license
   description: make sure pyproject.toml license is correct
