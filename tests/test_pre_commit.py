@@ -48,7 +48,7 @@ def set_cwd(cwd):
 
 @pytest.fixture
 def git_repo(tmp_path):
-    repo = git.Repo.init(tmp_path)
+    repo = git.Repo.init(tmp_path, initial_branch="main")
     with repo.config_writer() as w:
         w.set_value("user", "name", "RAPIDS Test Fixtures")
         w.set_value("user", "email", "testfixtures@rapids.ai")
@@ -66,8 +66,8 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
                 )
 
     example_dir = os.path.join(EXAMPLES_DIR, hook_name, expected_status)
-    master_dir = os.path.join(example_dir, "master")
-    shutil.copytree(master_dir, git_repo.working_tree_dir, dirs_exist_ok=True)
+    main_dir = os.path.join(example_dir, "main")
+    shutil.copytree(main_dir, git_repo.working_tree_dir, dirs_exist_ok=True)
 
     try:
         f = open(os.path.join(example_dir, "metadata.yaml"))
@@ -109,7 +109,7 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
         )
     git_repo.index.add(".pre-commit-config.yaml")
 
-    git_repo.index.add(list(list_files(master_dir)))
+    git_repo.index.add(list(list_files(main_dir)))
     git_repo.index.commit(
         "Initial commit",
         commit_date=datetime.datetime(
@@ -122,7 +122,7 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
         git_repo.head.reference = git_repo.create_head(
             "branch", git_repo.head.commit
         )
-        git_repo.index.remove(list(list_files(master_dir)), working_tree=True)
+        git_repo.index.remove(list(list_files(main_dir)), working_tree=True)
         shutil.copytree(
             branch_dir, git_repo.working_tree_dir, dirs_exist_ok=True
         )
@@ -142,7 +142,8 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
             [sys.executable, "-m", "pre_commit", "run", hook_name, "-a"],
             env={
                 **os.environ,
-                "TARGET_BRANCH": "master",
+                "RAPIDS_COPYRIGHT_FORCE_SPDX": "0",
+                "TARGET_BRANCH": "main",
                 "RAPIDS_TEST_YEAR": "2024",
             },
         )
