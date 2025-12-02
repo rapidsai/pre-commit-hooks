@@ -8,7 +8,6 @@ import os.path
 import shutil
 import subprocess
 import sys
-from collections.abc import Callable
 from functools import cache
 from textwrap import dedent
 
@@ -23,12 +22,6 @@ with open(os.path.join(HOOKS_REPO_DIR, ".pre-commit-hooks.yaml")) as f:
     ALL_HOOKS = [hook["id"] for hook in yaml.safe_load(f)]
 HOOKS_REPO = git.Repo(HOOKS_REPO_DIR)
 EXAMPLES_DIR = os.path.join(os.path.dirname(__file__), "examples")
-
-
-maybe_skip: Callable = pytest.mark.skipif(
-    any(HOOKS_REPO.head.commit.diff(other=None)),
-    reason="Hooks repo has modified files that haven't been committed",
-)
 
 
 @cache
@@ -55,7 +48,24 @@ def git_repo(tmp_path):
     return repo
 
 
-def run_pre_commit(git_repo, hook_name, expected_status, exc):
+@pytest.mark.skipif(
+    any(HOOKS_REPO.head.commit.diff(other=None)),
+    reason="Hooks repo has modified files that haven't been committed",
+)
+@pytest.mark.parametrize(
+    ["expected_status", "context"],
+    [
+        pytest.param("pass", contextlib.nullcontext(), id="pass"),
+        pytest.param(
+            "fail", pytest.raises(subprocess.CalledProcessError), id="fail"
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "hook_name",
+    ALL_HOOKS,
+)
+def test_pre_commit(git_repo, hook_name, expected_status, context):
     def list_files(top):
         for dirpath, _, filenames in os.walk(top):
             for filename in filenames:
@@ -136,7 +146,7 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
 
     with (
         set_cwd(git_repo.working_tree_dir),
-        pytest.raises(exc) if exc else contextlib.nullcontext(),
+        context,
     ):
         subprocess.check_call(
             [sys.executable, "-m", "pre_commit", "run", hook_name, "-a"],
@@ -147,21 +157,3 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
                 "RAPIDS_TEST_YEAR": "2024",
             },
         )
-
-
-@pytest.mark.parametrize(
-    "hook_name",
-    ALL_HOOKS,
-)
-@maybe_skip
-def test_pre_commit_pass(git_repo, hook_name):
-    run_pre_commit(git_repo, hook_name, "pass", None)
-
-
-@pytest.mark.parametrize(
-    "hook_name",
-    ALL_HOOKS,
-)
-@maybe_skip
-def test_pre_commit_fail(git_repo, hook_name):
-    run_pre_commit(git_repo, hook_name, "fail", subprocess.CalledProcessError)
