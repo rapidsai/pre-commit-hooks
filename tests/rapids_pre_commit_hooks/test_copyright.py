@@ -2798,8 +2798,8 @@ def test_get_target_branch_upstream_commit(git_repo):
     with tempfile.TemporaryDirectory() as remote_dir_1, \
          tempfile.TemporaryDirectory() as remote_dir_2:
         # fmt: on
-        remote_repo_1 = git.Repo.init(remote_dir_1)
-        remote_repo_2 = git.Repo.init(remote_dir_2)
+        remote_repo_1 = git.Repo.init(remote_dir_1, initial_branch="main")
+        remote_repo_2 = git.Repo.init(remote_dir_2, initial_branch="main")
 
         remote_1_main = remote_repo_1.head.reference
 
