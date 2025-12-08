@@ -15,128 +15,150 @@ from rapids_pre_commit_hooks.lint import LintWarning, Linter
     [
         pytest.param(
             "26.02",
-            "26.02.00",
+            (26, 2, 0),
             [
                 {
-                    "full_version": (0, 5),
-                    "major_minor_version": (0, 5),
-                    "patch_version": (-1, -1),
+                    "full": (0, 5),
+                    "major": (0, 2),
+                    "minor": (3, 5),
+                    "patch": (-1, -1),
                 },
             ],
             id="full-contents",
         ),
         pytest.param(
             "a26.02",
-            "26.02.00",
+            (26, 2, 0),
             [
                 {
-                    "full_version": (1, 6),
-                    "major_minor_version": (1, 6),
-                    "patch_version": (-1, -1),
+                    "full": (1, 6),
+                    "major": (1, 3),
+                    "minor": (4, 6),
+                    "patch": (-1, -1),
                 },
             ],
             id="text-before",
         ),
         pytest.param(
             "26.02a",
-            "26.02.00",
+            (26, 2, 0),
             [
                 {
-                    "full_version": (0, 5),
-                    "major_minor_version": (0, 5),
-                    "patch_version": (-1, -1),
+                    "full": (0, 5),
+                    "major": (0, 2),
+                    "minor": (3, 5),
+                    "patch": (-1, -1),
                 },
             ],
             id="text-after",
         ),
         pytest.param(
             "a26.02a",
-            "26.02.00",
+            (26, 2, 0),
             [
                 {
-                    "full_version": (1, 6),
-                    "major_minor_version": (1, 6),
-                    "patch_version": (-1, -1),
+                    "full": (1, 6),
+                    "major": (1, 3),
+                    "minor": (4, 6),
+                    "patch": (-1, -1),
                 },
             ],
             id="text-before-and-after",
         ),
         pytest.param(
             "26.02\n26.02",
-            "26.02.00",
+            (26, 2, 0),
             [
                 {
-                    "full_version": (0, 5),
-                    "major_minor_version": (0, 5),
-                    "patch_version": (-1, -1),
+                    "full": (0, 5),
+                    "major": (0, 2),
+                    "minor": (3, 5),
+                    "patch": (-1, -1),
                 },
                 {
-                    "full_version": (6, 11),
-                    "major_minor_version": (6, 11),
-                    "patch_version": (-1, -1),
+                    "full": (6, 11),
+                    "major": (6, 8),
+                    "minor": (9, 11),
+                    "patch": (-1, -1),
                 },
             ],
             id="multiple-instances",
         ),
         pytest.param(
             "26.02.00",
-            "26.02.00",
+            (26, 2, 0),
             [
                 {
-                    "full_version": (0, 8),
-                    "major_minor_version": (0, 5),
-                    "patch_version": (6, 8),
+                    "full": (0, 8),
+                    "major": (0, 2),
+                    "minor": (3, 5),
+                    "patch": (6, 8),
                 },
             ],
             id="patch-version",
         ),
         pytest.param(
             "26.02.01",
-            "26.02.00",
+            (26, 2, 0),
             [],
             id="wrong-patch-version",
         ),
         pytest.param(
             "26.04",
-            "26.02.00",
+            (26, 2, 0),
             [],
             id="wrong-major-minor-version",
         ),
         pytest.param(
             "0.48",
-            "0.48.00",
+            (0, 48, 0),
             [
                 {
-                    "full_version": (0, 4),
-                    "major_minor_version": (0, 4),
-                    "patch_version": (-1, -1),
+                    "full": (0, 4),
+                    "major": (0, 1),
+                    "minor": (2, 4),
+                    "patch": (-1, -1),
                 },
             ],
             id="ucxx-version",
         ),
         pytest.param(
             "0.48.00",
-            "0.48.00",
+            (0, 48, 0),
             [
                 {
-                    "full_version": (0, 7),
-                    "major_minor_version": (0, 4),
-                    "patch_version": (5, 7),
+                    "full": (0, 7),
+                    "major": (0, 1),
+                    "minor": (2, 4),
+                    "patch": (5, 7),
                 },
             ],
             id="ucxx-patch-version",
         ),
         pytest.param(
             "026.02",
-            "26.02.00",
+            (26, 2, 0),
             [],
             id="number-before",
         ),
         pytest.param(
             "26.020",
-            "26.02.00",
+            (26, 2, 0),
             [],
             id="number-after",
+        ),
+        pytest.param(
+            "26.2.0",
+            (26, 2, 0),
+            [
+                {
+                    "full": (0, 6),
+                    "major": (0, 2),
+                    "minor": (3, 4),
+                    "patch": (5, 6),
+                },
+            ],
+            id="no-zero-prefix",
         ),
     ],
 )
@@ -154,13 +176,13 @@ def test_find_hardcoded_versions(content, version, matches):
     [
         pytest.param(
             "26.02.00\n",
-            "26.02.00",
+            (26, 2, 0),
             contextlib.nullcontext(),
             id="valid-rapids-version",
         ),
         pytest.param(
             "0.48.00\n",
-            "0.48.00",
+            (0, 48, 0),
             contextlib.nullcontext(),
             id="valid-ucxx-version",
         ),
@@ -213,7 +235,7 @@ def test_read_version_file(tmp_path, content, version, context):
             "file.txt",
             "RAPIDS 26.02\n",
             "VERSION",
-            "26.02.00",
+            (26, 2, 0),
             True,
             [
                 LintWarning(
@@ -227,7 +249,7 @@ def test_read_version_file(tmp_path, content, version, context):
             "file.txt",
             "RAPIDS 26.02.00\n",
             "VERSION",
-            "26.02.00",
+            (26, 2, 0),
             True,
             [
                 LintWarning(
@@ -241,7 +263,7 @@ def test_read_version_file(tmp_path, content, version, context):
             "file.txt",
             "RAPIDS 26.02\n",
             "RAPIDS_VERSION",
-            "26.02.00",
+            (26, 2, 0),
             True,
             [
                 LintWarning(
@@ -256,7 +278,7 @@ def test_read_version_file(tmp_path, content, version, context):
             "file.txt",
             "RAPIDS 26.04\n",
             "VERSION",
-            "26.02.00",
+            (26, 2, 0),
             True,
             [],
             id="version-not-found",
@@ -265,7 +287,7 @@ def test_read_version_file(tmp_path, content, version, context):
             "VERSION",
             "26.02.00\n",
             "VERSION",
-            "26.02.00",
+            (26, 2, 0),
             False,
             [],
             id="skip-version-file",

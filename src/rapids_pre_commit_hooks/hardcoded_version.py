@@ -12,36 +12,37 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
 HARDCODED_VERSION_RE: re.Pattern = re.compile(
-    r"(?:^|\D)(?P<full_version>(?P<major_minor_version>\d{1,2}\.\d{2})(?:\.(?P<patch_version>\d{2}))?)(?=\D|$)"
+    r"(?:^|\D)(?P<full>(?P<major>\d{1,2})\.(?P<minor>\d{1,2})(?:\.(?P<patch>\d{1,2}))?)(?=\D|$)"
 )
 
 
 def find_hardcoded_versions(
-    content: str, full_version: str
+    content: str, full_version: tuple[int, int, int]
 ) -> "Iterator[re.Match[str]]":
-    search_match = HARDCODED_VERSION_RE.search(full_version)
-    assert search_match
-    assert search_match.span() == (0, len(full_version))
-    major_minor_version = search_match.group("major_minor_version")
+    major, minor, patch = full_version
     return (
         match
         for match in HARDCODED_VERSION_RE.finditer(content)
-        if match.group("full_version") == full_version
-        or (
-            not match.group("patch_version")
-            and match.group("major_minor_version") == major_minor_version
-        )
+        if int(match.group("major")) == major
+        and int(match.group("minor")) == minor
+        and (not match.group("patch") or int(match.group("patch")) == patch)
     )
 
 
-def read_version_file(filename: "str | os.PathLike[str]") -> str:
+def read_version_file(
+    filename: "str | os.PathLike[str]",
+) -> tuple[int, int, int]:
     with open(filename) as f:
         contents = f.read()
     match = HARDCODED_VERSION_RE.search(contents)
     assert match
-    assert contents == f"{match.group('full_version')}\n"
-    assert match.group("patch_version")
-    return match.group("full_version")
+    assert contents == f"{match.group('full')}\n"
+    assert match.group("patch")
+    return (
+        int(match.group("major")),
+        int(match.group("minor")),
+        int(match.group("patch")),
+    )
 
 
 def check_hardcoded_version(
@@ -52,7 +53,7 @@ def check_hardcoded_version(
     full_version = read_version_file(args.version_file)
     for match in find_hardcoded_versions(linter.content, full_version):
         linter.add_warning(
-            match.span("full_version"),
+            match.span("full"),
             f"do not hard-code version, read from {args.version_file} "
             "file instead",
         )
