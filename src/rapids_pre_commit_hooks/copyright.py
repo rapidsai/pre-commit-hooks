@@ -584,8 +584,8 @@ def apply_copyright_insert(
         lines = [
             (
                 "SPDX-FileCopyrightText: Copyright (c) "
-                f"{first_year_str}{last_year}, NVIDIA CORPORATION. All "
-                "rights reserved."
+                f"{first_year_str}{last_year}, NVIDIA CORPORATION & "
+                "AFFILIATES. All rights reserved."
             ),
             f"SPDX-License-Identifier: {args.spdx_license_identifier}",
         ]
@@ -593,7 +593,7 @@ def apply_copyright_insert(
         lines = [
             (
                 f"Copyright (c) {first_year_str}{last_year}, NVIDIA "
-                "CORPORATION. All rights reserved."
+                "CORPORATION & AFFILIATES. All rights reserved."
             ),
         ]
     if CMAKE_FILENAME_RE.search(linter.filename):

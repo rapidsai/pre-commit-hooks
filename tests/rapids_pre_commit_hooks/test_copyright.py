@@ -983,7 +983,7 @@ def test_strip_copyright(content, expected_stripped):
                     replacements=[
                         Replacement(
                             (0, 0),
-                            f"# Copyright (c) {2024}, NVIDIA CORPORATION. All rights reserved.\n\n",  # noqa: E501
+                            f"# Copyright (c) {2024}, NVIDIA CORPORATION & AFFILIATES. All rights reserved.\n\n",  # noqa: E501
                         ),
                     ],
                 ),
@@ -1016,7 +1016,7 @@ def test_strip_copyright(content, expected_stripped):
                     replacements=[
                         Replacement(
                             (0, 0),
-                            f"# Copyright (c) {2023}-{2024}, NVIDIA CORPORATION. All rights reserved.\n\n",  # noqa: E501
+                            f"# Copyright (c) {2023}-{2024}, NVIDIA CORPORATION & AFFILIATES. All rights reserved.\n\n",  # noqa: E501
                         ),
                     ],
                 ),
@@ -1753,7 +1753,7 @@ def test_strip_copyright(content, expected_stripped):
                             (0, 0),
                             dedent(
                                 f"""\
-                                # SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION. All rights reserved.
+                                # SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
                                 # SPDX-License-Identifier: Apache-2.0
                                 """  # noqa: E501
                             ),
@@ -2037,7 +2037,7 @@ def test_strip_copyright(content, expected_stripped):
                             (0, 0),
                             dedent(
                                 f"""\
-                                # SPDX-FileCopyrightText: Copyright (c) {2023}-{2024}, NVIDIA CORPORATION. All rights reserved.
+                                # SPDX-FileCopyrightText: Copyright (c) {2023}-{2024}, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
                                 # SPDX-License-Identifier: Apache-2.0
 
                                 """  # noqa: E501
@@ -2065,7 +2065,7 @@ def test_strip_copyright(content, expected_stripped):
                             (10, 10),
                             dedent(
                                 f"""\
-                                # SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION. All rights reserved.
+                                # SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
                                 # SPDX-License-Identifier: Apache-2.0
 
                                 """  # noqa: E501
@@ -2093,7 +2093,7 @@ def test_strip_copyright(content, expected_stripped):
                             (10, 10),
                             dedent(
                                 """\
-                                # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
                                 # SPDX-License-Identifier: Apache-2.0
                                 """  # noqa: E501
                             ),
@@ -2120,7 +2120,7 @@ def test_strip_copyright(content, expected_stripped):
                             (10, 10),
                             dedent(
                                 """\
-                                # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
                                 # SPDX-License-Identifier: Apache-2.0
                                 """  # noqa: E501
                             ),
@@ -2147,7 +2147,7 @@ def test_strip_copyright(content, expected_stripped):
                             (0, 0),
                             dedent(
                                 f"""\
-                                REM SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION. All rights reserved.
+                                REM SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
                                 REM SPDX-License-Identifier: Apache-2.0
 
                                 """  # noqa: E501
@@ -2176,7 +2176,7 @@ def test_strip_copyright(content, expected_stripped):
                             dedent(
                                 f"""\
                                 <!--
-                                SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION. All rights reserved.
+                                SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
                                 SPDX-License-Identifier: Apache-2.0
                                 -->
 
@@ -2206,7 +2206,7 @@ def test_strip_copyright(content, expected_stripped):
                             dedent(
                                 f"""\
                                 /*
-                                 * SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION. All rights reserved.
+                                 * SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
                                  * SPDX-License-Identifier: Apache-2.0
                                  */
 
@@ -2236,7 +2236,7 @@ def test_strip_copyright(content, expected_stripped):
                             dedent(
                                 f"""\
                                 # cmake-format: off
-                                # SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION. All rights reserved.
+                                # SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
                                 # SPDX-License-Identifier: Apache-2.0
                                 # cmake-format: on
 
@@ -2265,7 +2265,7 @@ def test_strip_copyright(content, expected_stripped):
                             (0, 0),
                             dedent(
                                 f"""\
-                                # SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION. All rights reserved.
+                                # SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
                                 # SPDX-License-Identifier: Apache-2.0
                                 """  # noqa: E501
                             ),
@@ -2292,7 +2292,7 @@ def test_strip_copyright(content, expected_stripped):
                             (0, 0),
                             dedent(
                                 """\
-                                # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION. All rights reserved.
+                                # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
                                 # SPDX-License-Identifier: Apache-2.0
                                 """  # noqa: E501
                             ),
