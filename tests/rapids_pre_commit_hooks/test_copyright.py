@@ -2291,8 +2291,8 @@ def test_strip_copyright(content, expected_stripped):
                         Replacement(
                             (0, 0),
                             dedent(
-                                """\
-                                # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+                                f"""\
+                                # SPDX-FileCopyrightText: Copyright (c) {2024}, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
                                 # SPDX-License-Identifier: Apache-2.0
                                 """  # noqa: E501
                             ),
