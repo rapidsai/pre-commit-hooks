@@ -8,11 +8,14 @@ import dataclasses
 import functools
 import re
 import warnings
-from collections.abc import Callable
 from itertools import pairwise
+from typing import TYPE_CHECKING
 
 from rich.console import Console
 from rich.markup import escape
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
 
 _PosType = tuple[int, int]
 
@@ -133,14 +136,24 @@ class Lines:
 
 
 class Linter:
-    NEWLINE_RE: re.Pattern = re.compile("[\r\n]")
+    _NEWLINE_RE: re.Pattern = re.compile(r"[\r\n]")
+    _DISABLE_ENABLE_DIRECTIVE_RE: re.Pattern = re.compile(
+        r"\brapids-pre-commit-hooks: *"
+        r"(?P<directive_name>enable|disable)"
+        r"(?:-(?P<scope>next-line))?\b"
+        r"(?: *\[(?P<warning_names>[\w-]+(?:,[\w-]+)*)\])?"
+    )
 
-    def __init__(self, filename: str, content: str) -> None:
+    def __init__(self, filename: str, content: str, warning_name: str) -> None:
         self.filename: str = filename
         self.content: str = content
+        self.warning_name: str = warning_name
         self.warnings: list[LintWarning] = []
         self.console: "Console" = Console(highlight=False)
-        self.lines = Lines(content)
+        self.lines: "Lines" = Lines(content)
+        self.disabled_enabled_boundaries = (
+            Linter.get_disabled_enabled_boundaries(self.lines, warning_name)
+        )
 
     def add_warning(self, pos: _PosType, msg: str) -> LintWarning:
         w = LintWarning(pos, msg)
@@ -153,6 +166,9 @@ class Linter:
                 replacement
                 for warning in self.warnings
                 for replacement in warning.replacements
+                if Linter.is_warning_range_enabled(
+                    self.disabled_enabled_boundaries, warning.pos
+                )
             ),
             key=lambda replacement: replacement.pos,
         )
@@ -190,7 +206,13 @@ class Linter:
 
     def print_warnings(self, fix_applied: bool = False) -> None:
         sorted_warnings = sorted(
-            self.warnings, key=lambda warning: warning.pos
+            filter(
+                lambda w: Linter.is_warning_range_enabled(
+                    self.disabled_enabled_boundaries, w.pos
+                ),
+                self.warnings,
+            ),
+            key=lambda warning: warning.pos,
         )
 
         for warning in sorted_warnings:
@@ -203,7 +225,7 @@ class Linter:
                 line_index = self.lines.line_for_pos(replacement.pos[0])
                 line_pos = self.lines.pos[line_index]
                 newtext = replacement.newtext
-                if match := self.NEWLINE_RE.search(newtext):
+                if match := self._NEWLINE_RE.search(newtext):
                     newtext = newtext[: match.start()]
                     long = True
                 else:
@@ -260,14 +282,86 @@ class Linter:
                 f"{escape(self.content[right : line_pos[1]])}[/green]"
             )
 
+    @classmethod
+    def get_disabled_enabled_boundaries(
+        cls,
+        lines: Lines,
+        warning_name: str,
+    ) -> "list[tuple[_PosType, bool]]":
+        def helper() -> "Generator[tuple[_PosType, bool]]":
+            start = 0
+            enabled = True
+            next_line_range: _PosType | None = None
+            next_line_enabled: bool | None = None
+
+            def handle_end(end: int) -> "Generator[tuple[_PosType, bool]]":
+                nonlocal next_line_range, next_line_enabled
+                if (
+                    next_line_range is not None
+                    and next_line_enabled is not None
+                    and end > next_line_range[0]
+                ):
+                    if start <= next_line_range[0]:
+                        yield ((start, next_line_range[0]), enabled)
+                    if end >= next_line_range[1]:
+                        yield next_line_range, next_line_enabled
+                        yield ((next_line_range[1], end), enabled)
+                        next_line_range = None
+                        next_line_enabled = None
+                else:
+                    yield ((start, end), enabled)
+
+            for m in Linter._DISABLE_ENABLE_DIRECTIVE_RE.finditer(
+                lines.content
+            ):
+                if m.group("warning_names") and warning_name not in m.group(
+                    "warning_names"
+                ).split(","):
+                    continue
+
+                if m.group("scope") == "next-line":
+                    this_line = lines.line_for_pos(m.start())
+                    next_line = this_line + 1
+                    next_line_range = lines.pos[next_line]
+                    next_line_enabled = m.group("directive_name") == "enable"
+                else:
+                    yield from handle_end(m.start())
+                    start = m.start()
+                    enabled = m.group("directive_name") == "enable"
+
+            yield from handle_end(len(lines.content))
+
+        return list(helper())
+
+    @classmethod
+    def is_warning_range_enabled(
+        cls, boundaries: list[tuple[_PosType, bool]], warning_range: _PosType
+    ) -> bool:
+        start = bisect.bisect_left(
+            boundaries,
+            warning_range[0],
+            key=lambda b: b[0][0],
+        )
+        end = bisect.bisect_right(
+            boundaries,
+            warning_range[1],
+            key=lambda b: b[0][1],
+        )
+        if start > 0 and boundaries[start - 1][0][1] > warning_range[0]:
+            start -= 1
+        if end < len(boundaries) and boundaries[end][0][0] < warning_range[1]:
+            end += 1
+        return any(map(lambda b: b[1], boundaries[start:end]))
+
 
 class ExecutionContext(contextlib.AbstractContextManager):
-    def __init__(self, args: argparse.Namespace) -> None:
+    def __init__(self, warning_name: str, args: argparse.Namespace) -> None:
+        self.warning_name: str = warning_name
         self.args: argparse.Namespace = args
-        self.checks: list[Callable[[Linter, argparse.Namespace], None]] = []
+        self.checks: "list[Callable[[Linter, argparse.Namespace], None]]" = []
 
     def add_check(
-        self, check: Callable[[Linter, argparse.Namespace], None]
+        self, check: "Callable[[Linter, argparse.Namespace], None]"
     ) -> None:
         self.checks.append(check)
 
@@ -288,7 +382,7 @@ class ExecutionContext(contextlib.AbstractContextManager):
                     )
                     continue
 
-            linter = Linter(file, content)
+            linter = Linter(file, content, self.warning_name)
             for check in self.checks:
                 check(linter, self.args)
 
@@ -309,7 +403,8 @@ class ExecutionContext(contextlib.AbstractContextManager):
 class LintMain:
     context_class = ExecutionContext
 
-    def __init__(self) -> None:
+    def __init__(self, warning_name: str) -> None:
+        self.warning_name: str = warning_name
         self.argparser: argparse.ArgumentParser = argparse.ArgumentParser()
         self.argparser.add_argument(
             "--fix", action="store_true", help="automatically fix warnings"
@@ -317,4 +412,6 @@ class LintMain:
         self.argparser.add_argument("files", nargs="+", metavar="file")
 
     def execute(self) -> ExecutionContext:
-        return self.context_class(self.argparser.parse_args())
+        return self.context_class(
+            self.warning_name, self.argparser.parse_args()
+        )

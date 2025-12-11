@@ -290,7 +290,7 @@ def test_check_and_mark_anchor(
 )
 def test_check_package_spec(package, content, mode, replacement):
     args = Mock(mode=mode)
-    linter = lint.Linter("dependencies.yaml", content)
+    linter = lint.Linter("dependencies.yaml", content, "verify-alpha-spec")
     loader = alpha_spec.AnchorPreservingLoader(content)
     try:
         composed = loader.get_single_node()
@@ -302,7 +302,9 @@ def test_check_package_spec(package, content, mode, replacement):
     if replacement is None:
         assert linter.warnings == []
     else:
-        expected_linter = lint.Linter("dependencies.yaml", content)
+        expected_linter = lint.Linter(
+            "dependencies.yaml", content, "verify-alpha-spec"
+        )
         expected_linter.add_warning(
             (composed.start_mark.index, composed.end_mark.index),
             f"{'add' if mode == 'development' else 'remove'} "
@@ -327,7 +329,7 @@ def test_check_package_spec_anchor():
         """
     )
     args = Mock(mode="development")
-    linter = lint.Linter("dependencies.yaml", CONTENT)
+    linter = lint.Linter("dependencies.yaml", CONTENT, "verify-alpha-spec")
     loader = alpha_spec.AnchorPreservingLoader(CONTENT)
     try:
         composed = loader.get_single_node()
@@ -335,7 +337,9 @@ def test_check_package_spec_anchor():
         loader.dispose()
     used_anchors = set()
 
-    expected_linter = lint.Linter("dependencies.yaml", CONTENT)
+    expected_linter = lint.Linter(
+        "dependencies.yaml", CONTENT, "verify-alpha-spec"
+    )
     expected_linter.add_warning(
         (2, 26), "add alpha spec for RAPIDS package cudf"
     ).add_replacement((2, 26), "&cudf cudf>=24.04,<24.06,>=0.0.0a0")
@@ -412,7 +416,7 @@ def test_check_packages(content, indices, use_anchor):
         "rapids_pre_commit_hooks.alpha_spec.check_package_spec", Mock()
     ) as mock_check_package_spec:
         args = Mock()
-        linter = lint.Linter("dependencies.yaml", content)
+        linter = lint.Linter("dependencies.yaml", content, "verify-alpha-spec")
         composed = yaml.compose(content)
         anchors = {"anchor": composed}
         used_anchors = set()
@@ -455,7 +459,7 @@ def test_check_common(content, indices):
         "rapids_pre_commit_hooks.alpha_spec.check_packages", Mock()
     ) as mock_check_packages:
         args = Mock()
-        linter = lint.Linter("dependencies.yaml", content)
+        linter = lint.Linter("dependencies.yaml", content, "verify-alpha-spec")
         anchors = Mock()
         used_anchors = Mock()
         composed = yaml.compose(content)
@@ -492,7 +496,7 @@ def test_check_matrices(content, indices):
         "rapids_pre_commit_hooks.alpha_spec.check_packages", Mock()
     ) as mock_check_packages:
         args = Mock()
-        linter = lint.Linter("dependencies.yaml", content)
+        linter = lint.Linter("dependencies.yaml", content, "verify-alpha-spec")
         anchors = Mock()
         used_anchors = Mock()
         composed = yaml.compose(content)
@@ -542,7 +546,7 @@ def test_check_specific(content, indices):
         "rapids_pre_commit_hooks.alpha_spec.check_matrices", Mock()
     ) as mock_check_matrices:
         args = Mock()
-        linter = lint.Linter("dependencies.yaml", content)
+        linter = lint.Linter("dependencies.yaml", content, "verify-alpha-spec")
         anchors = Mock()
         used_anchors = Mock()
         composed = yaml.compose(content)
@@ -608,7 +612,7 @@ def test_check_dependencies(
         ) as mock_check_specific,
     ):
         args = Mock()
-        linter = lint.Linter("dependencies.yaml", content)
+        linter = lint.Linter("dependencies.yaml", content, "verify-alpha-spec")
         anchors = Mock()
         used_anchors = Mock()
         composed = yaml.compose(content)
@@ -657,7 +661,7 @@ def test_check_root(content, indices):
         "rapids_pre_commit_hooks.alpha_spec.check_dependencies", Mock()
     ) as mock_check_dependencies:
         args = Mock()
-        linter = lint.Linter("dependencies.yaml", content)
+        linter = lint.Linter("dependencies.yaml", content, "verify-alpha-spec")
         anchors = Mock()
         used_anchors = Mock()
         composed = yaml.compose(content)
@@ -680,7 +684,7 @@ def test_check_alpha_spec():
         ) as mock_anchor_preserving_loader,
     ):
         args = Mock()
-        linter = lint.Linter("dependencies.yaml", CONTENT)
+        linter = lint.Linter("dependencies.yaml", CONTENT, "verify-alpha-spec")
         alpha_spec.check_alpha_spec(linter, args)
     mock_anchor_preserving_loader.assert_called_once_with(CONTENT)
     mock_check_root.assert_called_once_with(
@@ -708,7 +712,7 @@ def test_check_alpha_spec_integration(tmp_path):
     args = Mock(
         mode="development", rapids_version=None, rapids_version_file="VERSION"
     )
-    linter = lint.Linter("dependencies.yaml", CONTENT)
+    linter = lint.Linter("dependencies.yaml", CONTENT, "verify-alpha-spec")
     with open(os.path.join(tmp_path, "VERSION"), "w") as f:
         f.write(f"{latest_version}\n")
     with set_cwd(tmp_path):
@@ -718,7 +722,9 @@ def test_check_alpha_spec_integration(tmp_path):
     end = start + len(REPLACED)
     pos = (start, end)
 
-    expected_linter = lint.Linter("dependencies.yaml", CONTENT)
+    expected_linter = lint.Linter(
+        "dependencies.yaml", CONTENT, "verify-alpha-spec"
+    )
     expected_linter.add_warning(
         pos, "add alpha spec for RAPIDS package cudf"
     ).add_replacement(pos, "cudf>=24.04,<24.06,>=0.0.0a0")
