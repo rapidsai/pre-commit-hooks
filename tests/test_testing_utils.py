@@ -620,6 +620,7 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             + Hello
             : >g
             :   >g
+            :    !g
             """,
             dict,
             None,
