@@ -225,9 +225,9 @@ class TestLinter:
     def test_fix_disabled(self):
         content, r = parse_named_ranges(
             """\
-            +# rapids-pre-commit-hooks: disable
-            +Hello world!
-            :           ~shout
+            + # rapids-pre-commit-hooks: disable
+            + Hello world!
+            :            ~shout
             """
         )
         linter = Linter("test.txt", content, "test")
@@ -240,17 +240,17 @@ class TestLinter:
         ["content", "warning_name", "expected_boundaries"],
         [
             pytest.param(
-                ":^0",
+                ": ^0",
                 "test",
                 [True],
                 id="empty",
             ),
             pytest.param(
                 """\
-                +Hello
-                :~~~~~~0
-                +world!
-                :~~~~~~~0
+                + Hello
+                : ~~~~~~0
+                + world!
+                : ~~~~~~~0
                 """,
                 "test",
                 [True],
@@ -258,11 +258,11 @@ class TestLinter:
             ),
             pytest.param(
                 """\
-                +# rapids-pre-commit-hooks:disable
-                :~~0
-                :  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1
-                +Hello
-                :~~~~~~1
+                + # rapids-pre-commit-hooks:disable
+                : ~~0
+                :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1
+                + Hello
+                : ~~~~~~1
                 """,
                 "test",
                 [True, False],
@@ -270,11 +270,11 @@ class TestLinter:
             ),
             pytest.param(
                 """\
-                +# rapids-pre-commit-hooks: enable
-                :~~0
-                :  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1
-                +Hello
-                :~~~~~~1
+                + # rapids-pre-commit-hooks: enable
+                : ~~0
+                :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1
+                + Hello
+                : ~~~~~~1
                 """,
                 "test",
                 [True, True],
@@ -282,11 +282,11 @@ class TestLinter:
             ),
             pytest.param(
                 """\
-                +# rapids-pre-commit-hooks: disable[relevant]
-                :~~0
-                :  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1
-                +Hello
-                :~~~~~~1
+                + # rapids-pre-commit-hooks: disable[relevant]
+                : ~~0
+                :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1
+                + Hello
+                : ~~~~~~1
                 """,
                 "relevant",
                 [True, False],
@@ -294,11 +294,11 @@ class TestLinter:
             ),
             pytest.param(
                 """\
-                +# rapids-pre-commit-hooks:enable [relevant]
-                :~~0
-                :  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1
-                +Hello
-                :~~~~~~1
+                + # rapids-pre-commit-hooks:enable [relevant]
+                : ~~0
+                :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1
+                + Hello
+                : ~~~~~~1
                 """,
                 "relevant",
                 [True, True],
@@ -306,10 +306,10 @@ class TestLinter:
             ),
             pytest.param(
                 """\
-                +# rapids-pre-commit-hooks:disable [irrelevant]
-                :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
-                +Hello
-                :~~~~~~0
+                + # rapids-pre-commit-hooks:disable [irrelevant]
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + Hello
+                : ~~~~~~0
                 """,
                 "relevant",
                 [True],
@@ -317,10 +317,10 @@ class TestLinter:
             ),
             pytest.param(
                 """\
-                +# rapids-pre-commit-hooks: enable[irrelevant]
-                :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
-                +Hello
-                :~~~~~~0
+                + # rapids-pre-commit-hooks: enable[irrelevant]
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + Hello
+                : ~~~~~~0
                 """,
                 "relevant",
                 [True],
@@ -328,11 +328,11 @@ class TestLinter:
             ),
             pytest.param(
                 """\
-                +# rapids-pre-commit-hooks: disable-next-line
-                :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
-                +Hello
-                :~~~~~1
-                :     ~2
+                + # rapids-pre-commit-hooks: disable-next-line
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + Hello
+                : ~~~~~1
+                :      ~2
                 """,
                 "test",
                 [True, False, True],
@@ -340,11 +340,11 @@ class TestLinter:
             ),
             pytest.param(
                 """\
-                +# rapids-pre-commit-hooks: enable-next-line
-                :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
-                +Hello
-                :~~~~~1
-                :     ~2
+                + # rapids-pre-commit-hooks: enable-next-line
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + Hello
+                : ~~~~~1
+                :      ~2
                 """,
                 "test",
                 [True, True, True],
@@ -352,11 +352,11 @@ class TestLinter:
             ),
             pytest.param(
                 """\
-                +# rapids-pre-commit-hooks: disable-next-line[relevant]
-                :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
-                +Hello
-                :~~~~~1
-                :     ~2
+                + # rapids-pre-commit-hooks: disable-next-line[relevant]
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + Hello
+                : ~~~~~1
+                :      ~2
                 """,
                 "relevant",
                 [True, False, True],
@@ -364,11 +364,11 @@ class TestLinter:
             ),
             pytest.param(
                 """\
-                +# rapids-pre-commit-hooks: enable-next-line[relevant]
-                :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
-                +Hello
-                :~~~~~1
-                :     ~2
+                + # rapids-pre-commit-hooks: enable-next-line[relevant]
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + Hello
+                : ~~~~~1
+                :      ~2
                 """,
                 "relevant",
                 [True, True, True],
@@ -376,10 +376,10 @@ class TestLinter:
             ),
             pytest.param(
                 """\
-                +# rapids-pre-commit-hooks: disable-next-line[irrelevant]
-                :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
-                +Hello
-                :~~~~~~0
+                + # rapids-pre-commit-hooks: disable-next-line[irrelevant]
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + Hello
+                : ~~~~~~0
                 """,
                 "relevant",
                 [True],
@@ -387,10 +387,10 @@ class TestLinter:
             ),
             pytest.param(
                 """\
-                +# rapids-pre-commit-hooks: enable-next-line[irrelevant]
-                :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
-                +Hello
-                :~~~~~~0
+                + # rapids-pre-commit-hooks: enable-next-line[irrelevant]
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + Hello
+                : ~~~~~~0
                 """,
                 "relevant",
                 [True],
@@ -398,15 +398,15 @@ class TestLinter:
             ),
             pytest.param(
                 """\
-                +# rapids-pre-commit-hooks: enable-next-line rapids-pre-commit-hooks: disable-next-line rapids-pre-commit-hooks: enable
-                :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
-                :                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1
-                +# rapids-pre-commit-hooks: enable rapids-pre-commit-hooks: disable
-                :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~2
-                :                                                                  ~3
-                +# rapids-pre-commit-hooks: enable
-                :~~3
-                :  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~4
+                + # rapids-pre-commit-hooks: enable-next-line rapids-pre-commit-hooks: disable-next-line rapids-pre-commit-hooks: enable
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                :                                                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1
+                + # rapids-pre-commit-hooks: enable rapids-pre-commit-hooks: disable
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~2
+                :                                                                   ~3
+                + # rapids-pre-commit-hooks: enable
+                : ~~3
+                :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~4
                 """,  # noqa: E501
                 "test",
                 [True, True, False, False, True],
@@ -414,10 +414,10 @@ class TestLinter:
             ),
             pytest.param(
                 """\
-                +# prapids-pre-commit-hooks: enable
-                :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
-                +# rapids-pre-commit-hooks: enabled
-                :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + # prapids-pre-commit-hooks: enable
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + # rapids-pre-commit-hooks: enabled
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
                 """,
                 "test",
                 [True],
@@ -437,57 +437,57 @@ class TestLinter:
         ["content", "expected_enabled"],
         [
             pytest.param(
-                ":^warning",
+                ": ^warning",
                 True,
                 id="empty-content",
             ),
             pytest.param(
                 """\
-                +# rapids-pre-commit-hooks: disable-next-line
+                + # rapids-pre-commit-hooks: disable-next-line
                 +
-                :^warning
-                +Hello
+                : ^warning
+                + Hello
                 """,
                 False,
                 id="empty-line",
             ),
             pytest.param(
                 """\
-                +Hello
-                :~~~~~warning
+                + Hello
+                : ~~~~~warning
                 """,
                 True,
                 id="no-directives",
             ),
             pytest.param(
                 """\
-                +# rapids-pre-commit-hooks: enable
-                +# rapids-pre-commit-hooks: disable
-                :  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~warning
-                +# rapids-pre-commit-hooks: enable
-                :~~warning
+                + # rapids-pre-commit-hooks: enable
+                + # rapids-pre-commit-hooks: disable
+                :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~warning
+                + # rapids-pre-commit-hooks: enable
+                : ~~warning
                 """,
                 False,
                 id="boundary-inside",
             ),
             pytest.param(
                 """\
-                +# rapids-pre-commit-hooks: enable
-                +# rapids-pre-commit-hooks: disable
-                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~warning
-                +# rapids-pre-commit-hooks: enable
-                :~~warning
+                + # rapids-pre-commit-hooks: enable
+                + # rapids-pre-commit-hooks: disable
+                :  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~warning
+                + # rapids-pre-commit-hooks: enable
+                : ~~warning
                 """,
                 True,
                 id="boundary-left",
             ),
             pytest.param(
                 """\
-                +# rapids-pre-commit-hooks: enable
-                +# rapids-pre-commit-hooks: disable
-                :  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~warning
-                +# rapids-pre-commit-hooks: enable
-                :~~~warning
+                + # rapids-pre-commit-hooks: enable
+                + # rapids-pre-commit-hooks: disable
+                :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~warning
+                + # rapids-pre-commit-hooks: enable
+                : ~~~warning
                 """,
                 True,
                 id="boundary-right",
@@ -550,9 +550,9 @@ class TestLintMain:
     def disabled_file_contents(self):
         yield parse_named_ranges(
             """\
-            +# rapids-pre-commit-hooks: disable
-            +Hello!
-            :     ~shout
+            + # rapids-pre-commit-hooks: disable
+            + Hello!
+            :      ~shout
             """
         )
 

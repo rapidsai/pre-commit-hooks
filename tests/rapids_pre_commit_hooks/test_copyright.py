@@ -438,171 +438,171 @@ def test_match_copyright(content, start, expected_match):
     [
         pytest.param(
             f"""\
-            +Copyright (c) {2021} NVIDIA CORPORATION
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.full_copyright_text_span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.nvidia_copyright_text_span
-            :              ~~~~0.years_span
-            :              ~~~~0.first_year_span
+            + Copyright (c) {2021} NVIDIA CORPORATION
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.full_copyright_text_span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.nvidia_copyright_text_span
+            :               ~~~~0.years_span
+            :               ~~~~0.first_year_span
             """,
             id="basic-copyright-single",
         ),
         pytest.param(
             f"""\
-            +Copyright (c) {2021} NVIDIA CORPORATION
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.full_copyright_text_span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.nvidia_copyright_text_span
-            :              ~~~~0.years_span
-            :              ~~~~0.first_year_span
-            +Copyright (c) {2025} NVIDIA CORPORATION
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.full_copyright_text_span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.nvidia_copyright_text_span
-            :              ~~~~1.years_span
-            :              ~~~~1.first_year_span
+            + Copyright (c) {2021} NVIDIA CORPORATION
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.full_copyright_text_span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.nvidia_copyright_text_span
+            :               ~~~~0.years_span
+            :               ~~~~0.first_year_span
+            + Copyright (c) {2025} NVIDIA CORPORATION
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.full_copyright_text_span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.nvidia_copyright_text_span
+            :               ~~~~1.years_span
+            :               ~~~~1.first_year_span
             """,
             id="basic-copyright-multiple",
         ),
         pytest.param(
             f"""\
             +
-            +SPDX-FileCopyrightText: Copyright (c) {2021} NVIDIA CORPORATION
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~0.spdx_filecopyrighttext_tag_span
-            :                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.full_copyright_text_span
-            :                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.nvidia_copyright_text_span
-            :                                      ~~~~0.years_span
-            :                                      ~~~~0.first_year_span
-            +SPDX-License-Identifier: Apache-2.0
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~0.spdx_license_identifier_tag_span
-            :                         ~~~~~~~~~~0.spdx_license_identifier_text_span
+            + SPDX-FileCopyrightText: Copyright (c) {2021} NVIDIA CORPORATION
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~0.spdx_filecopyrighttext_tag_span
+            :                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.full_copyright_text_span
+            :                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.nvidia_copyright_text_span
+            :                                       ~~~~0.years_span
+            :                                       ~~~~0.first_year_span
+            + SPDX-License-Identifier: Apache-2.0
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~0.spdx_license_identifier_tag_span
+            :                          ~~~~~~~~~~0.spdx_license_identifier_text_span
             +
-            :~0.span
-            :~0.long_form_text_span
-            +Licensed under the Apache License, Version 2.0 (the "License");
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.long_form_text_span
-            +you may not use this file except in compliance with the License.
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.long_form_text_span
-            +You may obtain a copy of the License at
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.long_form_text_span
+            : ~0.span
+            : ~0.long_form_text_span
+            + Licensed under the Apache License, Version 2.0 (the "License");
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.long_form_text_span
+            + you may not use this file except in compliance with the License.
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.long_form_text_span
+            + You may obtain a copy of the License at
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.long_form_text_span
             +
-            :~0.span
-            :~0.long_form_text_span
-            +    http://www.apache.org/licenses/LICENSE-2.0
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.long_form_text_span
+            : ~0.span
+            : ~0.long_form_text_span
+            +     http://www.apache.org/licenses/LICENSE-2.0
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.long_form_text_span
             +
-            :~0.span
-            :~0.long_form_text_span
-            +Unless required by applicable law or agreed to in writing, software
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.long_form_text_span
-            +distributed under the License is distributed on an "AS IS" BASIS,
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.long_form_text_span
-            +WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.long_form_text_span
-            +See the License for the specific language governing permissions and
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.long_form_text_span
-            +limitations under the License.
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.long_form_text_span
+            : ~0.span
+            : ~0.long_form_text_span
+            + Unless required by applicable law or agreed to in writing, software
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.long_form_text_span
+            + distributed under the License is distributed on an "AS IS" BASIS,
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.long_form_text_span
+            + WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.long_form_text_span
+            + See the License for the specific language governing permissions and
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.long_form_text_span
+            + limitations under the License.
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.long_form_text_span
             +
-            +SPDX-FileCopyrightText: Copyright (c) {2025} NVIDIA CORPORATION
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~1.spdx_filecopyrighttext_tag_span
-            :                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.full_copyright_text_span
-            :                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.nvidia_copyright_text_span
-            :                                      ~~~~1.years_span
-            :                                      ~~~~1.first_year_span
-            +SPDX-License-Identifier: Apache-2.0
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~1.spdx_license_identifier_tag_span
-            :                         ~~~~~~~~~~1.spdx_license_identifier_text_span
+            + SPDX-FileCopyrightText: Copyright (c) {2025} NVIDIA CORPORATION
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~1.spdx_filecopyrighttext_tag_span
+            :                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.full_copyright_text_span
+            :                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.nvidia_copyright_text_span
+            :                                       ~~~~1.years_span
+            :                                       ~~~~1.first_year_span
+            + SPDX-License-Identifier: Apache-2.0
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~1.spdx_license_identifier_tag_span
+            :                          ~~~~~~~~~~1.spdx_license_identifier_text_span
             +
-            :~1.span
-            :~1.long_form_text_span
-            +Licensed under the Apache License, Version 2.0 (the "License");
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.long_form_text_span
-            +you may not use this file except in compliance with the License.
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.long_form_text_span
-            +You may obtain a copy of the License at
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.long_form_text_span
+            : ~1.span
+            : ~1.long_form_text_span
+            + Licensed under the Apache License, Version 2.0 (the "License");
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.long_form_text_span
+            + you may not use this file except in compliance with the License.
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.long_form_text_span
+            + You may obtain a copy of the License at
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.long_form_text_span
             +
-            :~1.span
-            :~1.long_form_text_span
-            +    http://www.apache.org/licenses/LICENSE-2.0
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.long_form_text_span
+            : ~1.span
+            : ~1.long_form_text_span
+            +     http://www.apache.org/licenses/LICENSE-2.0
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.long_form_text_span
             +
-            :~1.span
-            :~1.long_form_text_span
-            +Unless required by applicable law or agreed to in writing, software
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.long_form_text_span
-            +distributed under the License is distributed on an "AS IS" BASIS,
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.long_form_text_span
-            +WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.long_form_text_span
-            +See the License for the specific language governing permissions and
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.long_form_text_span
-            +limitations under the License.
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.long_form_text_span
+            : ~1.span
+            : ~1.long_form_text_span
+            + Unless required by applicable law or agreed to in writing, software
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.long_form_text_span
+            + distributed under the License is distributed on an "AS IS" BASIS,
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.long_form_text_span
+            + WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.long_form_text_span
+            + See the License for the specific language governing permissions and
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.long_form_text_span
+            + limitations under the License.
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.long_form_text_span
             """,  # noqa: E501
             id="spdx-copyright-multiple-with-long-form-text",
         ),
         pytest.param(
-            "+Hello world",
+            "+ Hello world",
             id="no-copyright",
         ),
         pytest.param(
             f"""\
-            +rapids-pre-commit-hooks: {"disable"}
-            +Copyright (c) {2021} NVIDIA CORPORATION
-            +rapids-pre-commit-hooks: {"enable"}
-            +Copyright (c) {2022} NVIDIA CORPORATION
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.full_copyright_text_span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.nvidia_copyright_text_span
-            :              ~~~~0.years_span
-            :              ~~~~0.first_year_span
-            +rapids-pre-commit-hooks: {"disable[verify-copyright]"}
-            +Copyright (c) {2023} NVIDIA CORPORATION
-            +rapids-pre-commit-hooks: {"enable[verify-copyright]"}
-            +Copyright (c) {2024} NVIDIA CORPORATION
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.full_copyright_text_span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.nvidia_copyright_text_span
-            :              ~~~~1.years_span
-            :              ~~~~1.first_year_span
-            +rapids-pre-commit-hooks: {"disable[verify-codeowners]"}
-            +Copyright (c) {2025} NVIDIA CORPORATION
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~2.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~2.full_copyright_text_span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~2.nvidia_copyright_text_span
-            :              ~~~~2.years_span
-            :              ~~~~2.first_year_span
-            +rapids-pre-commit-hooks: {"enable[verify-codeowners]"}
-            +Copyright (c) {2026} NVIDIA CORPORATION
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~3.span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~3.full_copyright_text_span
-            :~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~3.nvidia_copyright_text_span
-            :              ~~~~3.years_span
-            :              ~~~~3.first_year_span
+            + rapids-pre-commit-hooks: {"disable"}
+            + Copyright (c) {2021} NVIDIA CORPORATION
+            + rapids-pre-commit-hooks: {"enable"}
+            + Copyright (c) {2022} NVIDIA CORPORATION
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.full_copyright_text_span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.nvidia_copyright_text_span
+            :               ~~~~0.years_span
+            :               ~~~~0.first_year_span
+            + rapids-pre-commit-hooks: {"disable[verify-copyright]"}
+            + Copyright (c) {2023} NVIDIA CORPORATION
+            + rapids-pre-commit-hooks: {"enable[verify-copyright]"}
+            + Copyright (c) {2024} NVIDIA CORPORATION
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.full_copyright_text_span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.nvidia_copyright_text_span
+            :               ~~~~1.years_span
+            :               ~~~~1.first_year_span
+            + rapids-pre-commit-hooks: {"disable[verify-codeowners]"}
+            + Copyright (c) {2025} NVIDIA CORPORATION
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~2.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~2.full_copyright_text_span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~2.nvidia_copyright_text_span
+            :               ~~~~2.years_span
+            :               ~~~~2.first_year_span
+            + rapids-pre-commit-hooks: {"enable[verify-codeowners]"}
+            + Copyright (c) {2026} NVIDIA CORPORATION
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~3.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~3.full_copyright_text_span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~3.nvidia_copyright_text_span
+            :               ~~~~3.years_span
+            :               ~~~~3.first_year_span
             """,
             id="disable-enable-dirctives",
         ),

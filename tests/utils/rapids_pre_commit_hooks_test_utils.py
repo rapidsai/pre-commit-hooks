@@ -63,25 +63,31 @@ def parse_named_ranges(
     for this_pos, next_pos in itertools.pairwise(
         itertools.chain(lines.pos, [(len(lines.content), -1)])
     ):
-        try:
-            first_char = lines.content[this_pos[0]]
-        except IndexError as e:
-            if next_pos[1] >= 0:
-                raise ParseError from e
+        line = lines.content[this_pos[0] : this_pos[1]]
+        first_two_chars = line[0:2]
 
-        if first_char == "+":
+        if first_two_chars in {"+ ", "+"}:
             start_of_last_line = len(content)
             end_of_last_line = (
-                start_of_last_line + this_pos[1] - this_pos[0] - 1
+                start_of_last_line
+                + this_pos[1]
+                - this_pos[0]
+                - len(first_two_chars)
             )
-            content += lines.content[this_pos[0] + 1 : next_pos[0]]
-        elif first_char == ":":
-            line = lines.content[this_pos[0] + 1 : this_pos[1]]
-            if (pound := line.find("#")) >= 0:
-                line = line[:pound]
+            content += lines.content[
+                this_pos[0] + len(first_two_chars) : next_pos[0]
+            ]
+        elif first_two_chars in {": ", ":"}:
+            directive_line = line[2:]
+            if (pound := directive_line.find("#")) >= 0:
+                directive_line = directive_line[:pound]
             end = 0
-            for match in _RANGE_LINE_RE.finditer(line):
-                if any(filter(lambda c: c != " ", line[end : match.start()])):
+            for match in _RANGE_LINE_RE.finditer(directive_line):
+                if any(
+                    filter(
+                        lambda c: c != " ", directive_line[end : match.start()]
+                    )
+                ):
                     raise ParseError
                 end = match.end()
 
@@ -131,9 +137,14 @@ def parse_named_ranges(
                     else:
                         raise ParseError
 
-            if any(filter(lambda c: c != " ", line[end : len(line)])):
+            if any(
+                filter(
+                    lambda c: c != " ",
+                    directive_line[end : len(directive_line)],
+                )
+            ):
                 raise ParseError
-        else:
+        elif line != "" or next_pos[1] >= 0:
             raise ParseError
 
     def ensure_list_filled(

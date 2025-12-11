@@ -36,7 +36,7 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             id="empty-content-list",
         ),
         pytest.param(
-            "+Hello\n+world!\n+",
+            "+ Hello\n+ world!\n+",
             dict,
             "Hello\nworld!\n",
             {},
@@ -44,7 +44,7 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             id="no-ranges",
         ),
         pytest.param(
-            "+Hello\n+world!\n",
+            "+ Hello\n+ world!\n",
             dict,
             "Hello\nworld!\n",
             {},
@@ -53,8 +53,8 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            +world!
+            + Hello
+            + world!
             :""",
             dict,
             "Hello\nworld!\n",
@@ -64,8 +64,8 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            : ^group1
+            + Hello
+            :  ^group1
             """,
             dict,
             "Hello\n",
@@ -77,9 +77,9 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            : ^group1
-            :  ^group2
+            + Hello
+            :  ^group1
+            :   ^group2
             """,
             dict,
             "Hello\n",
@@ -92,8 +92,8 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            :^a  ^b
+            + Hello
+            : ^a  ^b
             """,
             dict,
             "Hello\n",
@@ -106,8 +106,8 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            : ~~group1
+            + Hello
+            :  ~~group1
             """,
             dict,
             "Hello\n",
@@ -119,8 +119,8 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            : ~~group1  # This is the first group
+            + Hello
+            :  ~~group1  # This is the first group
             """,
             dict,
             "Hello\n",
@@ -132,8 +132,8 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            :~g#~g
+            + Hello
+            : ~g#~g
             """,
             dict,
             "Hello\n",
@@ -145,8 +145,19 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            : ~~~~group1
+            +
+            :
+            """,
+            dict,
+            "\n",
+            {},
+            contextlib.nullcontext(),
+            id="empty-lines",
+        ),
+        pytest.param(
+            """\
+            + Hello
+            :  ~~~~group1
             """,
             dict,
             "Hello\n",
@@ -158,8 +169,8 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            : ~~~~~group1
+            + Hello
+            :  ~~~~~group1
             """,
             dict,
             "Hello\n",
@@ -171,10 +182,10 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            : ~~~~~group1
-            +world!
-            :~~group1
+            + Hello
+            :  ~~~~~group1
+            + world!
+            : ~~group1
             """,
             dict,
             "Hello\nworld!\n",
@@ -186,12 +197,12 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            : ~~~~~group1
-            :   ~~~group2
-            +world!
-            :~~group1
-            :~group2
+            + Hello
+            :  ~~~~~group1
+            :    ~~~group2
+            + world!
+            : ~~group1
+            : ~group2
             """,
             dict,
             "Hello\nworld!\n",
@@ -204,9 +215,9 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            :~~group1
-            :  ~~group1
+            + Hello
+            : ~~group1
+            :   ~~group1
             """,
             dict,
             "Hello\n",
@@ -218,9 +229,9 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            :  ~~group1
-            :~~group1
+            + Hello
+            :   ~~group1
+            : ~~group1
             """,
             dict,
             "Hello\n",
@@ -232,8 +243,8 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            :~0 ~1
+            + Hello
+            : ~0 ~1
             """,
             list,
             "Hello\n",
@@ -243,8 +254,8 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            :~1 ~0
+            + Hello
+            : ~1 ~0
             """,
             list,
             "Hello\n",
@@ -254,11 +265,11 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            :~0.a
-            : ~0.b
-            :  ~1.a
-            :   ~1.b
+            + Hello
+            : ~0.a
+            :  ~0.b
+            :   ~1.a
+            :    ~1.b
             """,
             list,
             "Hello\n",
@@ -271,11 +282,11 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            :~a.0
-            : ~a.1
-            :  ~b.0
-            :   ~b.1
+            + Hello
+            : ~a.0
+            :  ~a.1
+            :   ~b.0
+            :    ~b.1
             """,
             dict,
             "Hello\n",
@@ -288,11 +299,11 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            :~a.a
-            : ~a.b
-            :  ~b.a
-            :   ~b.b
+            + Hello
+            : ~a.a
+            :  ~a.b
+            :   ~b.a
+            :    ~b.b
             """,
             dict,
             "Hello\n",
@@ -305,11 +316,11 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            :~0.0
-            : ~0.1
-            :  ~1.0
-            :   ~1.1
+            + Hello
+            : ~0.0
+            :  ~0.1
+            :   ~1.0
+            :    ~1.1
             """,
             list,
             "Hello\n",
@@ -322,11 +333,11 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            :~0.a.1
-            : ~0.a.0
-            :  ~1.b.c.0.d
-            :   ~2
+            + Hello
+            : ~0.a.1
+            :  ~0.a.0
+            :   ~1.b.c.0.d
+            :    ~2
             """,
             None,
             "Hello\n",
@@ -340,8 +351,8 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            :~a
+            + Hello
+            : ~a
             """,
             None,
             "Hello\n",
@@ -351,8 +362,8 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            :~0
+            + Hello
+            : ~0
             """,
             None,
             "Hello\n",
@@ -362,10 +373,10 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            : ~~~~group1
-            +world!
-            :~group1
+            + Hello
+            :  ~~~~group1
+            + world!
+            : ~group1
             """,
             dict,
             None,
@@ -375,10 +386,10 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            : ~~~~~group1
-            +world!
-            : ~group1
+            + Hello
+            :  ~~~~~group1
+            + world!
+            :  ~group1
             """,
             dict,
             None,
@@ -388,9 +399,9 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            :~~g
+            + Hello
             : ~~g
+            :  ~~g
             """,
             dict,
             None,
@@ -400,8 +411,8 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            : ~~~~~~group1
+            + Hello
+            :  ~~~~~~group1
             """,
             dict,
             None,
@@ -411,8 +422,8 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            :a ~group1
+            + Hello
+            : a ~group1
             """,
             dict,
             None,
@@ -422,8 +433,8 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            :  ~group1 a
+            + Hello
+            :   ~group1 a
             """,
             dict,
             None,
@@ -433,8 +444,8 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """\
-            +Hello
-            @  ~group1
+            + Hello
+            @   ~group1
             """,
             dict,
             None,
@@ -443,10 +454,30 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             id="invalid-first-character",
         ),
         pytest.param(
-            """
+            """\
             +Hello
-            :~0
-            : ~0.a
+            """,
+            dict,
+            None,
+            None,
+            pytest.raises(ParseError),
+            id="content-missing-space",
+        ),
+        pytest.param(
+            """\
+            :^a
+            """,
+            dict,
+            None,
+            None,
+            pytest.raises(ParseError),
+            id="directive-missing-space",
+        ),
+        pytest.param(
+            """
+            + Hello
+            : ~0
+            :  ~0.a
             """,
             list,
             None,
@@ -456,9 +487,9 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """
-            +Hello
-            :~0.a
-            : ~0
+            + Hello
+            : ~0.a
+            :  ~0
             """,
             list,
             None,
@@ -468,9 +499,9 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """
-            +Hello
-            :~0.a
-            : ~0.0
+            + Hello
+            : ~0.a
+            :  ~0.0
             """,
             list,
             None,
@@ -480,9 +511,9 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """
-            +Hello
-            :~0.0
-            : ~0.a
+            + Hello
+            : ~0.0
+            :  ~0.a
             """,
             list,
             None,
@@ -492,8 +523,8 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """
-            +Hello
-            :~1
+            + Hello
+            : ~1
             """,
             list,
             None,
@@ -503,8 +534,8 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         ),
         pytest.param(
             """
-            +Hello
-            :~0
+            + Hello
+            : ~0
             """,
             dict,
             None,
