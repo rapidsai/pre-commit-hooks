@@ -60,7 +60,7 @@ def check_hardcoded_version(
 
 
 def main() -> None:
-    m = LintMain()
+    m = LintMain("verify-hardcoded-version")
     m.argparser.description = (
         "Verify that files do not contain hard-coded software versions."
     )

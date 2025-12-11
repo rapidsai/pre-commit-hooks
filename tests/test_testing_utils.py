@@ -65,6 +65,28 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         pytest.param(
             """\
             + Hello
+            > world!
+            :""",
+            dict,
+            "Hello\nworld!",
+            {},
+            contextlib.nullcontext(),
+            id="no-ranges-no-newline",
+        ),
+        pytest.param(
+            """\
+            > Hello
+            >  world!
+            :""",
+            dict,
+            "Hello world!",
+            {},
+            contextlib.nullcontext(),
+            id="no-ranges-multiple-no-newlines",
+        ),
+        pytest.param(
+            """\
+            + Hello
             :  ^group1
             """,
             dict,
@@ -74,6 +96,19 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             },
             contextlib.nullcontext(),
             id="single-empty-group",
+        ),
+        pytest.param(
+            """\
+            > Hello
+            :  ^group1
+            """,
+            dict,
+            "Hello",
+            {
+                "group1": (1, 1),
+            },
+            contextlib.nullcontext(),
+            id="single-empty-group-no-newline",
         ),
         pytest.param(
             """\
@@ -116,6 +151,22 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             },
             contextlib.nullcontext(),
             id="single-nonempty-group",
+        ),
+        pytest.param(
+            """\
+            + Hello
+            :  >large_group
+            + world
+            + again
+            : !large_group
+            """,
+            dict,
+            "Hello\nworld\nagain\n",
+            {
+                "large_group": (1, 12),
+            },
+            contextlib.nullcontext(),
+            id="large-group",
         ),
         pytest.param(
             """\
@@ -474,7 +525,7 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             id="directive-missing-space",
         ),
         pytest.param(
-            """
+            """\
             + Hello
             : ~0
             :  ~0.a
@@ -486,7 +537,7 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             id="overwrite-range-with-dict",
         ),
         pytest.param(
-            """
+            """\
             + Hello
             : ~0.a
             :  ~0
@@ -498,7 +549,7 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             id="overwrite-dict-with-range",
         ),
         pytest.param(
-            """
+            """\
             + Hello
             : ~0.a
             :  ~0.0
@@ -510,7 +561,7 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             id="overwrite-dict-with-list",
         ),
         pytest.param(
-            """
+            """\
             + Hello
             : ~0.0
             :  ~0.a
@@ -522,7 +573,7 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             id="overwrite-list-with-dict",
         ),
         pytest.param(
-            """
+            """\
             + Hello
             : ~1
             """,
@@ -533,7 +584,7 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             id="incomplete-list",
         ),
         pytest.param(
-            """
+            """\
             + Hello
             : ~0
             """,
@@ -543,9 +594,66 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             pytest.raises(ParseError),
             id="wrong-root-type",
         ),
+        pytest.param(
+            """\
+            : ~invalid
+            """,
+            dict,
+            None,
+            None,
+            pytest.raises(ParseError),
+            id="group-on-no-content",
+        ),
+        pytest.param(
+            """\
+            > Hello
+            :      ~invalid
+            """,
+            dict,
+            None,
+            None,
+            pytest.raises(ParseError),
+            id="newline-on-no-newline",
+        ),
+        pytest.param(
+            """\
+            + Hello
+            : >g
+            :   >g
+            """,
+            dict,
+            None,
+            None,
+            pytest.raises(ParseError),
+            id="duplicate-large-group",
+        ),
+        pytest.param(
+            """\
+            + Hello
+            : >g
+            :  !g
+            :   !g
+            """,
+            dict,
+            None,
+            None,
+            pytest.raises(ParseError),
+            id="double-terminate-large-group",
+        ),
+        pytest.param(
+            """\
+            + Hello
+            : >g
+            """,
+            dict,
+            None,
+            None,
+            pytest.raises(ParseError),
+            id="unterminated-large-group",
+        ),
     ],
 )
-def test_named_ranges(
+def test_parse_named_ranges(
     content, root_type, expected_content, expected_ranges, context
 ):
     with context:

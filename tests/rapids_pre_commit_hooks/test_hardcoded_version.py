@@ -8,167 +8,147 @@ import pytest
 
 from rapids_pre_commit_hooks import hardcoded_version
 from rapids_pre_commit_hooks.lint import LintWarning, Linter
+from rapids_pre_commit_hooks_test_utils import parse_named_ranges
 
 
 @pytest.mark.parametrize(
-    ["content", "version", "matches"],
+    ["content", "version"],
     [
         pytest.param(
-            "26.02",
+            """\
+            > 26.02
+            : ~~~~~0.full
+            : ~~0.major
+            :    ~~0.minor
+            """,
             (26, 2, 0),
-            [
-                {
-                    "full": (0, 5),
-                    "major": (0, 2),
-                    "minor": (3, 5),
-                    "patch": (-1, -1),
-                },
-            ],
             id="full-contents",
         ),
         pytest.param(
-            "a26.02",
+            """\
+            > a26.02
+            :  ~~~~~0.full
+            :  ~~0.major
+            :     ~~0.minor
+            """,
             (26, 2, 0),
-            [
-                {
-                    "full": (1, 6),
-                    "major": (1, 3),
-                    "minor": (4, 6),
-                    "patch": (-1, -1),
-                },
-            ],
             id="text-before",
         ),
         pytest.param(
-            "26.02a",
+            """\
+            > 26.02a
+            : ~~~~~0.full
+            : ~~0.major
+            :    ~~0.minor
+            """,
             (26, 2, 0),
-            [
-                {
-                    "full": (0, 5),
-                    "major": (0, 2),
-                    "minor": (3, 5),
-                    "patch": (-1, -1),
-                },
-            ],
             id="text-after",
         ),
         pytest.param(
-            "a26.02a",
+            """\
+            > a26.02a
+            :  ~~~~~0.full
+            :  ~~0.major
+            :     ~~0.minor
+            """,
             (26, 2, 0),
-            [
-                {
-                    "full": (1, 6),
-                    "major": (1, 3),
-                    "minor": (4, 6),
-                    "patch": (-1, -1),
-                },
-            ],
             id="text-before-and-after",
         ),
         pytest.param(
-            "26.02\n26.02",
+            """\
+            + 26.02
+            : ~~~~~0.full
+            : ~~0.major
+            :    ~~0.minor
+            > 26.02
+            : ~~~~~1.full
+            : ~~1.major
+            :    ~~1.minor
+            """,
             (26, 2, 0),
-            [
-                {
-                    "full": (0, 5),
-                    "major": (0, 2),
-                    "minor": (3, 5),
-                    "patch": (-1, -1),
-                },
-                {
-                    "full": (6, 11),
-                    "major": (6, 8),
-                    "minor": (9, 11),
-                    "patch": (-1, -1),
-                },
-            ],
             id="multiple-instances",
         ),
         pytest.param(
-            "26.02.00",
+            """\
+            > 26.02.00
+            : ~~~~~~~~0.full
+            : ~~0.major
+            :    ~~0.minor
+            :       ~~0.patch
+            """,
             (26, 2, 0),
-            [
-                {
-                    "full": (0, 8),
-                    "major": (0, 2),
-                    "minor": (3, 5),
-                    "patch": (6, 8),
-                },
-            ],
             id="patch-version",
         ),
         pytest.param(
-            "26.02.01",
+            """\
+            > 26.02.01
+            """,
             (26, 2, 0),
-            [],
             id="wrong-patch-version",
         ),
         pytest.param(
-            "26.04",
+            """\
+            > 26.04
+            """,
             (26, 2, 0),
-            [],
             id="wrong-major-minor-version",
         ),
         pytest.param(
-            "0.48",
+            """\
+            > 0.48
+            : ~~~~0.full
+            : ~0.major
+            :   ~~0.minor
+            """,
             (0, 48, 0),
-            [
-                {
-                    "full": (0, 4),
-                    "major": (0, 1),
-                    "minor": (2, 4),
-                    "patch": (-1, -1),
-                },
-            ],
             id="ucxx-version",
         ),
         pytest.param(
-            "0.48.00",
+            """\
+            > 0.48.00
+            : ~~~~~~~0.full
+            : ~0.major
+            :   ~~0.minor
+            :      ~~0.patch
+            """,
             (0, 48, 0),
-            [
-                {
-                    "full": (0, 7),
-                    "major": (0, 1),
-                    "minor": (2, 4),
-                    "patch": (5, 7),
-                },
-            ],
             id="ucxx-patch-version",
         ),
         pytest.param(
-            "026.02",
+            """\
+            > 026.02
+            """,
             (26, 2, 0),
-            [],
             id="number-before",
         ),
         pytest.param(
-            "26.020",
+            """\
+            > 26.020
+            """,
             (26, 2, 0),
-            [],
             id="number-after",
         ),
         pytest.param(
-            "26.2.0",
+            """\
+            > 26.2.0
+            : ~~~~~~0.full
+            : ~~0.major
+            :    ~0.minor
+            :      ~0.patch
+            """,
             (26, 2, 0),
-            [
-                {
-                    "full": (0, 6),
-                    "major": (0, 2),
-                    "minor": (3, 4),
-                    "patch": (5, 6),
-                },
-            ],
             id="no-zero-prefix",
         ),
     ],
 )
-def test_find_hardcoded_versions(content, version, matches):
+def test_find_hardcoded_versions(content, version):
+    content, r = parse_named_ranges(content, list)
     assert [
         {group: match.span(group) for group in match.groupdict().keys()}
         for match in hardcoded_version.find_hardcoded_versions(
             content, version
         )
-    ] == matches
+    ] == [{"patch": (-1, -1), **m} for m in r]
 
 
 @pytest.mark.parametrize(
@@ -228,68 +208,79 @@ def test_read_version_file(tmp_path, content, version, context):
         "version_file",
         "version",
         "version_file_read",
-        "expected_warnings",
+        "message",
     ],
     [
         pytest.param(
             "file.txt",
-            "RAPIDS 26.02\n",
+            """\
+            + RAPIDS 26.02
+            :        ~~~~~0
+            """,
             "VERSION",
             (26, 2, 0),
             True,
-            [
-                LintWarning(
-                    (7, 12),
-                    "do not hard-code version, read from VERSION file instead",
-                ),
-            ],
+            "do not hard-code version, read from VERSION file instead",
             id="version-file",
         ),
         pytest.param(
             "file.txt",
-            "RAPIDS 26.02.00\n",
+            """\
+            + RAPIDS 26.02.00
+            :        ~~~~~~~~0
+            """,
             "VERSION",
             (26, 2, 0),
             True,
-            [
-                LintWarning(
-                    (7, 15),
-                    "do not hard-code version, read from VERSION file instead",
-                ),
-            ],
+            "do not hard-code version, read from VERSION file instead",
             id="version-file-patch-version",
         ),
         pytest.param(
             "file.txt",
-            "RAPIDS 26.02\n",
+            """\
+            + RAPIDS 26.02
+            :        ~~~~~0
+            + RAPIDS 26.02.00
+            :        ~~~~~~~~1
+            """,
+            "VERSION",
+            (26, 2, 0),
+            True,
+            "do not hard-code version, read from VERSION file instead",
+            id="version-file-multiple",
+        ),
+        pytest.param(
+            "file.txt",
+            """\
+            + RAPIDS 26.02
+            :        ~~~~~0
+            """,
             "RAPIDS_VERSION",
             (26, 2, 0),
             True,
-            [
-                LintWarning(
-                    (7, 12),
-                    "do not hard-code version, read from RAPIDS_VERSION file "
-                    "instead",
-                ),
-            ],
+            "do not hard-code version, read from RAPIDS_VERSION file instead",
             id="rapids-version-file",
         ),
         pytest.param(
             "file.txt",
-            "RAPIDS 26.04\n",
+            """\
+            + RAPIDS 26.04
+            """,
             "VERSION",
             (26, 2, 0),
             True,
-            [],
+            "do not hard-code version, read from VERSION file instead",
             id="version-not-found",
         ),
         pytest.param(
             "VERSION",
-            "26.02.00\n",
+            """\
+            + 26.02.00
+            """,
             "VERSION",
             (26, 2, 0),
             False,
-            [],
+            "do not hard-code version, read from VERSION file instead",
             id="skip-version-file",
         ),
     ],
@@ -300,9 +291,10 @@ def test_check_hardcoded_version(
     version_file,
     version,
     version_file_read,
-    expected_warnings,
+    message,
 ):
-    linter = Linter(filename, content)
+    content, r = parse_named_ranges(content, list)
+    linter = Linter(filename, content, "verify-hardcoded-version")
     with patch(
         "rapids_pre_commit_hooks.hardcoded_version.read_version_file",
         Mock(return_value=version),
@@ -314,4 +306,4 @@ def test_check_hardcoded_version(
         mock_read_version_file.assert_called_once_with(version_file)
     else:
         mock_read_version_file.assert_not_called()
-    assert linter.warnings == expected_warnings
+    assert linter.warnings == [LintWarning(m, message) for m in r]
