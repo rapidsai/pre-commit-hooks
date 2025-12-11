@@ -179,10 +179,12 @@ def test_check_pyproject_license(
     replacement_loc,
     replacement_text,
 ):
-    linter = Linter("pyproject.toml", document)
+    linter = Linter("pyproject.toml", document, "verify-pyproject-license")
     pyproject_license.check_pyproject_license(linter, Mock())
 
-    expected_linter = Linter("pyproject.toml", document)
+    expected_linter = Linter(
+        "pyproject.toml", document, "verify-pyproject-license"
+    )
     if loc and message:
         w = expected_linter.add_warning(loc, message)
         if replacement_loc and replacement_text:

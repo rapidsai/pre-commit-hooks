@@ -66,7 +66,7 @@ class VerifyCondaYesVisitor(LintVisitor):
 
 
 def main() -> None:
-    m = ShellMain()
+    m = ShellMain("verify-conda-yes")
     with m.execute() as ctx:
         ctx.add_visitor_class(VerifyCondaYesVisitor)
 

@@ -91,7 +91,7 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    m = LintMain()
+    m = LintMain("verify-pyproject-license")
     m.argparser.description = "Verify that pyproject.toml has the correct "
     f'license ("{RAPIDS_LICENSE}").'
     with m.execute() as ctx:
