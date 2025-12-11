@@ -193,7 +193,7 @@ def test_parse_codeowners_line(line, skip, codeowners_line):
 @patch_required_codeowners_lines
 def test_check_codeowners_line(line, pos, warnings):
     codeowners_line = codeowners.parse_codeowners_line(line, 0)
-    linter = Linter(".github/CODEOWNERS", line)
+    linter = Linter(".github/CODEOWNERS", line, "verify-codeowners")
     found_files = []
     codeowners.check_codeowners_line(
         linter, Mock(project_prefix="cudf"), codeowners_line, found_files
@@ -306,6 +306,6 @@ def test_check_codeowners_line(line, pos, warnings):
 )
 @patch_required_codeowners_lines
 def test_check_codeowners(content, warnings):
-    linter = Linter(".github/CODEOWNERS", content)
+    linter = Linter(".github/CODEOWNERS", content, "verify-codeowners")
     codeowners.check_codeowners(linter, Mock(project_prefix="cudf"))
     assert linter.warnings == warnings

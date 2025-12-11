@@ -323,7 +323,7 @@ def check_alpha_spec(linter: Linter, args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    m = LintMain()
+    m = LintMain("verify-alpha-spec")
     m.argparser.description = (
         "Verify that RAPIDS packages in dependencies.yaml do (or do not) have "
         "the alpha spec."

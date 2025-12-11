@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -20,8 +20,8 @@ class LintVisitor(bashlex.ast.nodevisitor):
 
 
 class ShellExecutionContext(ExecutionContext):
-    def __init__(self, args: argparse.Namespace) -> None:
-        super().__init__(args)
+    def __init__(self, warning_name: str, args: argparse.Namespace) -> None:
+        super().__init__(warning_name, args)
         self.visitors: list[type] = []
         self.add_check(self.check_shell)
 

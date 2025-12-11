@@ -1,7 +1,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
-import argparse
 import dataclasses
 import datetime
 import functools
@@ -9,14 +8,21 @@ import itertools
 import os
 import re
 import warnings
-from collections.abc import Callable, Generator, Iterable
 from textwrap import dedent
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import Levenshtein
 import git
 
-from .lint import Lines, Linter, LintMain, LintWarning
+from .lint import Lines, Linter, LintMain
+
+if TYPE_CHECKING:
+    import argparse
+    from collections.abc import Callable, Generator, Iterable
+    from typing import Optional
+
+    from .lint import LintWarning
+
 
 SPDX_COPYRIGHT_RE: re.Pattern = re.compile(
     r"(?P<spdx_filecopyrighttext_tag>SPDX-FileCopyrightText: )?"
@@ -105,13 +111,13 @@ class ConflictingFilesWarning(RuntimeWarning):
     pass
 
 
-def force_spdx(args: argparse.Namespace) -> bool:
+def force_spdx(args: "argparse.Namespace") -> bool:
     return args.force_spdx or bool(
         int(os.getenv("RAPIDS_COPYRIGHT_FORCE_SPDX", default="0"))
     )
 
 
-def spdx(args: argparse.Namespace) -> bool:
+def spdx(args: "argparse.Namespace") -> bool:
     return args.spdx or force_spdx(args)
 
 
@@ -170,12 +176,15 @@ def match_copyright(
 
 
 def match_all_copyright(
-    lines: Lines, filename: str | os.PathLike[str]
-) -> Generator[CopyrightMatch]:
+    lines: Lines,
+    filename: str | os.PathLike[str],
+    boundaries: list[tuple[_PosType, bool]],
+) -> "Generator[CopyrightMatch]":
     start = 0
 
     while match := match_copyright(lines, filename, start):
-        yield match
+        if Linter.is_warning_range_enabled(boundaries, match.span):
+            yield match
         start = match.span[1]
 
 
@@ -294,7 +303,7 @@ def strip_copyright(
 
 
 def has_cmake_format_off_comment(
-    linter: Linter, match: CopyrightMatch
+    linter: "Linter", match: CopyrightMatch
 ) -> bool:
     previous_line = linter.lines.line_for_pos(match.span[0]) - 1
     return (
@@ -304,7 +313,9 @@ def has_cmake_format_off_comment(
     )
 
 
-def has_cmake_format_on_comment(linter: Linter, match: CopyrightMatch) -> bool:
+def has_cmake_format_on_comment(
+    linter: "Linter", match: CopyrightMatch
+) -> bool:
     next_line = linter.lines.line_for_pos(match.span[1]) + 1
     return (
         next_line < len(linter.lines.pos)
@@ -314,8 +325,8 @@ def has_cmake_format_on_comment(linter: Linter, match: CopyrightMatch) -> bool:
 
 
 def add_copy_rename_note(
-    linter: Linter,
-    warning: LintWarning,
+    linter: "Linter",
+    warning: "LintWarning",
     change_type: str,
     old_filename: str | os.PathLike[str] | None,
 ) -> None:
@@ -341,7 +352,7 @@ def add_copy_rename_note(
 
 
 def apply_copyright_revert(
-    linter: Linter,
+    linter: "Linter",
     change_type: str,
     old_filename: str | os.PathLike[str] | None,
     old_content: str,
@@ -367,7 +378,7 @@ def apply_copyright_revert(
 
 
 def apply_copyright_update(
-    linter: Linter,
+    linter: "Linter",
     match: CopyrightMatch,
     year: int,
 ) -> None:
@@ -381,7 +392,7 @@ def apply_copyright_update(
 
 
 def apply_spdx_filecopyrighttext_tag_insert(
-    linter: Linter, match: CopyrightMatch, cmake: bool
+    linter: "Linter", match: CopyrightMatch, cmake: bool
 ) -> None:
     span = (
         match.full_copyright_text_span[0],
@@ -421,7 +432,7 @@ def apply_spdx_filecopyrighttext_tag_insert(
 
 
 def apply_spdx_license_update(
-    linter: Linter, match: CopyrightMatch, identifier: str
+    linter: "Linter", match: CopyrightMatch, identifier: str
 ) -> None:
     assert match.spdx_license_identifier_tag_span
     assert match.spdx_license_identifier_text_span
@@ -436,7 +447,7 @@ def apply_spdx_license_update(
 
 
 def apply_spdx_license_insert(
-    linter: Linter, match: CopyrightMatch, identifier: str, cmake: bool
+    linter: "Linter", match: CopyrightMatch, identifier: str, cmake: bool
 ) -> None:
     match_start_pos = (
         match.spdx_filecopyrighttext_tag_span or match.full_copyright_text_span
@@ -472,7 +483,7 @@ def apply_spdx_license_insert(
 
 
 def apply_spdx_long_form_text_removal(
-    linter: Linter, match: CopyrightMatch, cmake: bool
+    linter: "Linter", match: CopyrightMatch, cmake: bool
 ) -> None:
     assert match.long_form_text_span
     span = (
@@ -501,7 +512,7 @@ def apply_spdx_long_form_text_removal(
 
 
 def apply_cmake_format_off_insert(
-    linter: Linter, match: CopyrightMatch
+    linter: "Linter", match: CopyrightMatch
 ) -> None:
     line = linter.lines.pos[linter.lines.line_for_pos(match.span[0])]
     w = linter.add_warning(
@@ -513,7 +524,7 @@ def apply_cmake_format_off_insert(
 
 
 def apply_cmake_format_on_insert(
-    linter: Linter, match: CopyrightMatch
+    linter: "Linter", match: CopyrightMatch
 ) -> None:
     line = linter.lines.pos[linter.lines.line_for_pos(match.span[1])]
     w = linter.add_warning(
@@ -525,7 +536,7 @@ def apply_cmake_format_on_insert(
 
 
 def apply_spdx_updates(
-    linter: Linter, args: argparse.Namespace, match: CopyrightMatch
+    linter: "Linter", args: "argparse.Namespace", match: CopyrightMatch
 ) -> None:
     cmake = bool(CMAKE_FILENAME_RE.search(linter.filename))
 
@@ -559,7 +570,7 @@ def apply_spdx_updates(
 
 
 def apply_copyright_insert(
-    repo: "git.Repo | None", linter: Linter, args: argparse.Namespace
+    repo: "git.Repo | None", linter: "Linter", args: "argparse.Namespace"
 ) -> None:
     last_year = datetime.date.today().year
     first_year = last_year
@@ -640,8 +651,8 @@ def apply_copyright_insert(
 
 def apply_copyright_check(
     repo: "git.Repo | None",
-    linter: Linter,
-    args: argparse.Namespace,
+    linter: "Linter",
+    args: "argparse.Namespace",
     change_type: str,
     old_filename: str | os.PathLike[str] | None,
     old_content: str | None,
@@ -658,14 +669,24 @@ def apply_copyright_check(
         else:
             current_year = datetime.datetime.now().year
         new_copyright_matches = list(
-            match_all_copyright(linter.lines, linter.filename)
+            match_all_copyright(
+                linter.lines,
+                linter.filename,
+                linter.disabled_enabled_boundaries,
+            )
         )
 
         if old_content is not None:
             assert old_filename is not None
             old_lines = Lines(old_content)
             old_copyright_matches = list(
-                match_all_copyright(old_lines, old_filename)
+                match_all_copyright(
+                    old_lines,
+                    old_filename,
+                    Linter.get_disabled_enabled_boundaries(
+                        old_lines, "verify-copyright"
+                    ),
+                )
             )
 
         def match_year_sort(match: CopyrightMatch) -> tuple[int, int]:
@@ -732,7 +753,7 @@ def apply_copyright_check(
             apply_copyright_insert(repo, linter, args)
 
 
-def get_target_branch(repo: "git.Repo", args: argparse.Namespace) -> str:
+def get_target_branch(repo: "git.Repo", args: "argparse.Namespace") -> str:
     """Determine which branch is the "target" branch.
 
     The target branch is determined in the following order:
@@ -776,7 +797,7 @@ def get_target_branch(repo: "git.Repo", args: argparse.Namespace) -> str:
 
 
 def get_target_branch_upstream_commit(
-    repo: "git.Repo", args: argparse.Namespace
+    repo: "git.Repo", args: "argparse.Namespace"
 ) -> git.Commit | None:
     # If no target branch can be determined, use HEAD if it exists
     target_branch_name = get_target_branch(repo, args)
@@ -803,7 +824,7 @@ def get_target_branch_upstream_commit(
                 key=lambda commit: commit.committed_datetime,
             )
 
-    def try_get_ref(remote: "git.Remote") -> Optional["git.Reference"]:
+    def try_get_ref(remote: "git.Remote") -> "Optional[git.Reference]":
         try:
             return remote.refs[target_branch_name]
         except IndexError:
@@ -839,8 +860,8 @@ def get_target_branch_upstream_commit(
 
 def get_changed_files(
     repo: "git.Repo | None",
-    args: argparse.Namespace,
-) -> dict[str | os.PathLike[str], tuple[str, Optional["git.Blob"]]]:
+    args: "argparse.Namespace",
+) -> "dict[str | os.PathLike[str], tuple[str, Optional[git.Blob]]]":
     if not repo:
         return {
             os.path.relpath(os.path.join(dirpath, filename), "."): ("A", None)
@@ -890,7 +911,7 @@ def normalize_git_filename(filename: str | os.PathLike[str]) -> str | None:
 
 def find_blob(
     tree: "git.Tree", filename: str | os.PathLike[str]
-) -> Optional["git.Blob"]:
+) -> "Optional[git.Blob]":
     d1, d2 = os.path.split(filename)
     split = [d2]
     while d1:
@@ -911,15 +932,15 @@ def find_blob(
 
 
 def check_copyright(
-    args: argparse.Namespace,
-) -> Callable[[Linter, argparse.Namespace], None]:
+    args: "argparse.Namespace",
+) -> "Callable[[Linter, argparse.Namespace], None]":
     try:
         repo = git.Repo()
     except git.InvalidGitRepositoryError:
         repo = None
     changed_files = get_changed_files(repo, args)
 
-    def the_check(linter: Linter, args: argparse.Namespace) -> None:
+    def the_check(linter: "Linter", args: "argparse.Namespace") -> None:
         if not (git_filename := normalize_git_filename(linter.filename)):
             warnings.warn(
                 f'File "{linter.filename}" is outside of current directory. '
@@ -954,7 +975,7 @@ def check_copyright(
 
 
 def main() -> None:
-    m = LintMain()
+    m = LintMain("verify-copyright")
     m.argparser.description = (
         "Verify that all files have had their copyright notices updated. Each "
         "file will be compared against the target branch (determined "

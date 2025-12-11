@@ -261,7 +261,7 @@ def check_codeowners(linter: Linter, args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    m = LintMain()
+    m = LintMain("verify-codeowners")
     m.argparser.description = (
         "Verify that the CODEOWNERS file has the correct codeowners."
     )

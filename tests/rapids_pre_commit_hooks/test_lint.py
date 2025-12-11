@@ -15,6 +15,7 @@ from rapids_pre_commit_hooks.lint import (
     LintMain,
     OverlappingReplacementsError,
 )
+from rapids_pre_commit_hooks_test_utils import parse_named_ranges
 
 
 class TestLines:
@@ -191,7 +192,7 @@ class TestLines:
 
 class TestLinter:
     def test_fix(self):
-        linter = Linter("test.txt", "Hello world!")
+        linter = Linter("test.txt", "Hello world!", "test")
         assert linter.fix() == "Hello world!"
 
         linter.add_warning((0, 0), "no fix")
@@ -220,6 +221,288 @@ class TestLinter:
             + r"Replacement\(pos=\(11, 12\), newtext='\.'\)$",
         ):
             linter.fix()
+
+    def test_fix_disabled(self):
+        content, r = parse_named_ranges(
+            """\
+            + # rapids-pre-commit-hooks: disable
+            + Hello world!
+            :            ~shout
+            """
+        )
+        linter = Linter("test.txt", content, "test")
+        linter.add_warning(r["shout"], "don't shout").add_replacement(
+            r["shout"], ""
+        )
+        assert linter.fix() == content
+
+    @pytest.mark.parametrize(
+        ["content", "warning_name", "expected_boundaries"],
+        [
+            pytest.param(
+                ": ^0",
+                "test",
+                [True],
+                id="empty",
+            ),
+            pytest.param(
+                """\
+                + Hello
+                : ~~~~~~0
+                + world!
+                : ~~~~~~~0
+                """,
+                "test",
+                [True],
+                id="content-with-no-directives",
+            ),
+            pytest.param(
+                """\
+                + # rapids-pre-commit-hooks:disable
+                : ~~0
+                :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1
+                + Hello
+                : ~~~~~~1
+                """,
+                "test",
+                [True, False],
+                id="single-unfiltered-disable",
+            ),
+            pytest.param(
+                """\
+                + # rapids-pre-commit-hooks: enable
+                : ~~0
+                :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1
+                + Hello
+                : ~~~~~~1
+                """,
+                "test",
+                [True, True],
+                id="single-unfiltered-enable",
+            ),
+            pytest.param(
+                """\
+                + # rapids-pre-commit-hooks: disable[relevant]
+                : ~~0
+                :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1
+                + Hello
+                : ~~~~~~1
+                """,
+                "relevant",
+                [True, False],
+                id="single-relevant-disable",
+            ),
+            pytest.param(
+                """\
+                + # rapids-pre-commit-hooks:enable [relevant]
+                : ~~0
+                :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1
+                + Hello
+                : ~~~~~~1
+                """,
+                "relevant",
+                [True, True],
+                id="single-relevant-enable",
+            ),
+            pytest.param(
+                """\
+                + # rapids-pre-commit-hooks:disable [irrelevant]
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + Hello
+                : ~~~~~~0
+                """,
+                "relevant",
+                [True],
+                id="single-irrelevant-disable",
+            ),
+            pytest.param(
+                """\
+                + # rapids-pre-commit-hooks: enable[irrelevant]
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + Hello
+                : ~~~~~~0
+                """,
+                "relevant",
+                [True],
+                id="single-irrelevant-enable",
+            ),
+            pytest.param(
+                """\
+                + # rapids-pre-commit-hooks: disable-next-line
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + Hello
+                : ~~~~~1
+                :      ~2
+                """,
+                "test",
+                [True, False, True],
+                id="single-unfiltered-disable-next-line",
+            ),
+            pytest.param(
+                """\
+                + # rapids-pre-commit-hooks: enable-next-line
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + Hello
+                : ~~~~~1
+                :      ~2
+                """,
+                "test",
+                [True, True, True],
+                id="single-unfiltered-enable-next-line",
+            ),
+            pytest.param(
+                """\
+                + # rapids-pre-commit-hooks: disable-next-line[relevant]
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + Hello
+                : ~~~~~1
+                :      ~2
+                """,
+                "relevant",
+                [True, False, True],
+                id="single-relevant-disable-next-line",
+            ),
+            pytest.param(
+                """\
+                + # rapids-pre-commit-hooks: enable-next-line[relevant]
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + Hello
+                : ~~~~~1
+                :      ~2
+                """,
+                "relevant",
+                [True, True, True],
+                id="single-relevant-enable-next-line",
+            ),
+            pytest.param(
+                """\
+                + # rapids-pre-commit-hooks: disable-next-line[irrelevant]
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + Hello
+                : ~~~~~~0
+                """,
+                "relevant",
+                [True],
+                id="single-irrelevant-disable-next-line",
+            ),
+            pytest.param(
+                """\
+                + # rapids-pre-commit-hooks: enable-next-line[irrelevant]
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + Hello
+                : ~~~~~~0
+                """,
+                "relevant",
+                [True],
+                id="single-irrelevant-enable-next-line",
+            ),
+            pytest.param(
+                """\
+                + # rapids-pre-commit-hooks: enable-next-line rapids-pre-commit-hooks: disable-next-line rapids-pre-commit-hooks: enable
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                :                                                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1
+                + # rapids-pre-commit-hooks: enable rapids-pre-commit-hooks: disable
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~2
+                :                                                                   ~3
+                + # rapids-pre-commit-hooks: enable
+                : ~~3
+                :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~4
+                """,  # noqa: E501
+                "test",
+                [True, True, False, False, True],
+                id="complex-next-line",
+            ),
+            pytest.param(
+                """\
+                + # prapids-pre-commit-hooks: enable
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + # rapids-pre-commit-hooks: enabled
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                """,
+                "test",
+                [True],
+                id="invalid-directives",
+            ),
+        ],
+    )
+    def test_get_disabled_enabled_boundaries(
+        self, content, warning_name, expected_boundaries
+    ):
+        content, r = parse_named_ranges(content)
+        assert Linter.get_disabled_enabled_boundaries(
+            Lines(content), warning_name
+        ) == list(zip(r, expected_boundaries, strict=True))
+
+    @pytest.mark.parametrize(
+        ["content", "expected_enabled"],
+        [
+            pytest.param(
+                ": ^warning",
+                True,
+                id="empty-content",
+            ),
+            pytest.param(
+                """\
+                + # rapids-pre-commit-hooks: disable-next-line
+                +
+                : ^warning
+                + Hello
+                """,
+                False,
+                id="empty-line",
+            ),
+            pytest.param(
+                """\
+                + Hello
+                : ~~~~~warning
+                """,
+                True,
+                id="no-directives",
+            ),
+            pytest.param(
+                """\
+                + # rapids-pre-commit-hooks: enable
+                + # rapids-pre-commit-hooks: disable
+                :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~warning
+                + # rapids-pre-commit-hooks: enable
+                : ~~warning
+                """,
+                False,
+                id="boundary-inside",
+            ),
+            pytest.param(
+                """\
+                + # rapids-pre-commit-hooks: enable
+                + # rapids-pre-commit-hooks: disable
+                :  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~warning
+                + # rapids-pre-commit-hooks: enable
+                : ~~warning
+                """,
+                True,
+                id="boundary-left",
+            ),
+            pytest.param(
+                """\
+                + # rapids-pre-commit-hooks: enable
+                + # rapids-pre-commit-hooks: disable
+                :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~warning
+                + # rapids-pre-commit-hooks: enable
+                : ~~~warning
+                """,
+                True,
+                id="boundary-right",
+            ),
+        ],
+    )
+    def test_is_warning_range_enabled(self, content, expected_enabled):
+        content, r = parse_named_ranges(content)
+        boundaries = Linter.get_disabled_enabled_boundaries(
+            Lines(content), "relevant"
+        )
+        assert (
+            Linter.is_warning_range_enabled(boundaries, r["warning"])
+            == expected_enabled
+        )
 
 
 class TestLintMain:
@@ -259,6 +542,25 @@ class TestLintMain:
     def bracket_file(self, tmp_path):
         with open(os.path.join(tmp_path, "file[with]brackets.txt"), "w+") as f:
             f.write("This [file] [has] [brackets]\n")
+            f.flush()
+            f.seek(0)
+            yield f
+
+    @pytest.fixture
+    def disabled_file_contents(self):
+        yield parse_named_ranges(
+            """\
+            + # rapids-pre-commit-hooks: disable
+            + Hello!
+            :      ~shout
+            """
+        )
+
+    @pytest.fixture
+    def disabled_file(self, disabled_file_contents, tmp_path):
+        contents, _ = disabled_file_contents
+        with open(os.path.join(tmp_path, "disabled.txt"), "w+") as f:
+            f.write(contents)
             f.flush()
             f.seek(0)
             yield f
@@ -309,7 +611,7 @@ class TestLintMain:
             ),
             self.mock_console() as console,
         ):
-            m = LintMain()
+            m = LintMain("test")
             m.argparser.add_argument("--check-test", action="store_true")
             m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute():
@@ -327,7 +629,7 @@ class TestLintMain:
             ),
             self.mock_console() as console,
         ):
-            m = LintMain()
+            m = LintMain("test")
             m.argparser.add_argument("--check-test", action="store_true")
             m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute():
@@ -346,7 +648,7 @@ class TestLintMain:
             self.mock_console() as console,
             pytest.raises(SystemExit, match=r"^1$"),
         ):
-            m = LintMain()
+            m = LintMain("test")
             m.argparser.add_argument("--check-test", action="store_true")
             m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute() as ctx:
@@ -383,7 +685,7 @@ class TestLintMain:
             self.mock_console() as console,
             pytest.raises(SystemExit, match=r"^1$"),
         ):
-            m = LintMain()
+            m = LintMain("test")
             m.argparser.add_argument("--check-test", action="store_true")
             m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute() as ctx:
@@ -425,7 +727,7 @@ class TestLintMain:
             self.mock_console() as console,
             pytest.raises(SystemExit, match=r"^1$"),
         ):
-            m = LintMain()
+            m = LintMain("test")
             m.argparser.add_argument("--check-test", action="store_true")
             m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute() as ctx:
@@ -472,7 +774,7 @@ class TestLintMain:
             self.mock_console() as console,
             pytest.raises(SystemExit, match=r"^1$"),
         ):
-            m = LintMain()
+            m = LintMain("test")
             m.argparser.add_argument("--check-test", action="store_true")
             m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute() as ctx:
@@ -534,7 +836,7 @@ class TestLintMain:
                 ],
             ),
         ):
-            m = LintMain()
+            m = LintMain("test")
             with m.execute() as ctx:
                 ctx.add_check(the_check)
         the_check.assert_called_once()
@@ -559,7 +861,7 @@ class TestLintMain:
                 match=r"^Refusing to run text linter on binary file .*\.$",
             ),
         ):
-            m = LintMain()
+            m = LintMain("test")
             m.argparser.add_argument("--check-test", action="store_true")
             m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute() as ctx:
@@ -578,7 +880,7 @@ class TestLintMain:
             self.mock_console() as console,
             pytest.raises(SystemExit, match=r"^1$"),
         ):
-            m = LintMain()
+            m = LintMain("test")
             with m.execute() as ctx:
                 ctx.add_check(self.long_file_check)
                 ctx.add_check(self.long_fix_check)
@@ -620,7 +922,7 @@ class TestLintMain:
             self.mock_console() as console,
             pytest.raises(SystemExit, match=r"^1$"),
         ):
-            m = LintMain()
+            m = LintMain("test")
             with m.execute() as ctx:
                 ctx.add_check(self.long_delete_fix_check)
         assert long_file.read() == dedent(
@@ -660,7 +962,7 @@ class TestLintMain:
             self.mock_console() as console,
             pytest.raises(SystemExit, match=r"^1$"),
         ):
-            m = LintMain()
+            m = LintMain("test")
             with m.execute() as ctx:
                 ctx.add_check(self.long_file_check)
                 ctx.add_check(self.long_fix_check)
@@ -704,7 +1006,7 @@ class TestLintMain:
             self.mock_console() as console,
             pytest.raises(SystemExit, match=r"^1$"),
         ):
-            m = LintMain()
+            m = LintMain("test")
             with m.execute() as ctx:
                 ctx.add_check(self.long_delete_fix_check)
         assert long_file.read() == "This is a short file now"
@@ -739,7 +1041,7 @@ class TestLintMain:
             self.mock_console() as console,
             pytest.raises(SystemExit, match=r"^1$"),
         ):
-            m = LintMain()
+            m = LintMain("test")
             with m.execute() as ctx:
                 ctx.add_check(self.bracket_check)
         assert bracket_file.read() == "This [file] [has more] [brackets]\n"
@@ -765,4 +1067,30 @@ class TestLintMain:
             ),
             call().print("[bold]note:[/bold] suggested fix applied"),
             call().print(),
+        ]
+
+    def test_disabled_file(self, disabled_file_contents, disabled_file):
+        contents, r = disabled_file_contents
+
+        def the_check(linter, _args):
+            linter.add_warning(r["shout"], "don't shout")
+
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "check-test",
+                    "--fix",
+                    disabled_file.name,
+                ],
+            ),
+            self.mock_console() as console,
+            pytest.raises(SystemExit, match=r"^1$"),
+        ):
+            m = LintMain("test")
+            with m.execute() as ctx:
+                ctx.add_check(the_check)
+        assert disabled_file.read() == contents
+        assert console.mock_calls == [
+            call(highlight=False),
         ]

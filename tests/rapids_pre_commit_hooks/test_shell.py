@@ -10,7 +10,7 @@ from rapids_pre_commit_hooks.shell.verify_conda_yes import (
 
 
 def run_shell_linter(content, cls):
-    linter = Linter("test.sh", content)
+    linter = Linter("test.sh", content, "verify-conda-yes")
     visitor = cls(linter, None)
     parts = bashlex.parse(content)
     for part in parts:
@@ -46,7 +46,7 @@ conda upgrade
 conda search
 conda install $pkg1 "$pkg2"
 """
-    expected_linter = Linter("test.sh", CONTENT)
+    expected_linter = Linter("test.sh", CONTENT, "verify-conda-yes")
     expected_linter.add_warning((53, 66), "add -y argument").add_replacement(
         (66, 66), " -y"
     )

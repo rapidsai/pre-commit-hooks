@@ -68,6 +68,9 @@ select = [
 testpaths = [
     "tests",
 ]
+pythonpath = [
+    "tests/utils",
+]
 
 [[tool.mypy.overrides]]
 module = "bashlex.*"
