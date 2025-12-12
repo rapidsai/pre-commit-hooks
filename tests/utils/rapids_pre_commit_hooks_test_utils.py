@@ -128,10 +128,9 @@ def parse_named_ranges(
                     elif match.group("range") == "!":
                         range_end = range_start
                         try:
-                            range_start = in_progress_large_groups[path]
+                            range_start = in_progress_large_groups.pop(path)
                         except KeyError as e:
                             raise ParseError from e
-                        del in_progress_large_groups[path]
                     elif (
                         match.end("range")
                         == end_of_last_line - start_of_last_line + 1
