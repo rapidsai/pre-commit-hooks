@@ -4,16 +4,18 @@ outputs:
   python-version:
     value: ${{ steps.read-pyproject-toml.outputs.python-version }}
 
-steps:
-  - id: read-pyproject-toml
-    shell: bash
-    run: |
-      perl -e '
-        while (<>) {
-          if (/^requires-python = ">=(\d+\.\d+)"$/) {
-            print("python-version=$1\n");
-            exit(0);
+runs:
+  using: composite
+  steps:
+    - id: read-pyproject-toml
+      shell: bash
+      run: |
+        perl -e '
+          while (<>) {
+            if (/^requires-python = ">=(\d+\.\d+)"$/) {
+              print("python-version=$1\n");
+              exit(0);
+            }
           }
-        }
-        exit(1);
-      ' pyproject.toml >> "$GITHUB_OUTPUT"
+          exit(1);
+        ' pyproject.toml >> "$GITHUB_OUTPUT"
