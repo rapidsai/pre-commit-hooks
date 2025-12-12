@@ -12,10 +12,10 @@ runs:
       run: |
         perl -e '
           while (<>) {
-            if (/^requires-python = ">=(\d+\.\d+)"$/) {
+            if (/^requires-python = ">=(\d+\.\d+(\.\d+)?)"$/) {
               print("python-version=$1\n");
               exit(0);
             }
           }
           exit(1);
-        ' pyproject.toml >> "$GITHUB_OUTPUT"
+        ' pyproject.toml | tee -a "$GITHUB_OUTPUT"
