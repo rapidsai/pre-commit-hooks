@@ -18,8 +18,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Get earliest supported Python version
+        id: earliest-python-version
+        uses: ./.github/actions/earliest-python-version
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: ${{ steps.earliest-python-version.outputs.python-version }}
       - name: Build & Test
         run: ./ci/build-test.sh
