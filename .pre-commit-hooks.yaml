@@ -50,7 +50,7 @@
     (?x)
       devcontainer[.]json$|
       dependencies[.]yaml$|
-      ^[.]github/workflows|
+      ^[.]github/workflows/|
       [.]md$|
       pom[.]xml$|
       ^[.]pre-commit-config[.]yaml$
