@@ -15,7 +15,7 @@ from rich.console import Console
 from rich.markup import escape
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator
+    from collections.abc import Callable, Generator, Iterator
 
 _PosType = tuple[int, int]
 
@@ -164,11 +164,8 @@ class Linter:
         sorted_replacements = sorted(
             (
                 replacement
-                for warning in self.warnings
+                for warning in self.get_enabled_warnings()
                 for replacement in warning.replacements
-                if Linter.is_warning_range_enabled(
-                    self.disabled_enabled_boundaries, warning.pos
-                )
             ),
             key=lambda replacement: replacement.pos,
         )
@@ -206,12 +203,7 @@ class Linter:
 
     def print_warnings(self, fix_applied: bool = False) -> None:
         sorted_warnings = sorted(
-            filter(
-                lambda w: Linter.is_warning_range_enabled(
-                    self.disabled_enabled_boundaries, w.pos
-                ),
-                self.warnings,
-            ),
+            self.get_enabled_warnings(),
             key=lambda warning: warning.pos,
         )
 
@@ -353,6 +345,14 @@ class Linter:
             end += 1
         return any(map(lambda b: b[1], boundaries[start:end]))
 
+    def get_enabled_warnings(self) -> "Iterator[LintWarning]":
+        return filter(
+            lambda w: Linter.is_warning_range_enabled(
+                self.disabled_enabled_boundaries, w.pos
+            ),
+            self.warnings,
+        )
+
 
 class ExecutionContext(contextlib.AbstractContextManager):
     def __init__(self, warning_name: str, args: argparse.Namespace) -> None:
@@ -393,17 +393,7 @@ class ExecutionContext(contextlib.AbstractContextManager):
                     with open(file, "w") as f:
                         f.write(fix)
 
-            def is_warning_range_enabled(w: LintWarning) -> bool:
-                return Linter.is_warning_range_enabled(
-                    linter.disabled_enabled_boundaries, w.pos
-                )
-
-            if any(
-                map(
-                    is_warning_range_enabled,
-                    linter.warnings,
-                )
-            ):
+            if any(linter.get_enabled_warnings()):
                 has_warnings = True
 
         if has_warnings:
