@@ -1,0 +1,19 @@
+name: earliest-python-version
+description: Get earliest supported Python version
+outputs:
+  python-version:
+    value: ${{ steps.read-pyproject-toml.outputs.python-version }}
+
+steps:
+  - id: read-pyproject-toml
+    shell: bash
+    run: |
+      perl -e '
+        while (<>) {
+          if (/^requires-python = ">=(\d+\.\d+)"$/) {
+            print("python-version=$1\n");
+            exit(0);
+          }
+        }
+        exit(1);
+      ' pyproject.toml >> "$GITHUB_OUTPUT"
