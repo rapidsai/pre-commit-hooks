@@ -339,9 +339,25 @@ class Linter:
             warning_range[1],
             key=lambda b: b[0][1],
         )
-        if start > 0 and boundaries[start - 1][0][1] > warning_range[0]:
+        if warning_range[0] == warning_range[1]:
+            move_start = (
+                start > 0 and warning_range[0] <= boundaries[start - 1][0][1]
+            )
+            move_end = (
+                end < len(boundaries)
+                and warning_range[1] >= boundaries[end][0][0]
+            )
+        else:
+            move_start = (
+                start > 0 and warning_range[0] < boundaries[start - 1][0][1]
+            )
+            move_end = (
+                end < len(boundaries)
+                and warning_range[1] > boundaries[end][0][0]
+            )
+        if move_start:
             start -= 1
-        if end < len(boundaries) and boundaries[end][0][0] < warning_range[1]:
+        if move_end:
             end += 1
         return any(map(lambda b: b[1], boundaries[start:end]))
 

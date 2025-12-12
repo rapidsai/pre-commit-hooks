@@ -144,7 +144,7 @@ def parse_named_ranges(
 
                     range = (range_start, range_end)
 
-                    if range[0] > end_of_last_line or range[1] > len(content):
+                    if max(*range) > len(content):
                         raise ParseError
 
                     last_collection = get_last_collection(path)

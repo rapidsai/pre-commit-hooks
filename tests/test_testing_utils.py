@@ -113,6 +113,19 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         pytest.param(
             """\
             + Hello
+            :       ^end
+            """,
+            dict,
+            "Hello\n",
+            {
+                "end": (6, 6),
+            },
+            contextlib.nullcontext(),
+            id="single-empty-group-at-end",
+        ),
+        pytest.param(
+            """\
+            + Hello
             :  ^group1
             :   ^group2
             """,
