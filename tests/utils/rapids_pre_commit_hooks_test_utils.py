@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from rapids_pre_commit_hooks.lint import Lines
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from typing import TypeGuard
 
     NamedRanges = (
         dict[str, "tuple[int, int] | NamedRanges"]
@@ -182,13 +182,10 @@ def parse_named_ranges(
     if any(in_progress_large_groups):
         raise ParseError
 
-    def ensure_list_filled(
+    def is_list_filled(
         collection: "list[None | tuple[int, int] | NamedRanges]",
-    ) -> "Generator[tuple[int, int] | NamedRanges]":
-        for item in collection:
-            if item is None:
-                raise ParseError
-            yield item
+    ) -> "TypeGuard[list[tuple[int, int] | NamedRanges]]":
+        return all(map(lambda i: i is not None, collection))
 
     def postprocess(named_ranges: "_NamedRanges") -> "NamedRanges":
         collection: """
@@ -211,8 +208,8 @@ def parse_named_ranges(
                     collection.extend([None] * (k - len(collection) + 1))
                 collection[k] = postprocess(v) if isinstance(v, dict) else v
 
-        if isinstance(collection, list):
-            return list(ensure_list_filled(collection))
+        if isinstance(collection, list) and not is_list_filled(collection):
+            raise ParseError
 
         assert collection is not None
         return collection

@@ -1085,7 +1085,6 @@ class TestLintMain:
                 ],
             ),
             self.mock_console() as console,
-            pytest.raises(SystemExit, match=r"^1$"),
         ):
             m = LintMain("test")
             with m.execute() as ctx:

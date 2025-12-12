@@ -393,7 +393,17 @@ class ExecutionContext(contextlib.AbstractContextManager):
                     with open(file, "w") as f:
                         f.write(fix)
 
-            if len(linter.warnings) > 0:
+            def is_warning_range_enabled(w: LintWarning) -> bool:
+                return Linter.is_warning_range_enabled(
+                    linter.disabled_enabled_boundaries, w.pos
+                )
+
+            if any(
+                map(
+                    is_warning_range_enabled,
+                    linter.warnings,
+                )
+            ):
                 has_warnings = True
 
         if has_warnings:
