@@ -73,6 +73,7 @@ def committed_hooks_repo(tmpdir_factory):
         new_repo.git.checkout(hooks_repo.head.commit.hexsha)
 
         for file in changed_files:
+            (new_repo_dir / file).dirpath().ensure(dir=True)
             try:
                 shutil.copy(HOOKS_REPO_DIR / file, new_repo_dir / file)
             except FileNotFoundError:
