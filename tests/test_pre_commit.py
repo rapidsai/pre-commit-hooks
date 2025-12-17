@@ -69,8 +69,9 @@ def committed_hooks_repo(tmpdir_factory):
         with new_repo.config_writer() as w:
             w.set_value("user", "name", "RAPIDS Test Fixtures")
             w.set_value("user", "email", "testfixtures@rapids.ai")
-        new_repo.create_remote("origin", hooks_repo.git_dir)
-        new_repo.remote("origin").fetch(hooks_repo.head.commit.hexsha, depth=1)
+        new_repo.create_remote("origin", hooks_repo.git_dir).fetch(
+            hooks_repo.head.commit.hexsha, depth=1
+        )
         new_repo.git.checkout(hooks_repo.head.commit.hexsha)
 
         for file in changed_files:
