@@ -19,10 +19,11 @@ import yaml
 from packaging.version import Version
 from rapids_metadata.remote import fetch_latest
 
-HOOKS_REPO_DIR = pathlib.Path(os.path.dirname(__file__)) / ".."
+TESTS_DIR = pathlib.Path(__file__).parent
+HOOKS_REPO_DIR = TESTS_DIR / ".."
 with open(HOOKS_REPO_DIR / ".pre-commit-hooks.yaml") as f:
     ALL_HOOKS = [hook["id"] for hook in yaml.safe_load(f)]
-EXAMPLES_DIR = pathlib.Path(os.path.dirname(__file__)) / "examples"
+EXAMPLES_DIR = TESTS_DIR / "examples"
 
 
 @cache
