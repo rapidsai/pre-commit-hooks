@@ -75,7 +75,11 @@ def committed_hooks_repo(tmpdir_factory):
         for file in changed_files:
             (new_repo_dir / file).dirpath().ensure(dir=True)
             try:
-                shutil.copy(HOOKS_REPO_DIR / file, new_repo_dir / file)
+                shutil.copy(
+                    HOOKS_REPO_DIR / file,
+                    new_repo_dir / file,
+                    follow_symlinks=False,
+                )
             except FileNotFoundError:
                 os.remove(new_repo_dir / file)
                 new_repo.index.remove(file)
