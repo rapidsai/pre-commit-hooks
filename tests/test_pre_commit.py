@@ -5,10 +5,12 @@ import contextlib
 import datetime
 import json
 import os.path
+import pathlib
 import shutil
 import subprocess
 import sys
 from functools import cache
+from itertools import chain
 from textwrap import dedent
 
 import git
@@ -17,11 +19,10 @@ import yaml
 from packaging.version import Version
 from rapids_metadata.remote import fetch_latest
 
-HOOKS_REPO_DIR = os.path.join(os.path.dirname(__file__), "..")
-with open(os.path.join(HOOKS_REPO_DIR, ".pre-commit-hooks.yaml")) as f:
+HOOKS_REPO_DIR = pathlib.Path(os.path.dirname(__file__)) / ".."
+with open(HOOKS_REPO_DIR / ".pre-commit-hooks.yaml") as f:
     ALL_HOOKS = [hook["id"] for hook in yaml.safe_load(f)]
-HOOKS_REPO = git.Repo(HOOKS_REPO_DIR)
-EXAMPLES_DIR = os.path.join(os.path.dirname(__file__), "examples")
+EXAMPLES_DIR = pathlib.Path(os.path.dirname(__file__)) / "examples"
 
 
 @cache
@@ -48,10 +49,43 @@ def git_repo(tmp_path):
     return repo
 
 
-@pytest.mark.skipif(
-    any(HOOKS_REPO.head.commit.diff(other=None)),
-    reason="Hooks repo has modified files that haven't been committed",
-)
+@pytest.fixture(scope="session")
+def committed_hooks_repo(tmpdir_factory):
+    hooks_repo = git.Repo(HOOKS_REPO_DIR)
+    changed_files = {
+        *chain.from_iterable(
+            (
+                *((f.a_path,) if f.a_path is not None else ()),
+                *((f.b_path,) if f.b_path is not None else ()),
+            )
+            for f in hooks_repo.head.commit.diff(other=None)
+        ),
+        *hooks_repo.untracked_files,
+    }
+    if any(changed_files):
+        new_repo_dir = tmpdir_factory.mktemp("hooks_repo")
+        new_repo = git.Repo.init(new_repo_dir, initial_branch="main")
+        with new_repo.config_writer() as w:
+            w.set_value("user", "name", "RAPIDS Test Fixtures")
+            w.set_value("user", "email", "testfixtures@rapids.ai")
+        new_repo.create_remote("origin", hooks_repo.git_dir)
+        new_repo.remote("origin").fetch(hooks_repo.head.commit.hexsha)
+        new_repo.git.checkout(hooks_repo.head.commit.hexsha)
+
+        for file in changed_files:
+            try:
+                shutil.copy(HOOKS_REPO_DIR / file, new_repo_dir / file)
+            except FileNotFoundError:
+                os.remove(new_repo_dir / file)
+                new_repo.index.remove(file)
+            else:
+                new_repo.index.add(file)
+        commit = new_repo.index.commit("Update with uncommitted changes")
+        return (new_repo.git_dir, commit.hexsha)
+    else:
+        return (hooks_repo.git_dir, hooks_repo.head.commit.hexsha)
+
+
 @pytest.mark.parametrize(
     ["expected_status", "context"],
     [
@@ -65,7 +99,9 @@ def git_repo(tmp_path):
     "hook_name",
     ALL_HOOKS,
 )
-def test_pre_commit(git_repo, hook_name, expected_status, context):
+def test_pre_commit(
+    git_repo, committed_hooks_repo, hook_name, expected_status, context
+):
     def list_files(top):
         for dirpath, _, filenames in os.walk(top):
             for filename in filenames:
@@ -74,6 +110,8 @@ def test_pre_commit(git_repo, hook_name, expected_status, context):
                     if top == dirpath
                     else os.path.join(os.path.relpath(dirpath, top), filename)
                 )
+
+    hooks_repo, hooks_commit = committed_hooks_repo
 
     example_dir = os.path.join(EXAMPLES_DIR, hook_name, expected_status)
     main_dir = os.path.join(example_dir, "main")
@@ -109,8 +147,8 @@ def test_pre_commit(git_repo, hook_name, expected_status, context):
             dedent(
                 f"""
                 repos:
-                - repo: "{HOOKS_REPO_DIR}"
-                  rev: "{HOOKS_REPO.head.commit.hexsha}"
+                - repo: "{hooks_repo}"
+                  rev: "{hooks_commit}"
                   hooks:
                     - id: {hook_name}
                       {args_text}
