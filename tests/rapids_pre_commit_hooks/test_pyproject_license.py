@@ -63,6 +63,8 @@ def test_find_value_location(key, append, loc):
 @pytest.mark.parametrize(
     ["document", "loc", "message", "replacement_loc", "replacement_text"],
     [
+        # recognized license in "= { text = ... }" form should result
+        # in a warning
         (
             dedent(
                 """\
@@ -70,11 +72,13 @@ def test_find_value_location(key, append, loc):
                 license = { text = "Apache-2.0" }
                 """
             ),
-            (29, 41),
-            'license should be "Apache 2.0"',
+            (20, 43),
+            'license should be "Apache-2.0"',
             None,
             None,
         ),
+        # unrecognized license in "= { text = ... }" should result
+        # in a warning
         (
             dedent(
                 """\
@@ -82,19 +86,19 @@ def test_find_value_location(key, append, loc):
                 license = { text = "BSD" }
                 """
             ),
-            (29, 34),
-            'license should be "Apache 2.0"',
+            (20, 36),
+            'license should be "Apache-2.0"',
             None,
             None,
         ),
+        # each of the acceptable licenses, expressed in PEP 639 format,
+        # should not generate any warnings or replacements
         *(
             (
                 dedent(
                     f"""\
                     [project]
-                    license = {{ text = {
-                        tomlkit.string(license).as_string()
-                    } }}
+                    license = {tomlkit.string(license).as_string()}
                     """
                 ),
                 None,
@@ -104,11 +108,13 @@ def test_find_value_location(key, append, loc):
             )
             for license in pyproject_license.ACCEPTABLE_LICENSES
         ),
+        # an acceptable license in single quotes, expressed in PEP 639 form,
+        # should not generate any warnings or replacements
         (
             dedent(
                 """\
                 [project]
-                license = { text = 'Apache 2.0' }  # Single quotes are fine
+                license = 'Apache-2.0'  # Single quotes are fine
                 """
             ),
             None,
@@ -116,6 +122,22 @@ def test_find_value_location(key, append, loc):
             None,
             None,
         ),
+        # a license in PEP 639 form that only differs from an acceptable one
+        # by whitespace should still cause a warning
+        (
+            dedent(
+                """\
+                [project]
+                license = 'Apache 2.0'  # Single quotes are fine
+                """
+            ),
+            (20, 32),
+            'license should be "Apache-2.0"',
+            None,
+            None,
+        ),
+        # Apache-2.0 licenses should be added to a file
+        # totally missing [project] table
         (
             dedent(
                 """\
@@ -124,10 +146,12 @@ def test_find_value_location(key, append, loc):
                 """
             ),
             (48, 48),
-            'add project.license with value { text = "Apache 2.0" }',
+            'add project.license with value "Apache-2.0"',
             (48, 48),
-            '[project]\nlicense = { text = "Apache 2.0" }\n',
+            '[project]\nlicense = "Apache-2.0"\n',
         ),
+        # Apache-2.0 licenses should be added to a file with [project] table
+        # but no 'license' key
         (
             dedent(
                 """\
@@ -139,10 +163,12 @@ def test_find_value_location(key, append, loc):
                 """
             ),
             (32, 32),
-            'add project.license with value { text = "Apache 2.0" }',
+            'add project.license with value "Apache-2.0"',
             (32, 32),
-            'license = { text = "Apache 2.0" }\n',
+            'license = "Apache-2.0"\n',
         ),
+        # Apache-2.0 licenses should be correctly added to a file with
+        # [project] table and other [project.*] tables
         (
             dedent(
                 """\
@@ -154,10 +180,12 @@ def test_find_value_location(key, append, loc):
                 """
             ),
             (32, 32),
-            'add project.license with value { text = "Apache 2.0" }',
+            'add project.license with value "Apache-2.0"',
             (32, 32),
-            'license = { text = "Apache 2.0" }\n',
+            'license = "Apache-2.0"\n',
         ),
+        # Apache-2.0 licenses should be correctly added to a file with
+        # [project.*] tables but no [project] table
         (
             dedent(
                 """\
@@ -166,9 +194,9 @@ def test_find_value_location(key, append, loc):
                 """
             ),
             (50, 50),
-            'add project.license with value { text = "Apache 2.0" }',
+            'add project.license with value "Apache-2.0"',
             (50, 50),
-            '[project]\nlicense = { text = "Apache 2.0" }\n',
+            '[project]\nlicense = "Apache-2.0"\n',
         ),
     ],
 )

@@ -10,7 +10,7 @@ import tomlkit.exceptions
 
 from .lint import Linter, LintMain
 
-RAPIDS_LICENSE: str = "Apache 2.0"
+RAPIDS_LICENSE: str = "Apache-2.0"
 ACCEPTABLE_LICENSES: set[str] = {
     RAPIDS_LICENSE,
     "BSD-3-Clause",
@@ -55,38 +55,38 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
         add_project_table = True
         project_table = document["project"]
         add_project_table = project_table.is_super_table()  # type: ignore[union-attr]
-        license_value = project_table["license"]["text"]  # type: ignore[index]
+        license_value = project_table["license"]  # type: ignore[index]
     except tomlkit.exceptions.NonExistentKey:
         if add_project_table:
             loc = (len(linter.content), len(linter.content))
             linter.add_warning(
-                loc,
-                'add project.license with value { text = "'
-                f'{RAPIDS_LICENSE}" }}',
+                loc, f'add project.license with value "{RAPIDS_LICENSE}"'
             ).add_replacement(
                 loc,
-                f"[project]{linter.lines.newline_style}license = {{ text = "
-                f"{tomlkit.string(RAPIDS_LICENSE).as_string()} }}"
+                f"[project]{linter.lines.newline_style}license = "
+                f"{tomlkit.string(RAPIDS_LICENSE).as_string()}"
                 + linter.lines.newline_style,
             )
         else:
             loc = find_value_location(document, ("project",), True)
             linter.add_warning(
-                loc,
-                'add project.license with value { text = "'
-                f'{RAPIDS_LICENSE}" }}',
+                loc, f'add project.license with value "{RAPIDS_LICENSE}"'
             ).add_replacement(
                 loc,
-                "license = { text = "
-                f"{tomlkit.string(RAPIDS_LICENSE).as_string()} }}"
+                f"license = {tomlkit.string(RAPIDS_LICENSE).as_string()}"
                 + linter.lines.newline_style,
             )
         return
 
+    # handle case where the license is still in
+    # "license = { text = 'something' }" form
+    if isinstance(license_value, tomlkit.items.InlineTable):
+        loc = find_value_location(document, ("project", "license"), False)
+        linter.add_warning(loc, f'license should be "{RAPIDS_LICENSE}"')
+        return
+
     if license_value not in ACCEPTABLE_LICENSES:
-        loc = find_value_location(
-            document, ("project", "license", "text"), False
-        )
+        loc = find_value_location(document, ("project", "license"), False)
         linter.add_warning(loc, f'license should be "{RAPIDS_LICENSE}"')
 
 
