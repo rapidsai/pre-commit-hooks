@@ -1,9 +1,10 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
 import copy
 import uuid
+import re
 
 import tomlkit
 import tomlkit.exceptions
@@ -87,6 +88,22 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
 
     if license_value not in ACCEPTABLE_LICENSES:
         loc = find_value_location(document, ("project", "license"), False)
+        slugified_license_value = re.sub(
+            r"\s+", "-", str(license_value).strip()
+        )
+        if slugified_license_value in ACCEPTABLE_LICENSES:
+            linter.add_warning(
+                loc,
+                f'license should be "{slugified_license_value}"'
+                + f', got "{license_value}"',
+            ).add_replacement(
+                loc,
+                "license = "
+                + f"{tomlkit.string(slugified_license_value).as_string()}"
+                + linter.lines.newline_style,
+            )
+            return
+
         linter.add_warning(loc, f'license should be "{RAPIDS_LICENSE}"')
 
 

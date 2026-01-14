@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 from textwrap import dedent
@@ -123,7 +123,7 @@ def test_find_value_location(key, append, loc):
             None,
         ),
         # a license in PEP 639 form that only differs from an acceptable one
-        # by whitespace should still cause a warning
+        # by internal whitespace should cause a warning and a replacement
         (
             dedent(
                 """\
@@ -132,9 +132,39 @@ def test_find_value_location(key, append, loc):
                 """
             ),
             (20, 32),
-            'license should be "Apache-2.0"',
-            None,
-            None,
+            'license should be "Apache-2.0", got "Apache 2.0"',
+            (20, 32),
+            'license = "Apache-2.0"\n',
+        ),
+        # a license in PEP 639 form that only differs from an acceptable one
+        # by leading whitespace (including multiple characters) should cause
+        # a warning and a replacement
+        (
+            dedent(
+                """\
+                [project]
+                license = '   Apache-2.0'  # Single quotes are fine
+                """
+            ),
+            (20, 35),
+            'license should be "Apache-2.0", got "   Apache-2.0"',
+            (20, 35),
+            'license = "Apache-2.0"\n',
+        ),
+        # a license in PEP 639 form that only differs from an acceptable one
+        # by trailing whitespace (including multiple characters) should cause
+        # a warning and a replacement
+        (
+            dedent(
+                """\
+                [project]
+                license = 'Apache-2.0   '  # Single quotes are fine
+                """
+            ),
+            (20, 35),
+            'license should be "Apache-2.0", got "Apache-2.0   "',
+            (20, 35),
+            'license = "Apache-2.0"\n',
         ),
         # Apache-2.0 licenses should be added to a file
         # totally missing [project] table
