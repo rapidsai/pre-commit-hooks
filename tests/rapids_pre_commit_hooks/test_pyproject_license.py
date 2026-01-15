@@ -1,250 +1,246 @@
 # SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
-from textwrap import dedent
 from unittest.mock import Mock
 
 import pytest
 import tomlkit
 
 from rapids_pre_commit_hooks import pyproject_license
-from rapids_pre_commit_hooks.lint import Linter
+from rapids_pre_commit_hooks.lint import LintWarning, Linter, Replacement
+from rapids_pre_commit_hooks_test_utils import parse_named_ranges
 
 
 @pytest.mark.parametrize(
-    ["key", "append", "loc"],
+    ["key", "append"],
     [
-        (
+        pytest.param(
             ("table", "key1"),
             False,
-            (15, 22),
+            id="string-value",
         ),
-        (
+        pytest.param(
             ("table", "key2"),
             False,
-            (30, 32),
+            id="int-value",
         ),
-        (
+        pytest.param(
             ("table", "key3"),
             False,
-            (40, 60),
+            id="subtable",
         ),
-        (
+        pytest.param(
             ("table", "key3", "nested"),
             False,
-            (51, 58),
+            id="subtable-nested",
         ),
-        (
+        pytest.param(
             ("table",),
             True,
-            (61, 61),
+            id="append",
         ),
     ],
 )
-def test_find_value_location(key, append, loc):
-    CONTENT = dedent(
+def test_find_value_location(key, append):
+    content, r = parse_named_ranges(
         """\
-        [table]
-        key1 = "value"
-        key2 = 42
-        key3 = { nested = "value" }
-
-        [table2]
-        key = "value"
+        + [table]
+        + key1 = "value"
+        :        ~~~~~~~table.key1._value
+        + key2 = 42
+        :        ~~table.key2._value
+        + key3 = { nested = "value" }
+        :        ~~~~~~~~~~~~~~~~~~~~table.key3._value
+        :                   ~~~~~~~table.key3.nested._value
+        +
+        : ^table._append
+        + [table2]
+        + key = "value"
         """
     )
-    parsed_doc = tomlkit.loads(CONTENT)
+    parsed_doc = tomlkit.loads(content)
+    loc = r
+    for component in key:
+        loc = loc[component]
+    loc = loc["_append" if append else "_value"]
     assert (
         pyproject_license.find_value_location(parsed_doc, key, append) == loc
     )
-    assert parsed_doc.as_string() == CONTENT
+    assert parsed_doc.as_string() == content
 
 
 @pytest.mark.parametrize(
-    ["document", "loc", "message", "replacement_loc", "replacement_text"],
+    ["content", "message", "replacement_text"],
     [
         # recognized license in "= { text = ... }" form should result
         # in a warning
-        (
-            dedent(
-                """\
-                [project]
-                license = { text = "Apache-2.0" }
-                """
-            ),
-            (20, 43),
+        pytest.param(
+            """\
+            + [project]
+            + license = { text = "Apache-2.0" }
+            :           ~~~~~~~~~~~~~~~~~~~~~~~warning
+            """,
             'license should be "Apache-2.0"',
             None,
-            None,
+            id="license-subtable-with-text",
         ),
         # unrecognized license in "= { text = ... }" should result
         # in a warning
-        (
-            dedent(
-                """\
-                [project]
-                license = { text = "BSD" }
-                """
-            ),
-            (20, 36),
+        pytest.param(
+            """\
+            + [project]
+            + license = { text = "BSD" }
+            :           ~~~~~~~~~~~~~~~~warning
+            """,
             'license should be "Apache-2.0"',
             None,
-            None,
+            id="license-subtable-with-text-wrong-license",
         ),
         # each of the acceptable licenses, expressed in PEP 639 format,
         # should not generate any warnings or replacements
         *(
-            (
-                dedent(
-                    f"""\
-                    [project]
-                    license = {tomlkit.string(license).as_string()}
-                    """
-                ),
+            pytest.param(
+                f"""\
+                + [project]
+                + license = {tomlkit.string(license).as_string()}
+                """,
                 None,
                 None,
-                None,
-                None,
+                id=f"license-correct-{license}",
             )
             for license in pyproject_license.ACCEPTABLE_LICENSES
         ),
         # an acceptable license in single quotes, expressed in PEP 639 form,
         # should not generate any warnings or replacements
-        (
-            dedent(
-                """\
-                [project]
-                license = 'Apache-2.0'  # Single quotes are fine
-                """
-            ),
+        pytest.param(
+            """\
+            + [project]
+            + license = 'Apache-2.0'  # Single quotes are fine
+            """,
             None,
             None,
-            None,
-            None,
+            id="license-correct-single-quotes",
         ),
         # a license in PEP 639 form that only differs from an acceptable one
         # by internal whitespace should cause a warning and a replacement
-        (
-            dedent(
-                """\
-                [project]
-                license = 'Apache 2.0'  # Single quotes are fine
-                """
-            ),
-            (20, 32),
+        pytest.param(
+            """\
+            + [project]
+            + license = 'Apache 2.0'  # Single quotes are fine
+            :           ~~~~~~~~~~~~warning
+            :           ~~~~~~~~~~~~replacement
+            """,
             'license should be "Apache-2.0", got "Apache 2.0"',
-            (20, 32),
             'license = "Apache-2.0"\n',
+            id="license-internal-whitespace",
         ),
         # a license in PEP 639 form that only differs from an acceptable one
         # by leading whitespace (including multiple characters) should cause
         # a warning and a replacement
-        (
-            dedent(
-                """\
-                [project]
-                license = '   Apache-2.0'  # Single quotes are fine
-                """
-            ),
-            (20, 35),
+        pytest.param(
+            """\
+            + [project]
+            + license = '   Apache-2.0'  # Single quotes are fine
+            :           ~~~~~~~~~~~~~~~warning
+            :           ~~~~~~~~~~~~~~~replacement
+            """,
             'license should be "Apache-2.0", got "   Apache-2.0"',
-            (20, 35),
             'license = "Apache-2.0"\n',
+            id="license-leading-whitespace",
         ),
         # a license in PEP 639 form that only differs from an acceptable one
         # by trailing whitespace (including multiple characters) should cause
         # a warning and a replacement
-        (
-            dedent(
-                """\
-                [project]
-                license = 'Apache-2.0   '  # Single quotes are fine
-                """
-            ),
-            (20, 35),
+        pytest.param(
+            """\
+            + [project]
+            + license = 'Apache-2.0   '  # Single quotes are fine
+            :           ~~~~~~~~~~~~~~~warning
+            :           ~~~~~~~~~~~~~~~replacement
+            """,
             'license should be "Apache-2.0", got "Apache-2.0   "',
-            (20, 35),
             'license = "Apache-2.0"\n',
+            id="license-trailing-whitespace",
         ),
         # Apache-2.0 licenses should be added to a file
         # totally missing [project] table
-        (
-            dedent(
-                """\
-                [build-system]
-                requires = ["scikit-build-core"]
-                """
-            ),
-            (48, 48),
+        pytest.param(
+            """\
+            + [build-system]
+            + requires = ["scikit-build-core"]
+            :                                  ^warning
+            :                                  ^replacement
+            """,
             'add project.license with value "Apache-2.0"',
-            (48, 48),
             '[project]\nlicense = "Apache-2.0"\n',
+            id="no-project-table",
         ),
         # Apache-2.0 licenses should be added to a file with [project] table
         # but no 'license' key
-        (
-            dedent(
-                """\
-                [project]
-                name = "test-project"
-
-                [build-system]
-                requires = ["scikit-build-core"]
-                """
-            ),
-            (32, 32),
+        pytest.param(
+            """\
+            + [project]
+            + name = "test-project"
+            +
+            : ^warning
+            : ^replacement
+            + [build-system]
+            + requires = ["scikit-build-core"]
+            """,
             'add project.license with value "Apache-2.0"',
-            (32, 32),
             'license = "Apache-2.0"\n',
+            id="project-table-no-license-key",
         ),
         # Apache-2.0 licenses should be correctly added to a file with
         # [project] table and other [project.*] tables
-        (
-            dedent(
-                """\
-                [project]
-                name = "test-project"
-
-                [project.optional-dependencies]
-                test = ["pytest"]
-                """
-            ),
-            (32, 32),
+        pytest.param(
+            """\
+            + [project]
+            + name = "test-project"
+            +
+            : ^warning
+            : ^replacement
+            + [project.optional-dependencies]
+            + test = ["pytest"]
+            """,
             'add project.license with value "Apache-2.0"',
-            (32, 32),
             'license = "Apache-2.0"\n',
+            id="project-table-and-project-subtables",
         ),
         # Apache-2.0 licenses should be correctly added to a file with
         # [project.*] tables but no [project] table
-        (
-            dedent(
-                """\
-                [project.optional-dependencies]
-                test = ["pytest"]
-                """
-            ),
-            (50, 50),
+        pytest.param(
+            """\
+            + [project.optional-dependencies]
+            + test = ["pytest"]
+            :                   ^warning
+            :                   ^replacement
+            """,
             'add project.license with value "Apache-2.0"',
-            (50, 50),
             '[project]\nlicense = "Apache-2.0"\n',
+            id="project-subtable-no-project-table",
         ),
     ],
 )
 def test_check_pyproject_license(
-    document,
-    loc,
+    content,
     message,
-    replacement_loc,
     replacement_text,
 ):
-    linter = Linter("pyproject.toml", document, "verify-pyproject-license")
+    content, r = parse_named_ranges(content)
+    linter = Linter("pyproject.toml", content, "verify-pyproject-license")
     pyproject_license.check_pyproject_license(linter, Mock())
 
-    expected_linter = Linter(
-        "pyproject.toml", document, "verify-pyproject-license"
+    assert linter.warnings == (
+        []
+        if message is None
+        else [
+            LintWarning(
+                r["warning"],
+                message,
+                replacements=[]
+                if replacement_text is None
+                else [Replacement(r["replacement"], replacement_text)],
+            )
+        ]
     )
-    if loc and message:
-        w = expected_linter.add_warning(loc, message)
-        if replacement_loc and replacement_text:
-            w.add_replacement(replacement_loc, replacement_text)
-    assert linter.warnings == expected_linter.warnings
