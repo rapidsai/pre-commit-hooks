@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import contextlib
@@ -443,13 +443,27 @@ class TestLinter:
             ),
             pytest.param(
                 """\
-                + # rapids-pre-commit-hooks: disable-next-line
-                +
-                : ^warning
                 + Hello
+                : ^warning
                 """,
-                False,
-                id="empty-line",
+                True,
+                id="empty-range-at-start",
+            ),
+            pytest.param(
+                """\
+                + Hello
+                :    ^warning
+                """,
+                True,
+                id="empty-range-in-middle",
+            ),
+            pytest.param(
+                """\
+                + Hello
+                :       ^warning
+                """,
+                True,
+                id="empty-range-at-end",
             ),
             pytest.param(
                 """\
@@ -469,6 +483,17 @@ class TestLinter:
                 """,
                 False,
                 id="boundary-inside",
+            ),
+            pytest.param(
+                """\
+                + # rapids-pre-commit-hooks: enable
+                + # rapids-pre-commit-hooks: disable
+                :    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~warning
+                + # rapids-pre-commit-hooks: enable
+                : ~warning
+                """,
+                False,
+                id="boundary-fully-inside",
             ),
             pytest.param(
                 """\
@@ -1085,7 +1110,6 @@ class TestLintMain:
                 ],
             ),
             self.mock_console() as console,
-            pytest.raises(SystemExit, match=r"^1$"),
         ):
             m = LintMain("test")
             with m.execute() as ctx:
