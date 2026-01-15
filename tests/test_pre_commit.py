@@ -1,15 +1,16 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import contextlib
 import datetime
 import json
 import os.path
+import pathlib
 import shutil
 import subprocess
 import sys
-from collections.abc import Callable
 from functools import cache
+from itertools import chain
 from textwrap import dedent
 
 import git
@@ -18,17 +19,11 @@ import yaml
 from packaging.version import Version
 from rapids_metadata.remote import fetch_latest
 
-HOOKS_REPO_DIR = os.path.join(os.path.dirname(__file__), "..")
-with open(os.path.join(HOOKS_REPO_DIR, ".pre-commit-hooks.yaml")) as f:
+TESTS_DIR = pathlib.Path(__file__).parent
+HOOKS_REPO_DIR = TESTS_DIR / ".."
+with open(HOOKS_REPO_DIR / ".pre-commit-hooks.yaml") as f:
     ALL_HOOKS = [hook["id"] for hook in yaml.safe_load(f)]
-HOOKS_REPO = git.Repo(HOOKS_REPO_DIR)
-EXAMPLES_DIR = os.path.join(os.path.dirname(__file__), "examples")
-
-
-maybe_skip: Callable = pytest.mark.skipif(
-    any(HOOKS_REPO.head.commit.diff(other=None)),
-    reason="Hooks repo has modified files that haven't been committed",
-)
+EXAMPLES_DIR = TESTS_DIR / "examples"
 
 
 @cache
@@ -55,7 +50,65 @@ def git_repo(tmp_path):
     return repo
 
 
-def run_pre_commit(git_repo, hook_name, expected_status, exc):
+@pytest.fixture(scope="session")
+def committed_hooks_repo(tmpdir_factory):
+    hooks_repo = git.Repo(HOOKS_REPO_DIR)
+    changed_files = {
+        *chain.from_iterable(
+            (
+                *((f.a_path,) if f.a_path is not None else ()),
+                *((f.b_path,) if f.b_path is not None else ()),
+            )
+            for f in hooks_repo.head.commit.diff(other=None)
+        ),
+        *hooks_repo.untracked_files,
+    }
+    if any(changed_files):
+        new_repo_dir = tmpdir_factory.mktemp("hooks_repo")
+        new_repo = git.Repo.init(new_repo_dir, initial_branch="main")
+        with new_repo.config_writer() as w:
+            w.set_value("user", "name", "RAPIDS Test Fixtures")
+            w.set_value("user", "email", "testfixtures@rapids.ai")
+        new_repo.create_remote("origin", hooks_repo.git_dir).fetch(
+            hooks_repo.head.commit.hexsha, depth=1
+        )
+        new_repo.git.checkout(hooks_repo.head.commit.hexsha)
+
+        for file in changed_files:
+            (new_repo_dir / file).dirpath().ensure(dir=True)
+            try:
+                shutil.copy(
+                    HOOKS_REPO_DIR / file,
+                    new_repo_dir / file,
+                    follow_symlinks=False,
+                )
+            except FileNotFoundError:
+                os.remove(new_repo_dir / file)
+                new_repo.index.remove(file)
+            else:
+                new_repo.index.add(file)
+        commit = new_repo.index.commit("Update with uncommitted changes")
+        return (new_repo.git_dir, commit.hexsha)
+    else:
+        return (hooks_repo.git_dir, hooks_repo.head.commit.hexsha)
+
+
+@pytest.mark.parametrize(
+    ["expected_status", "context"],
+    [
+        pytest.param("pass", contextlib.nullcontext(), id="pass"),
+        pytest.param(
+            "fail", pytest.raises(subprocess.CalledProcessError), id="fail"
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "hook_name",
+    ALL_HOOKS,
+)
+def test_pre_commit(
+    git_repo, committed_hooks_repo, hook_name, expected_status, context
+):
     def list_files(top):
         for dirpath, _, filenames in os.walk(top):
             for filename in filenames:
@@ -64,6 +117,8 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
                     if top == dirpath
                     else os.path.join(os.path.relpath(dirpath, top), filename)
                 )
+
+    hooks_repo, hooks_commit = committed_hooks_repo
 
     example_dir = os.path.join(EXAMPLES_DIR, hook_name, expected_status)
     main_dir = os.path.join(example_dir, "main")
@@ -99,8 +154,8 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
             dedent(
                 f"""
                 repos:
-                - repo: "{HOOKS_REPO_DIR}"
-                  rev: "{HOOKS_REPO.head.commit.hexsha}"
+                - repo: "{hooks_repo}"
+                  rev: "{hooks_commit}"
                   hooks:
                     - id: {hook_name}
                       {args_text}
@@ -136,7 +191,7 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
 
     with (
         set_cwd(git_repo.working_tree_dir),
-        pytest.raises(exc) if exc else contextlib.nullcontext(),
+        context,
     ):
         subprocess.check_call(
             [sys.executable, "-m", "pre_commit", "run", hook_name, "-a"],
@@ -147,21 +202,3 @@ def run_pre_commit(git_repo, hook_name, expected_status, exc):
                 "RAPIDS_TEST_YEAR": "2024",
             },
         )
-
-
-@pytest.mark.parametrize(
-    "hook_name",
-    ALL_HOOKS,
-)
-@maybe_skip
-def test_pre_commit_pass(git_repo, hook_name):
-    run_pre_commit(git_repo, hook_name, "pass", None)
-
-
-@pytest.mark.parametrize(
-    "hook_name",
-    ALL_HOOKS,
-)
-@maybe_skip
-def test_pre_commit_fail(git_repo, hook_name):
-    run_pre_commit(git_repo, hook_name, "fail", subprocess.CalledProcessError)

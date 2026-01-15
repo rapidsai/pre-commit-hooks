@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -15,7 +15,7 @@ from rich.console import Console
 from rich.markup import escape
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator
+    from collections.abc import Callable, Generator, Iterator
 
 _PosType = tuple[int, int]
 
@@ -164,11 +164,8 @@ class Linter:
         sorted_replacements = sorted(
             (
                 replacement
-                for warning in self.warnings
+                for warning in self.get_enabled_warnings()
                 for replacement in warning.replacements
-                if Linter.is_warning_range_enabled(
-                    self.disabled_enabled_boundaries, warning.pos
-                )
             ),
             key=lambda replacement: replacement.pos,
         )
@@ -206,12 +203,7 @@ class Linter:
 
     def print_warnings(self, fix_applied: bool = False) -> None:
         sorted_warnings = sorted(
-            filter(
-                lambda w: Linter.is_warning_range_enabled(
-                    self.disabled_enabled_boundaries, w.pos
-                ),
-                self.warnings,
-            ),
+            self.get_enabled_warnings(),
             key=lambda warning: warning.pos,
         )
 
@@ -347,11 +339,35 @@ class Linter:
             warning_range[1],
             key=lambda b: b[0][1],
         )
-        if start > 0 and boundaries[start - 1][0][1] > warning_range[0]:
+        if warning_range[0] == warning_range[1]:
+            move_start = (
+                start > 0 and warning_range[0] <= boundaries[start - 1][0][1]
+            )
+            move_end = (
+                end < len(boundaries)
+                and warning_range[1] >= boundaries[end][0][0]
+            )
+        else:
+            move_start = (
+                start > 0 and warning_range[0] < boundaries[start - 1][0][1]
+            )
+            move_end = (
+                end < len(boundaries)
+                and warning_range[1] > boundaries[end][0][0]
+            )
+        if move_start:
             start -= 1
-        if end < len(boundaries) and boundaries[end][0][0] < warning_range[1]:
+        if move_end:
             end += 1
         return any(map(lambda b: b[1], boundaries[start:end]))
+
+    def get_enabled_warnings(self) -> "Iterator[LintWarning]":
+        return filter(
+            lambda w: Linter.is_warning_range_enabled(
+                self.disabled_enabled_boundaries, w.pos
+            ),
+            self.warnings,
+        )
 
 
 class ExecutionContext(contextlib.AbstractContextManager):
@@ -393,7 +409,7 @@ class ExecutionContext(contextlib.AbstractContextManager):
                     with open(file, "w") as f:
                         f.write(fix)
 
-            if len(linter.warnings) > 0:
+            if any(linter.get_enabled_warnings()):
                 has_warnings = True
 
         if has_warnings:
