@@ -57,6 +57,7 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
         project_table = document["project"]
         add_project_table = project_table.is_super_table()  # type: ignore[union-attr]
         license_value = project_table["license"]  # type: ignore[index]
+        license_comment = f"{license_value.trivia.comment_ws}{license_value.trivia.comment}"
     except tomlkit.exceptions.NonExistentKey:
         if add_project_table:
             loc = (len(linter.content), len(linter.content))
@@ -91,6 +92,10 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
         slugified_license_value = re.sub(
             r"\s+", "-", str(license_value).strip()
         )
+        # if excess whitespace inside the license string was trimmed,
+        # replacement position needs to be adjusted to account for that
+        # characters_removed = len(license_value) - len(slugified_license_value)
+        # loc = (loc[0], loc[1] - characters_removed)
         if slugified_license_value in ACCEPTABLE_LICENSES:
             linter.add_warning(
                 loc,
@@ -100,6 +105,7 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
                 loc,
                 "license = "
                 + f"{tomlkit.string(slugified_license_value).as_string()}"
+                + f"{license_comment}"
                 + linter.lines.newline_style,
             )
             return
