@@ -28,6 +28,8 @@ def find_value_location(
     append: bool,
 ) -> _LocType:
     """
+    Find the exact location of a key in a stringified TOML document.
+
     Parameters
     ----------
     document : tomlkit.TOMLDocument
@@ -45,10 +47,11 @@ def find_value_location(
     -------
     loc : tuple[int, int]
         Location of the key and its value in the document.
-        For example, ``(20, 35)`` = "the 20th-35th characters (including newlines)"
+        e.g., ``(20, 35)`` = "the 20th-35th characters, including newlines"
           * element 0: number of characters from beginning of the document to
                        beginning of the section indicated by ``key``
           * element 1: final character to replace
+        This function includes
     """
     copied_document = copy.deepcopy(document)
     placeholder = uuid.uuid4()
@@ -62,22 +65,21 @@ def find_value_location(
     while len(key) > (0 if append else 1):
         node = node[key[0]]  # type: ignore[assignment]
         key = key[1:]
+
     if append:
         node.add(str(placeholder), placeholder_toml)
-    else:
-        old_value = node[key[0]]
-        node[key[0]] = str(placeholder)
+        value_to_find = f"{placeholder} = {placeholder_repr}"
+        begin_loc = copied_document.as_string().find(value_to_find)
+        return begin_loc, begin_loc
 
-    value_to_find = (
-        f"{placeholder} = {placeholder_repr}" if append else placeholder_repr
-    )
-    begin_loc = copied_document.as_string().find(value_to_find)
-    if append:
-        end_loc = begin_loc
-    else:
-        # as_string() exclude comments, but we want to 
-        end_loc = begin_loc + len(old_value.as_string())
-        # + old_value.trivia.comment_ws + old_value.trivia.comment)
+    # otherwise, if replacing without appending
+    old_value = node[key[0]]
+    node[key[0]] = str(placeholder)
+    begin_loc = copied_document.as_string().find(placeholder_repr)
+    end_loc = begin_loc + len(old_value.as_string())
+    # if the value had a trailing comment, that should be included too
+    if hasattr(old_value, "trivia"):
+        end_loc += len(old_value.trivia.comment_ws + old_value.trivia.comment)
     return begin_loc, end_loc
 
 
@@ -88,7 +90,13 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
         project_table = document["project"]
         add_project_table = project_table.is_super_table()  # type: ignore[union-attr]
         license_value = project_table["license"]  # type: ignore[index]
-        license_comment = f"{license_value.trivia.comment_ws}{license_value.trivia.comment}"
+        try:
+            license_comment = (
+                f"{license_value.trivia.comment_ws}"  # type: ignore[union-attr]
+                f"{license_value.trivia.comment}"  # type: ignore[union-attr]
+            )
+        except AttributeError:
+            license_comment = ""
     except tomlkit.exceptions.NonExistentKey:
         if add_project_table:
             loc = (len(linter.content), len(linter.content))
@@ -114,19 +122,19 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
     # handle case where the license is still in
     # "license = { text = 'something' }" form
     if isinstance(license_value, tomlkit.items.InlineTable):
-        loc = find_value_location(document, ("project", "license"), append=False)
+        loc = find_value_location(
+            document, ("project", "license"), append=False
+        )
         linter.add_warning(loc, f'license should be "{RAPIDS_LICENSE}"')
         return
 
     if license_value not in ACCEPTABLE_LICENSES:
-        loc = find_value_location(document, ("project", "license"), append=False)
+        loc = find_value_location(
+            document, ("project", "license"), append=False
+        )
         slugified_license_value = re.sub(
             r"\s+", "-", str(license_value).strip()
         )
-        # if excess whitespace inside the license string was trimmed,
-        # replacement position needs to be adjusted to account for that
-        # characters_removed = len(license_value) - len(slugified_license_value)
-        # loc = (loc[0], loc[1] - characters_removed)
         if slugified_license_value in ACCEPTABLE_LICENSES:
             linter.add_warning(
                 loc,
