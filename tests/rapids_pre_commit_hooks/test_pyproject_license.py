@@ -35,6 +35,11 @@ from rapids_pre_commit_hooks_test_utils import parse_named_ranges
             id="subtable-nested",
         ),
         pytest.param(
+            ("table", "key4"),
+            False,
+            id="inline-comments",
+        ),
+        pytest.param(
             ("table",),
             True,
             id="append",
@@ -42,7 +47,7 @@ from rapids_pre_commit_hooks_test_utils import parse_named_ranges
     ],
 )
 def test_find_value_location(key, append):
-    content, r = parse_named_ranges(
+    content, positions = parse_named_ranges(
         """\
         + [table]
         + key1 = "value"
@@ -52,6 +57,7 @@ def test_find_value_location(key, append):
         + key3 = { nested = "value" }
         :        ~~~~~~~~~~~~~~~~~~~~table.key3._value
         :                   ~~~~~~~table.key3.nested._value
+        + key4 = "value" # and a trailing comment
         +
         : ^table._append
         + [table2]
@@ -59,7 +65,7 @@ def test_find_value_location(key, append):
         """
     )
     parsed_doc = tomlkit.loads(content)
-    loc = r
+    loc = positions
     for component in key:
         loc = loc[component]
     loc = loc["_append" if append else "_value"]
@@ -75,16 +81,17 @@ def test_find_value_location(key, append):
     [
         # unrecognized license in "= { text = ... }" format
         # that only differs from an acceptable one
-        # by internal whitespace should cause a warning
+        # by internal whitespace should cause a warning and replacement
         pytest.param(
             """\
             + [project]
             + license = { text = "Apache-2.0" }
             :           ~~~~~~~~~~~~~~~~~~~~~~~warning
+            :           ~~~~~~~~~~~~~~~~~~~~~~~replacement
             """,
             'license should be "Apache-2.0"',
-            None,
-            id="license-subtable-with-text",
+            'license = "Apache-2.0"\n',
+            id="license-subtable-with-text-correct-license",
         ),
         # unrecognized license in "= { text = ... }" format should result
         # in a warning
@@ -94,7 +101,7 @@ def test_find_value_location(key, append):
             + license = { text = "BSD" }
             :           ~~~~~~~~~~~~~~~~warning
             """,
-            'license should be "Apache-2.0"',
+            'license should be "Apache-2.0", got { license = { text = "BSD" } }',  # noqa: E501
             None,
             id="license-subtable-with-text-wrong-license",
         ),
@@ -178,15 +185,18 @@ def test_find_value_location(key, append):
         # by internal whitespace should cause a warning and a replacement, and
         # the replacement should preserves same-line comments
         pytest.param(
-            r"""\
+            """\
             + [project]
-            + license-files = ["thirdpartyOTHER_LICENSE"]
+            + license-files = [
+            +   "LICENSE",
+            +   "thirdparty/OTHER_LICENSE"
+            + ]
             + license = 'Apache 2.0'  # alphabetically best license
             :           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~warning
             :           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~replacement
             """,
             'license should be "Apache-2.0", got "Apache 2.0"',
-            'license = "Apache-2.0"  # the alphabetically best license\n',
+            'license = "Apache-2.0"  # alphabetically best license\n',
             id="license-internal-whitespace-other-licensey-fields",
         ),
         # a license in PEP 639 form that only differs from an acceptable one

@@ -125,7 +125,28 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
         loc = find_value_location(
             document, ("project", "license"), append=False
         )
-        linter.add_warning(loc, f'license should be "{RAPIDS_LICENSE}"')
+        if license_value := document["project"]["license"].get("text", None):  # type: ignore[index, union-attr]
+            slugified_license_value = re.sub(
+                r"\s+", "-", str(license_value).strip()
+            )
+            if slugified_license_value in ACCEPTABLE_LICENSES:
+                linter.add_warning(
+                    loc, f'license should be "{slugified_license_value}"'
+                ).add_replacement(
+                    loc,
+                    "license = "
+                    + f"{tomlkit.string(slugified_license_value).as_string()}"
+                    + f"{license_comment}"
+                    + linter.lines.newline_style,
+                )
+            else:
+                linter.add_warning(
+                    loc,
+                    f'license should be "{RAPIDS_LICENSE}"'
+                    + f', got {{ license = {{ text = "{license_value}" }} }}',
+                )
+        else:
+            linter.add_warning(loc, f'license should be "{RAPIDS_LICENSE}"')
         return
 
     if license_value not in ACCEPTABLE_LICENSES:
