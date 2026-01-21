@@ -77,6 +77,18 @@ def test_find_value_location(key, append):
         pytest.param(
             """\
             + [project]
+            + license = { text = "Apache-2.0" }
+            :           ~~~~~~~~~~~~~~~~warning
+            """,
+            'license should be "Apache 2.0"',
+            None,
+            id="license-subtable-with-text-wrong-license",
+        ),
+        # unrecognized license in "= { text = ... }" should result
+        # in a warning
+        pytest.param(
+            """\
+            + [project]
             + license = { text = "BSD" }
             :           ~~~~~~~~~~~~~~~~warning
             """,
@@ -109,7 +121,7 @@ def test_find_value_location(key, append):
             None,
             id="license-correct-single-quotes",
         ),
-        # Apache-2.0 licenses should be added to a file
+        # Apache 2.0 license should be added to a file
         # totally missing [project] table
         pytest.param(
             """\
@@ -138,7 +150,7 @@ def test_find_value_location(key, append):
             'license = { text = "Apache 2.0" }\n',
             id="project-table-no-license-key",
         ),
-        # Apache-2.0 licenses should be correctly added to a file with
+        # Apache 2.0 license should be correctly added to a file with
         # [project] table and other [project.*] tables
         pytest.param(
             """\
@@ -154,7 +166,7 @@ def test_find_value_location(key, append):
             'license = { text = "Apache 2.0" }\n',
             id="project-table-and-project-subtables",
         ),
-        # Apache-2.0 licenses should be correctly added to a file with
+        # Apache 2.0 licenses should be correctly added to a file with
         # [project.*] tables but no [project] table
         pytest.param(
             """\
