@@ -57,7 +57,8 @@ def test_find_value_location(key, append):
         + key3 = { nested = "value" }
         :        ~~~~~~~~~~~~~~~~~~~~table.key3._value
         :                   ~~~~~~~table.key3.nested._value
-        + key4 = "value" # and a trailing comment
+        + key4 = "beep-boop" # and a trailing comment
+        :        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~table.key4._value
         +
         : ^table._append
         + [table2]
