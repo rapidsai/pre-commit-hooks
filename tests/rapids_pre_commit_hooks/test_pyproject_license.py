@@ -79,11 +79,11 @@ def test_find_value_location(key, append):
             """\
             + [project]
             + license = { text = "Apache-2.0" }
-            :           ~~~~~~~~~~~~~~~~warning
+            :                    ~~~~~~~~~~~~warning
             """,
             'license should be "Apache 2.0"',
             None,
-            id="license-subtable-with-text-wrong-license",
+            id="license-subtable-with-text-wrong-license-by-whitespace-only",
         ),
         # unrecognized license in "= { text = ... }" format should result
         # in a warning
@@ -91,7 +91,7 @@ def test_find_value_location(key, append):
             """\
             + [project]
             + license = { text = "BSD" }
-            :           ~~~~~~~~~~~~~~~~warning
+            :                    ~~~~~warning
             """,
             'license should be "Apache 2.0"',
             None,
