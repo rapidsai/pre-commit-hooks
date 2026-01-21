@@ -72,8 +72,9 @@ def test_find_value_location(key, append):
 @pytest.mark.parametrize(
     ["content", "message", "replacement_text"],
     [
-        # unrecognized license in "= { text = ... }" should result
-        # in a warning
+        # unrecognized license in "= { text = ... }" format
+        # that only differs from an acceptable one
+        # by internal whitespace should cause a warning
         pytest.param(
             """\
             + [project]
@@ -84,7 +85,7 @@ def test_find_value_location(key, append):
             None,
             id="license-subtable-with-text-wrong-license",
         ),
-        # unrecognized license in "= { text = ... }" should result
+        # unrecognized license in "= { text = ... }" format should result
         # in a warning
         pytest.param(
             """\
