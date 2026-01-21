@@ -53,7 +53,8 @@
       ^[.]github/workflows/|
       [.]md$|
       pom[.]xml$|
-      ^[.]pre-commit-config[.]yaml$
+      ^[.]pre-commit-config[.]yaml$|
+      [.]rst$
 - id: verify-pyproject-license
   name: verify-pyproject-license
   description: make sure pyproject.toml license is correct

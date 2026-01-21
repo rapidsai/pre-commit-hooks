@@ -22,7 +22,7 @@ from rapids_pre_commit_hooks_test_utils import parse_named_ranges
             :    ~~0.minor
             """,
             (26, 2, 0),
-            id="full-contents",
+            id="no-patch-version",
         ),
         pytest.param(
             """\
@@ -139,6 +139,30 @@ from rapids_pre_commit_hooks_test_utils import parse_named_ranges
             (26, 2, 0),
             id="no-zero-prefix",
         ),
+        pytest.param(
+            """\
+            > 2026.02.00
+            """,
+            (26, 2, 0),
+            id="4-digit-major",
+        ),
+        pytest.param(
+            """\
+            > 26.0002.00
+            """,
+            (26, 2, 0),
+            id="4-digit-minor",
+        ),
+        pytest.param(
+            """\
+            > 26.02.0000
+            : ~~~~~0.full
+            : ~~0.major
+            :    ~~0.minor
+            """,
+            (26, 2, 0),
+            id="4-digit-patch",
+        ),
     ],
 )
 def test_find_hardcoded_versions(content, version):
@@ -169,19 +193,32 @@ def test_find_hardcoded_versions(content, version):
         pytest.param(
             "26.02.00",
             None,
-            pytest.raises(AssertionError),
+            pytest.raises(
+                AssertionError,
+                match=r'^Expected file ".*/VERSION" to contain ONLY a 3-part '
+                r"numeric version, but additional content was found, or no "
+                r"trailing newline was found$",
+            ),
             id="missing-newline",
         ),
         pytest.param(
             "26.02\n",
             None,
-            pytest.raises(AssertionError),
+            pytest.raises(
+                AssertionError,
+                match=r'^Expected file ".*/VERSION" to contain a 3-part '
+                r"numeric version, but the patch \(3rd\) part was not found$",
+            ),
             id="missing-patch",
         ),
         pytest.param(
             "",
             None,
-            pytest.raises(AssertionError),
+            pytest.raises(
+                AssertionError,
+                match=r'Expected file ".*/VERSION" to contain a 3-part '
+                r"numeric version, but it was not found$",
+            ),
             id="not-version",
         ),
         pytest.param(
