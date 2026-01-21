@@ -146,6 +146,19 @@ def test_find_value_location(key, append):
             'license = "Apache-2.0" # the alphabetically best license\n',
             id="license-same-line-comment",
         ),
+        # replacements should not interfere with comments on other lines
+        pytest.param(
+            """\
+            + [project]
+            + # some other comment
+            + license = 'Apache 2.0'
+            :           ~~~~~~~~~~~~warning
+            :           ~~~~~~~~~~~~replacement
+            """,
+            'license should be "Apache-2.0", got "Apache 2.0"',
+            'license = "Apache-2.0" # the alphabetically best license\n',
+            id="license-same-line-comment",
+        ),
         # replacements should preserve same-line comments even when
         # trailing whitespace inside the license text needs to be trimmed
         pytest.param(
@@ -252,7 +265,7 @@ def test_check_pyproject_license(
     message,
     replacement_text,
 ):
-    content, r = parse_named_ranges(content)
+    content, positions = parse_named_ranges(content)
     linter = Linter("pyproject.toml", content, "verify-pyproject-license")
     pyproject_license.check_pyproject_license(linter, Mock())
 
@@ -261,11 +274,11 @@ def test_check_pyproject_license(
         if message is None
         else [
             LintWarning(
-                r["warning"],
+                positions["warning"],
                 message,
                 replacements=[]
                 if replacement_text is None
-                else [Replacement(r["replacement"], replacement_text)],
+                else [Replacement(positions["replacement"], replacement_text)],
             )
         ]
     )

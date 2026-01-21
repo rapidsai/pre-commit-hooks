@@ -22,8 +22,34 @@ _LocType = tuple[int, int]
 
 
 def find_value_location(
-    document: "tomlkit.TOMLDocument", key: tuple[str, ...], append: bool
+    document: "tomlkit.TOMLDocument",
+    key: tuple[str, ...],
+    *,
+    append: bool,
 ) -> _LocType:
+    """
+    Parameters
+    ----------
+    document : tomlkit.TOMLDocument
+        TOML content
+    key : tuple[str, ...]
+        Tuple of strings, of any length.
+        Items are evaluated in order as keys to subset into ``document``.
+        For example, to reference the 'license' value in the [project] table
+        in a pyproject.toml, ``key = ("project", "license",)``.
+    append : bool
+        If ``True``, returns the location where new text will be added.
+        If ``False``, returns the range of characters to be replaced.
+
+    Returns
+    -------
+    loc : tuple[int, int]
+        Location of the key and its value in the document.
+        For example, ``(20, 35)`` = "the 20th-35th characters (including newlines)"
+          * element 0: number of characters from beginning of the document to
+                       beginning of the section indicated by ``key``
+          * element 1: final character to replace
+    """
     copied_document = copy.deepcopy(document)
     placeholder = uuid.uuid4()
     placeholder_toml = tomlkit.string(str(placeholder))
@@ -46,7 +72,12 @@ def find_value_location(
         f"{placeholder} = {placeholder_repr}" if append else placeholder_repr
     )
     begin_loc = copied_document.as_string().find(value_to_find)
-    end_loc = begin_loc + (0 if append else len(old_value.as_string()))
+    if append:
+        end_loc = begin_loc
+    else:
+        # as_string() exclude comments, but we want to 
+        end_loc = begin_loc + len(old_value.as_string())
+        # + old_value.trivia.comment_ws + old_value.trivia.comment)
     return begin_loc, end_loc
 
 
@@ -70,7 +101,7 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
                 + linter.lines.newline_style,
             )
         else:
-            loc = find_value_location(document, ("project",), True)
+            loc = find_value_location(document, ("project",), append=True)
             linter.add_warning(
                 loc, f'add project.license with value "{RAPIDS_LICENSE}"'
             ).add_replacement(
@@ -83,12 +114,12 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
     # handle case where the license is still in
     # "license = { text = 'something' }" form
     if isinstance(license_value, tomlkit.items.InlineTable):
-        loc = find_value_location(document, ("project", "license"), False)
+        loc = find_value_location(document, ("project", "license"), append=False)
         linter.add_warning(loc, f'license should be "{RAPIDS_LICENSE}"')
         return
 
     if license_value not in ACCEPTABLE_LICENSES:
-        loc = find_value_location(document, ("project", "license"), False)
+        loc = find_value_location(document, ("project", "license"), append=False)
         slugified_license_value = re.sub(
             r"\s+", "-", str(license_value).strip()
         )
