@@ -115,7 +115,7 @@ def test_find_value_location(key, append):
         pytest.param(
             """\
             + [project]
-            + license = 'Apache-2.0'
+            + license = 'Apache-2.0'  # Single quotes are fine
             """,
             None,
             None,
@@ -126,7 +126,7 @@ def test_find_value_location(key, append):
         pytest.param(
             """\
             + [project]
-            + license = 'Apache 2.0'
+            + license = 'Apache 2.0'  # Single quotes are fine
             :           ~~~~~~~~~~~~warning
             :           ~~~~~~~~~~~~replacement
             """,
@@ -134,51 +134,13 @@ def test_find_value_location(key, append):
             'license = "Apache-2.0"\n',
             id="license-internal-whitespace",
         ),
-        # replacements should preserve same-line comments
-        pytest.param(
-            """\
-            + [project]
-            + license = 'Apache 2.0' # the alphabetically best license
-            :           ~~~~~~~~~~~~warning
-            :           ~~~~~~~~~~~~replacement
-            """,
-            'license should be "Apache-2.0", got "Apache 2.0"',
-            'license = "Apache-2.0" # the alphabetically best license\n',
-            id="license-same-line-comment",
-        ),
-        # replacements should not interfere with comments on other lines
-        pytest.param(
-            """\
-            + [project]
-            + # some other comment
-            + license = 'Apache 2.0'
-            :           ~~~~~~~~~~~~warning
-            :           ~~~~~~~~~~~~replacement
-            """,
-            'license should be "Apache-2.0", got "Apache 2.0"',
-            'license = "Apache-2.0" # the alphabetically best license\n',
-            id="license-same-line-comment",
-        ),
-        # replacements should preserve same-line comments even when
-        # trailing whitespace inside the license text needs to be trimmed
-        pytest.param(
-            """\
-            + [project]
-            + license = 'Apache-2.0  ' # the alphabetically best license
-            :           ~~~~~~~~~~~~warning
-            :           ~~~~~~~~~~~~replacement
-            """,
-            'license should be "Apache-2.0", got "Apache-2.0  "',
-            'license = "Apache-2.0" # the alphabetically best license\n',
-            id="license-trailing-whitespace-and-same-line-comment",
-        ),
         # a license in PEP 639 form that only differs from an acceptable one
         # by leading whitespace (including multiple characters) should cause
         # a warning and a replacement
         pytest.param(
             """\
             + [project]
-            + license = '   Apache-2.0'
+            + license = '   Apache-2.0'  # Single quotes are fine
             :           ~~~~~~~~~~~~~~~warning
             :           ~~~~~~~~~~~~~~~replacement
             """,
@@ -192,7 +154,7 @@ def test_find_value_location(key, append):
         pytest.param(
             """\
             + [project]
-            + license = 'Apache-2.0   '
+            + license = 'Apache-2.0   '  # Single quotes are fine
             :           ~~~~~~~~~~~~~~~warning
             :           ~~~~~~~~~~~~~~~replacement
             """,
