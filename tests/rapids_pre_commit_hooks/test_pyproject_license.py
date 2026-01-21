@@ -58,7 +58,7 @@ def test_find_value_location(key, append):
         :        ~~~~~~~~~~~~~~~~~~~~table.key3._value
         :                   ~~~~~~~table.key3.nested._value
         + key4 = "beep-boop" # and a trailing comment
-        :        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~table.key4._value
+        :        ~~~~~~~~~~~table.key4._value
         +
         : ^table._append
         + [table2]
@@ -91,7 +91,7 @@ def test_find_value_location(key, append):
             :           ~~~~~~~~~~~~~~~~~~~~~~~replacement
             """,
             'license should be "Apache-2.0"',
-            'license = "Apache-2.0"\n',
+            'license = "Apache-2.0"',
             id="license-subtable-with-text-correct-license",
         ),
         # unrecognized license in "= { text = ... }" format should result
@@ -165,7 +165,7 @@ def test_find_value_location(key, append):
             :           ~~~~~~~~~~~~replacement
             """,
             'license should be "Apache-2.0", got "Apache 2.0"',
-            'license = "Apache-2.0"\n',
+            'license = "Apache-2.0"',
             id="license-internal-whitespace",
         ),
         # a license in PEP 639 form that only differs from an acceptable one
@@ -175,11 +175,11 @@ def test_find_value_location(key, append):
             """\
             + [project]
             + license = 'Apache 2.0'  # alphabetically best license
-            :           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~warning
-            :           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~replacement
+            :           ~~~~~~~~~~~~warning
+            :           ~~~~~~~~~~~~replacement
             """,
             'license should be "Apache-2.0", got "Apache 2.0"',
-            'license = "Apache-2.0"  # alphabetically best license\n',
+            'license = "Apache-2.0"',
             id="license-internal-whitespace-comment-same-line",
         ),
         # a license in PEP 639 form that only differs from an acceptable one
@@ -193,11 +193,11 @@ def test_find_value_location(key, append):
             +   "thirdparty/OTHER_LICENSE"
             + ]
             + license = 'Apache 2.0'  # alphabetically best license
-            :           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~warning
-            :           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~replacement
+            :           ~~~~~~~~~~~~warning
+            :           ~~~~~~~~~~~~replacement
             """,
             'license should be "Apache-2.0", got "Apache 2.0"',
-            'license = "Apache-2.0"  # alphabetically best license\n',
+            'license = "Apache-2.0"',
             id="license-internal-whitespace-other-licensey-fields",
         ),
         # a license in PEP 639 form that only differs from an acceptable one
@@ -211,7 +211,7 @@ def test_find_value_location(key, append):
             :           ~~~~~~~~~~~~~~~replacement
             """,
             'license should be "Apache-2.0", got "   Apache-2.0"',
-            'license = "Apache-2.0"\n',
+            'license = "Apache-2.0"',
             id="license-leading-whitespace",
         ),
         # a license in PEP 639 form that only differs from an acceptable one
@@ -225,7 +225,7 @@ def test_find_value_location(key, append):
             :           ~~~~~~~~~~~~~~~replacement
             """,
             'license should be "Apache-2.0", got "Apache-2.0   "',
-            'license = "Apache-2.0"\n',
+            'license = "Apache-2.0"',
             id="license-trailing-whitespace",
         ),
         # Apache-2.0 licenses should be added to a file

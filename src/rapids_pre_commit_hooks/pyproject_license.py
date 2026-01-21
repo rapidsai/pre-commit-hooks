@@ -51,7 +51,6 @@ def find_value_location(
           * element 0: number of characters from beginning of the document to
                        beginning of the section indicated by ``key``
           * element 1: final character to replace
-        This function includes
     """
     copied_document = copy.deepcopy(document)
     placeholder = uuid.uuid4()
@@ -77,9 +76,6 @@ def find_value_location(
     node[key[0]] = str(placeholder)
     begin_loc = copied_document.as_string().find(placeholder_repr)
     end_loc = begin_loc + len(old_value.as_string())
-    # if the value had a trailing comment, that should be included too
-    if hasattr(old_value, "trivia"):
-        end_loc += len(old_value.trivia.comment_ws + old_value.trivia.comment)
     return begin_loc, end_loc
 
 
@@ -90,13 +86,6 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
         project_table = document["project"]
         add_project_table = project_table.is_super_table()  # type: ignore[union-attr]
         license_value = project_table["license"]  # type: ignore[index]
-        try:
-            license_comment = (
-                f"{license_value.trivia.comment_ws}"  # type: ignore[union-attr]
-                f"{license_value.trivia.comment}"  # type: ignore[union-attr]
-            )
-        except AttributeError:
-            license_comment = ""
     except tomlkit.exceptions.NonExistentKey:
         if add_project_table:
             loc = (len(linter.content), len(linter.content))
@@ -135,9 +124,7 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
                 ).add_replacement(
                     loc,
                     "license = "
-                    + f"{tomlkit.string(slugified_license_value).as_string()}"
-                    + f"{license_comment}"
-                    + linter.lines.newline_style,
+                    + f"{tomlkit.string(slugified_license_value).as_string()}",
                 )
             else:
                 linter.add_warning(
@@ -164,9 +151,7 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
             ).add_replacement(
                 loc,
                 "license = "
-                + f"{tomlkit.string(slugified_license_value).as_string()}"
-                + f"{license_comment}"
-                + linter.lines.newline_style,
+                + f"{tomlkit.string(slugified_license_value).as_string()}",
             )
             return
 
