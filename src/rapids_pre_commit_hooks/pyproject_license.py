@@ -130,7 +130,7 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
                 linter.add_warning(
                     loc,
                     f'license should be "{RAPIDS_LICENSE}"'
-                    + f', got {{ license = {{ text = "{license_value}" }} }}',
+                    + f', got license = {{ text = "{license_value}" }}',
                 )
         else:
             linter.add_warning(loc, f'license should be "{RAPIDS_LICENSE}"')

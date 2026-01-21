@@ -102,7 +102,7 @@ def test_find_value_location(key, append):
             + license = { text = "BSD" }
             :           ~~~~~~~~~~~~~~~~warning
             """,
-            'license should be "Apache-2.0", got { license = { text = "BSD" } }',  # noqa: E501
+            'license should be "Apache-2.0", got license = { text = "BSD" }',  # noqa: E501
             None,
             id="license-subtable-with-text-wrong-license",
         ),
