@@ -35,6 +35,11 @@ from rapids_pre_commit_hooks_test_utils import parse_named_ranges
             id="subtable-nested",
         ),
         pytest.param(
+            ("table", "key4"),
+            False,
+            id="inline-comments",
+        ),
+        pytest.param(
             ("table",),
             True,
             id="append",
@@ -42,7 +47,7 @@ from rapids_pre_commit_hooks_test_utils import parse_named_ranges
     ],
 )
 def test_find_value_location(key, append):
-    content, r = parse_named_ranges(
+    content, positions = parse_named_ranges(
         """\
         + [table]
         + key1 = "value"
@@ -52,6 +57,8 @@ def test_find_value_location(key, append):
         + key3 = { nested = "value" }
         :        ~~~~~~~~~~~~~~~~~~~~table.key3._value
         :                   ~~~~~~~table.key3.nested._value
+        + key4 = "beep-boop" # and a trailing comment
+        :        ~~~~~~~~~~~table.key4._value
         +
         : ^table._append
         + [table2]
@@ -59,12 +66,13 @@ def test_find_value_location(key, append):
         """
     )
     parsed_doc = tomlkit.loads(content)
-    loc = r
+    loc = positions
     for component in key:
         loc = loc[component]
     loc = loc["_append" if append else "_value"]
     assert (
-        pyproject_license.find_value_location(parsed_doc, key, append) == loc
+        pyproject_license.find_value_location(parsed_doc, key, append=append)
+        == loc
     )
     assert parsed_doc.as_string() == content
 
@@ -74,16 +82,17 @@ def test_find_value_location(key, append):
     [
         # unrecognized license in "= { text = ... }" format
         # that only differs from an acceptable one
-        # by internal whitespace should cause a warning
+        # by internal whitespace should cause a warning and replacement
         pytest.param(
             """\
             + [project]
             + license = { text = "Apache-2.0" }
-            :                    ~~~~~~~~~~~~warning
+            :           ~~~~~~~~~~~~~~~~~~~~~~~warning
+            :           ~~~~~~~~~~~~~~~~~~~~~~~replacement
             """,
-            'license should be "Apache 2.0"',
-            None,
-            id="license-subtable-with-text-wrong-license-by-whitespace-only",
+            'license should be "Apache-2.0"',
+            '"Apache-2.0"',
+            id="license-subtable-with-text-correct-license",
         ),
         # unrecognized license in "= { text = ... }" format should result
         # in a warning
@@ -91,11 +100,23 @@ def test_find_value_location(key, append):
             """\
             + [project]
             + license = { text = "BSD" }
-            :                    ~~~~~warning
+            :           ~~~~~~~~~~~~~~~~warning
             """,
-            'license should be "Apache 2.0"',
+            'license should be "Apache-2.0", got license = { text = "BSD" }',  # noqa: E501
             None,
             id="license-subtable-with-text-wrong-license",
+        ),
+        # the presence of other fields in [project] which begin with 'license'
+        # should not result in any warnings or replacements
+        pytest.param(
+            """\
+            + [project]
+            + license = 'Apache-2.0'
+            + license-files = ["LICENSE"]
+            """,
+            None,
+            None,
+            id="license-other-licensey-fields-present",
         ),
         # each of the acceptable licenses, expressed in PEP 639 format,
         # should not generate any warnings or replacements
@@ -103,7 +124,7 @@ def test_find_value_location(key, append):
             pytest.param(
                 f"""\
                 + [project]
-                + license = {{ text = {tomlkit.string(license).as_string()} }}
+                + license = {tomlkit.string(license).as_string()}
                 """,
                 None,
                 None,
@@ -111,18 +132,103 @@ def test_find_value_location(key, append):
             )
             for license in pyproject_license.ACCEPTABLE_LICENSES
         ),
-        # an acceptable license in single quotes
+        # an acceptable license in single quotes, expressed in PEP 639 form,
         # should not generate any warnings or replacements
         pytest.param(
             """\
             + [project]
-            + license = { text = 'Apache 2.0' }  # Single quotes are fine
+            + license = 'Apache-2.0'
             """,
             None,
             None,
             id="license-correct-single-quotes",
         ),
-        # Apache 2.0 license should be added to a file
+        # an acceptable license in single quotes, expressed in PEP 639 form,
+        # should not generate any warnings or replacements and same-line
+        # comments should be preserved
+        pytest.param(
+            """\
+            + [project]
+            + license = 'Apache-2.0'  # the alphabetically best license
+            """,
+            None,
+            None,
+            id="license-correct-comment-same-line",
+        ),
+        # a license in PEP 639 form that only differs from an acceptable one
+        # by internal whitespace should cause a warning and a replacement
+        pytest.param(
+            """\
+            + [project]
+            + license = 'Apache 2.0'
+            :           ~~~~~~~~~~~~warning
+            :           ~~~~~~~~~~~~replacement
+            """,
+            'license should be "Apache-2.0", got "Apache 2.0"',
+            '"Apache-2.0"',
+            id="license-internal-whitespace",
+        ),
+        # a license in PEP 639 form that only differs from an acceptable one
+        # by internal whitespace should cause a warning and a replacement, and
+        # the replacement should preserves same-line comments
+        pytest.param(
+            """\
+            + [project]
+            + license = 'Apache 2.0'  # alphabetically best license
+            :           ~~~~~~~~~~~~warning
+            :           ~~~~~~~~~~~~replacement
+            """,
+            'license should be "Apache-2.0", got "Apache 2.0"',
+            '"Apache-2.0"',
+            id="license-internal-whitespace-comment-same-line",
+        ),
+        # a license in PEP 639 form that only differs from an acceptable one
+        # by internal whitespace should cause a warning and a replacement, and
+        # the replacement should preserves same-line comments
+        pytest.param(
+            """\
+            + [project]
+            + license-files = [
+            +   "LICENSE",
+            +   "thirdparty/OTHER_LICENSE"
+            + ]
+            + license = 'Apache 2.0'  # alphabetically best license
+            :           ~~~~~~~~~~~~warning
+            :           ~~~~~~~~~~~~replacement
+            """,
+            'license should be "Apache-2.0", got "Apache 2.0"',
+            '"Apache-2.0"',
+            id="license-internal-whitespace-other-licensey-fields",
+        ),
+        # a license in PEP 639 form that only differs from an acceptable one
+        # by leading whitespace (including multiple characters) should cause
+        # a warning and a replacement
+        pytest.param(
+            """\
+            + [project]
+            + license = '   Apache-2.0'
+            :           ~~~~~~~~~~~~~~~warning
+            :           ~~~~~~~~~~~~~~~replacement
+            """,
+            'license should be "Apache-2.0", got "   Apache-2.0"',
+            '"Apache-2.0"',
+            id="license-leading-whitespace",
+        ),
+        # a license in PEP 639 form that only differs from an acceptable one
+        # by trailing whitespace (including multiple characters) should cause
+        # a warning and a replacement
+        pytest.param(
+            """\
+            + [project]
+            + license = 'Apache-2.0   '
+            :           ~~~~~~~~~~~~~~~warning
+            :           ~~~~~~~~~~~~~~~replacement
+            """,
+            'license should be "Apache-2.0", got "Apache-2.0   "',
+            '"Apache-2.0"',
+            id="license-trailing-whitespace",
+        ),
+        # Apache-2.0 licenses should be added to a file
         # totally missing [project] table
         pytest.param(
             """\
@@ -131,11 +237,11 @@ def test_find_value_location(key, append):
             :                                  ^warning
             :                                  ^replacement
             """,
-            'add project.license with value { text = "Apache 2.0" }',
-            '[project]\nlicense = { text = "Apache 2.0" }\n',
+            'add project.license with value "Apache-2.0"',
+            '[project]\nlicense = "Apache-2.0"\n',
             id="no-project-table",
         ),
-        # Apache 2.0 license should be added to a file with [project] table
+        # Apache-2.0 licenses should be added to a file with [project] table
         # but no 'license' key
         pytest.param(
             """\
@@ -147,11 +253,11 @@ def test_find_value_location(key, append):
             + [build-system]
             + requires = ["scikit-build-core"]
             """,
-            'add project.license with value { text = "Apache 2.0" }',
-            'license = { text = "Apache 2.0" }\n',
+            'add project.license with value "Apache-2.0"',
+            'license = "Apache-2.0"\n',
             id="project-table-no-license-key",
         ),
-        # Apache 2.0 license should be correctly added to a file with
+        # Apache-2.0 licenses should be correctly added to a file with
         # [project] table and other [project.*] tables
         pytest.param(
             """\
@@ -163,11 +269,11 @@ def test_find_value_location(key, append):
             + [project.optional-dependencies]
             + test = ["pytest"]
             """,
-            'add project.license with value { text = "Apache 2.0" }',
-            'license = { text = "Apache 2.0" }\n',
+            'add project.license with value "Apache-2.0"',
+            'license = "Apache-2.0"\n',
             id="project-table-and-project-subtables",
         ),
-        # Apache 2.0 licenses should be correctly added to a file with
+        # Apache-2.0 licenses should be correctly added to a file with
         # [project.*] tables but no [project] table
         pytest.param(
             """\
@@ -176,8 +282,8 @@ def test_find_value_location(key, append):
             :                   ^warning
             :                   ^replacement
             """,
-            'add project.license with value { text = "Apache 2.0" }',
-            '[project]\nlicense = { text = "Apache 2.0" }\n',
+            'add project.license with value "Apache-2.0"',
+            '[project]\nlicense = "Apache-2.0"\n',
             id="project-subtable-no-project-table",
         ),
     ],
