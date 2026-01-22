@@ -91,7 +91,7 @@ def test_find_value_location(key, append):
             :           ~~~~~~~~~~~~~~~~~~~~~~~replacement
             """,
             'license should be "Apache-2.0"',
-            'license = "Apache-2.0"',
+            '"Apache-2.0"',
             id="license-subtable-with-text-correct-license",
         ),
         # unrecognized license in "= { text = ... }" format should result
