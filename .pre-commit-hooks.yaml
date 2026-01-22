@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2023-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2023-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 - id: verify-alpha-spec
   name: verify-alpha-spec
@@ -40,6 +40,21 @@
         pyproject[.]toml$|
         setup[.]cfg$
   args: [--fix]
+- id: verify-hardcoded-version
+  name: verify-hardcoded-version
+  description: make sure RAPIDS version is not hard-coded in files
+  entry: verify-hardcoded-version
+  language: python
+  args: [--fix]
+  exclude: |
+    (?x)
+      devcontainer[.]json$|
+      dependencies[.]yaml$|
+      ^[.]github/workflows/|
+      [.]md$|
+      pom[.]xml$|
+      ^[.]pre-commit-config[.]yaml$|
+      [.]rst$
 - id: verify-pyproject-license
   name: verify-pyproject-license
   description: make sure pyproject.toml license is correct
