@@ -150,8 +150,7 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
                 + f', got "{license_value}"',
             ).add_replacement(
                 loc,
-                "license = "
-                + f"{tomlkit.string(slugified_license_value).as_string()}",
+                f"{tomlkit.string(slugified_license_value).as_string()}",
             )
             return
 
