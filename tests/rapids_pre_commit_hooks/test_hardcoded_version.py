@@ -470,8 +470,8 @@ def test_read_version_file(tmp_path, content, version, context):
             + dependencies = [
             +     "libcudf-cu12==26.2.*",
             + ]
-            + description = "cudf 26.02.0"
-            :                     ~~~~~~~1
+            + description = "cudf 26.02.00"
+            :                     ~~~~~~~~1
             """,
             "VERSION",
             (26, 2, 0),
