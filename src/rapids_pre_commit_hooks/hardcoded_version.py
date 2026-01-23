@@ -1,15 +1,20 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
+import bisect
 import re
 from typing import TYPE_CHECKING
 
+import tomlkit
+import tomlkit.exceptions
+
 from .lint import LintMain, Linter
+from .utils.toml import find_value_location
 
 if TYPE_CHECKING:
     import argparse
     import os
-    from collections.abc import Iterator
+    from collections.abc import Generator
 
 # Matches any 2-part or 3-part numeric version strings, and stores the
 # components in named capture groups:
@@ -26,10 +31,45 @@ HARDCODED_VERSION_RE: re.Pattern = re.compile(
     r"(?:^|\D)(?P<full>(?P<major>\d{1,2})\.(?P<minor>\d{1,2})(?:\.(?P<patch>\d{1,2}))?)(?=\D|$)"
 )
 
+PYPROJECT_TOML_RE: re.Pattern = re.compile(r"(?:^|/)pyproject\.toml$")
+
+
+def get_excluded_section_pyproject_toml(
+    document: tomlkit.TOMLDocument, path: tuple[str, ...]
+) -> "Generator[tuple[int, int]]":
+    try:
+        yield find_value_location(document, path, append=False)
+    except tomlkit.exceptions.NonExistentKey:
+        pass
+
+
+def get_excluded_sections_pyproject_toml(
+    linter: Linter,
+) -> "Generator[tuple[int, int]]":
+    document = tomlkit.loads(linter.content)
+
+    yield from get_excluded_section_pyproject_toml(
+        document, ("project", "dependencies")
+    )
+    yield from get_excluded_section_pyproject_toml(
+        document, ("project", "optional-dependencies")
+    )
+    yield from get_excluded_section_pyproject_toml(
+        document, ("build-system", "requires")
+    )
+    yield from get_excluded_section_pyproject_toml(
+        document, ("tool", "rapids-build-backend", "requires")
+    )
+
+
+def get_excluded_sections(linter: Linter) -> "Generator[tuple[int, int]]":
+    if PYPROJECT_TOML_RE.search(linter.filename):
+        yield from get_excluded_sections_pyproject_toml(linter)
+
 
 def find_hardcoded_versions(
     content: str, full_version: tuple[int, int, int]
-) -> "Iterator[re.Match[str]]":
+) -> "Generator[re.Match[str]]":
     """Detect all instances of a specific 2- or 3-part version in text
     content."""
 
@@ -78,7 +118,19 @@ def check_hardcoded_version(
         return
 
     full_version = read_version_file(args.version_file)
+    excluded_sections = sorted(get_excluded_sections(linter))
     for match in find_hardcoded_versions(linter.content, full_version):
+        section_index = bisect.bisect_right(
+            excluded_sections, match.span("full")
+        )
+        if section_index > 0:
+            section_start, section_end = excluded_sections[section_index - 1]
+            if (
+                match.start("full") >= section_start
+                and match.end("full") <= section_end
+            ):
+                continue
+
         linter.add_warning(
             match.span("full"),
             f"do not hard-code version, read from {args.version_file} "
