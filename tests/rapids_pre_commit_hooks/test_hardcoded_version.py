@@ -477,7 +477,7 @@ def test_read_version_file(tmp_path, content, version, context):
             (26, 2, 0),
             True,
             "do not hard-code version, read from VERSION file instead",
-            id="pyproject=toml",
+            id="pyproject-toml",
         ),
     ],
 )
