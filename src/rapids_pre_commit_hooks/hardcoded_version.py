@@ -55,6 +55,9 @@ def get_excluded_sections_pyproject_toml(
         document, ("project", "optional-dependencies")
     )
     yield from get_excluded_section_pyproject_toml(
+        document, ("build-system", "requires")
+    )
+    yield from get_excluded_section_pyproject_toml(
         document, ("tool", "rapids-build-backend", "requires")
     )
 
