@@ -16,6 +16,8 @@ if TYPE_CHECKING:
     import os
     from collections.abc import Generator
 
+    from .lint import Lines
+
 # Matches any 2-part or 3-part numeric version strings, and stores the
 # components in named capture groups:
 #
@@ -32,6 +34,8 @@ HARDCODED_VERSION_RE: re.Pattern = re.compile(
 )
 
 PYPROJECT_TOML_RE: re.Pattern = re.compile(r"(?:^|/)pyproject\.toml$")
+DEPRECATED_RE: re.Pattern = re.compile(r"\.\. deprecated::|@deprecated")
+NUMBER_ARRAY_RE: re.Pattern = re.compile(r"^[ .,0-9-]*$")
 
 
 def get_excluded_section_pyproject_toml(
@@ -65,6 +69,28 @@ def get_excluded_sections_pyproject_toml(
 def get_excluded_sections(linter: Linter) -> "Generator[tuple[int, int]]":
     if PYPROJECT_TOML_RE.search(linter.filename):
         yield from get_excluded_sections_pyproject_toml(linter)
+
+
+def is_deprecation_notice(lines: "Lines", match: "re.Match[str]") -> bool:
+    this_line = lines.line_for_pos(match.start())
+    first_line = max(0, this_line - 3)
+    start = lines.pos[first_line][0]
+    end = lines.pos[this_line][1]
+    return bool(DEPRECATED_RE.search(lines.content[start:end]))
+
+
+def is_number_array(lines: "Lines", match: "re.Match[str]") -> bool:
+    this_line = lines.line_for_pos(match.start())
+    start, end = lines.pos[this_line]
+    return bool(NUMBER_ARRAY_RE.search(lines.content[start:end]))
+
+
+def skip_heuristics(lines: "Lines", match: "re.Match[str]") -> bool:
+    if is_deprecation_notice(lines, match):
+        return True
+    if is_number_array(lines, match):
+        return True
+    return False
 
 
 def find_hardcoded_versions(
@@ -130,6 +156,9 @@ def check_hardcoded_version(
                 and match.end("full") <= section_end
             ):
                 continue
+
+        if skip_heuristics(linter.lines, match):
+            continue
 
         linter.add_warning(
             match.span("full"),

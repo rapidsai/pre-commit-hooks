@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from rapids_pre_commit_hooks import hardcoded_version
-from rapids_pre_commit_hooks.lint import LintWarning, Linter
+from rapids_pre_commit_hooks.lint import Lines, LintWarning, Linter
 from rapids_pre_commit_hooks_test_utils import parse_named_ranges
 
 
@@ -152,6 +152,161 @@ def test_get_excluded_sections(filename, content):
     content, ranges = parse_named_ranges(content, root_type=list)
     linter = Linter(filename, content, "verify-hardcoded-version")
     assert list(hardcoded_version.get_excluded_sections(linter)) == ranges
+
+
+@pytest.mark.parametrize(
+    ["content", "expected_value"],
+    [
+        pytest.param(
+            """\
+            + .. deprecated:: 26.02
+            +     The `handle` argument was deprecated in 26.02 and will be removed
+            +     in 26.04. There's no need to pass in a handle, cuml now manages
+            :        ~~~~~match
+            +     this resource automatically.
+            """,  # noqa: E501
+            True,
+            id="cuml-handle-deprecation-notice",
+        ),
+        pytest.param(
+            """\
+            + This function has a `handle` parameter.
+            +
+            + .. deprecated:: 26.02
+            +     The `handle` argument was deprecated in 26.02 and will be removed
+            +     in 26.04. There's no need to pass in a handle, cuml now manages
+            :        ~~~~~match
+            +     this resource automatically.
+            """,  # noqa: E501
+            True,
+            id="cuml-handle-deprecation-notice-preceding-text",
+        ),
+        pytest.param(
+            """\
+            + /**
+            +  * @brief Compute the edit distance between all the strings in the input column.
+            +  *
+            +  * @deprecated Deprecated since release 26.04
+            :                                         ~~~~~match
+            +  *
+            +  * This uses the Levenshtein algorithm to calculate the edit distance between
+            +  * two strings as documented here: https://www.cuelogic.com/blog/the-levenshtein-algorithm
+            """,  # noqa: E501
+            True,
+            id="cudf-edit-distance-matrix-deprecation-notice",
+        ),
+        pytest.param(
+            """\
+            + * @deprecated Since 26.02
+            + */
+            + std::string getPackageVersion()
+            + {
+            +   return "26.04";
+            :           ~~~~~match
+            + }
+            """,
+            False,
+            id="too-long-after-deprecation-notice",
+        ),
+        pytest.param(
+            """\
+            + __version__ = "26.04"
+            :                ~~~~~match
+            """,
+            False,
+            id="not-a-deprecation-notice",
+        ),
+    ],
+)
+def test_is_deprecation_notice(content, expected_value):
+    content, ranges = parse_named_ranges(content)
+    match_range = ranges["match"]
+    lines = Lines(content)
+    match = Mock(
+        start=Mock(return_value=match_range[0]),
+        end=Mock(return_value=match_range[1]),
+    )
+    assert (
+        hardcoded_version.is_deprecation_notice(lines, match) == expected_value
+    )
+
+
+@pytest.mark.parametrize(
+    ["content", "expected_value"],
+    [
+        pytest.param(
+            """\
+            + const std::vector<float> boston = {
+            +   0.09103, 0,    2.46,  0, 0.488,  7.155, 92.2, 2.7006,  3,  193, 17.8, 394.12, 4.82,  37.9,
+            +   0.10008, 0,    2.46,  0, 0.488,  6.563, 95.6, 2.847,   3,  193, 17.8, 396.9,  5.68,  32.5,
+            +   0.08308, 0,    2.46,  0, 0.488,  5.604, 89.8, 2.9879,  3,  193, 17.8, 391,    13.98, 26.4,
+            :                                                                                        ~~~~match
+            +   0.06047, 0,    2.46,  0, 0.488,  6.153, 68.8, 3.2797,  3,  193, 17.8, 387.11, 13.15, 29.6,
+            +   0.05602, 0,    2.46,  0, 0.488,  7.831, 53.6, 3.1992,  3,  193, 17.8, 392.63, 4.45,  50};
+            """,  # noqa: E501
+            True,
+            id="cuml-boston",
+        ),
+        pytest.param(
+            """\
+            + const std::string VERSION = "26.4";
+            :                              ~~~~match
+            """,
+            False,
+            id="not-a-number-array",
+        ),
+    ],
+)
+def test_is_number_array(content, expected_value):
+    content, ranges = parse_named_ranges(content)
+    match_range = ranges["match"]
+    lines = Lines(content)
+    match = Mock(
+        start=Mock(return_value=match_range[0]),
+        end=Mock(return_value=match_range[1]),
+    )
+    assert hardcoded_version.is_number_array(lines, match) == expected_value
+
+
+@pytest.mark.parametrize(
+    ["is_deprecation_notice", "is_number_array", "expected_value"],
+    [
+        pytest.param(
+            False,
+            False,
+            False,
+            id="none",
+        ),
+        pytest.param(
+            True,
+            False,
+            True,
+            id="is-deprecation-notice",
+        ),
+        pytest.param(
+            False,
+            True,
+            True,
+            id="is-number-array",
+        ),
+    ],
+)
+def test_skip_heuristics(
+    is_deprecation_notice, is_number_array, expected_value
+):
+    with (
+        patch(
+            "rapids_pre_commit_hooks.hardcoded_version.is_deprecation_notice",
+            Mock(return_value=is_deprecation_notice),
+        ),
+        patch(
+            "rapids_pre_commit_hooks.hardcoded_version.is_number_array",
+            Mock(return_value=is_number_array),
+        ),
+    ):
+        assert (
+            hardcoded_version.skip_heuristics(Mock(), Mock()) == expected_value
+        )
 
 
 @pytest.mark.parametrize(
@@ -497,6 +652,17 @@ def test_read_version_file(tmp_path, content, version, context):
             True,
             "do not hard-code version, read from VERSION file instead",
             id="pyproject-toml",
+        ),
+        pytest.param(
+            "file.txt",
+            """\
+            + .. deprecated:: 26.02
+            """,
+            "VERSION",
+            (26, 2, 0),
+            True,
+            "do not hard-code version, read from VERSION file instead",
+            id="skip-heuristics",
         ),
     ],
 )
