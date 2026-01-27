@@ -140,7 +140,7 @@ class Linter:
     _DISABLE_ENABLE_DIRECTIVE_RE: re.Pattern = re.compile(
         r"\brapids-pre-commit-hooks: *"
         r"(?P<directive_name>enable|disable)"
-        r"(?:-(?P<scope>next-line))?\b"
+        r"(?:-(?P<scope>next-line))?(?P<word_boundary>\b)?"
         r"(?: *\[(?P<warning_names>[\w-]+(?:,[\w-]+)*)\])?"
     )
 
@@ -283,43 +283,59 @@ class Linter:
         def helper() -> "Generator[tuple[_PosType, bool]]":
             start = 0
             enabled = True
-            next_line_range: _PosType | None = None
-            next_line_enabled: bool | None = None
+            next_line_directives: list[tuple[_PosType, bool]] = []
 
             def handle_end(end: int) -> "Generator[tuple[_PosType, bool]]":
-                nonlocal next_line_range, next_line_enabled
-                if (
-                    next_line_range is not None
-                    and next_line_enabled is not None
-                    and end > next_line_range[0]
-                ):
-                    if start <= next_line_range[0]:
-                        yield ((start, next_line_range[0]), enabled)
-                    if end >= next_line_range[1]:
-                        yield next_line_range, next_line_enabled
-                        yield ((next_line_range[1], end), enabled)
-                        next_line_range = None
-                        next_line_enabled = None
-                else:
+                nonlocal start
+                while True:
+                    try:
+                        next_line_pos, next_line_enabled = (
+                            next_line_directives.pop(0)
+                        )
+                    except IndexError:
+                        break
+                    if next_line_pos[0] >= end:
+                        next_line_directives.insert(
+                            0, (next_line_pos, next_line_enabled)
+                        )
+                        break
+                    if next_line_pos[0] >= start:
+                        yield ((start, next_line_pos[0]), enabled)
+                    yield (next_line_pos, next_line_enabled)
+                    start = next_line_pos[1]
+                if start <= end:
                     yield ((start, end), enabled)
 
             for m in Linter._DISABLE_ENABLE_DIRECTIVE_RE.finditer(
                 lines.content
             ):
+                if m.group("word_boundary") is None:
+                    continue
                 if m.group("warning_names") and warning_name not in m.group(
                     "warning_names"
                 ).split(","):
                     continue
 
+                directive_is_enable = m.group("directive_name") == "enable"
                 if m.group("scope") == "next-line":
                     this_line = lines.line_for_pos(m.start())
                     next_line = this_line + 1
-                    next_line_range = lines.pos[next_line]
-                    next_line_enabled = m.group("directive_name") == "enable"
+                    if (
+                        next_line_directives
+                        and next_line_directives[-1][0] == lines.pos[next_line]
+                    ):
+                        next_line_directives[-1] = (
+                            lines.pos[next_line],
+                            directive_is_enable,
+                        )
+                    else:
+                        next_line_directives.append(
+                            (lines.pos[next_line], directive_is_enable)
+                        )
                 else:
                     yield from handle_end(m.start())
-                    start = m.start()
-                    enabled = m.group("directive_name") == "enable"
+                    start = max(start, m.start())
+                    enabled = directive_is_enable
 
             yield from handle_end(len(lines.content))
 
