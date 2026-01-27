@@ -418,6 +418,10 @@ class TestLinter:
                 : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
                 + # rapids-pre-commit-hooks: enabled
                 : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + # rapids-pre-commit-hooks: enable-next-lines
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + Hello
+                : ~~~~~~0
                 """,
                 "test",
                 [True],

@@ -140,7 +140,7 @@ class Linter:
     _DISABLE_ENABLE_DIRECTIVE_RE: re.Pattern = re.compile(
         r"\brapids-pre-commit-hooks: *"
         r"(?P<directive_name>enable|disable)"
-        r"(?:-(?P<scope>next-line))?\b"
+        r"(?:-(?P<scope>next-line))?(?P<word_boundary>\b)?"
         r"(?: *\[(?P<warning_names>[\w-]+(?:,[\w-]+)*)\])?"
     )
 
@@ -309,6 +309,8 @@ class Linter:
             for m in Linter._DISABLE_ENABLE_DIRECTIVE_RE.finditer(
                 lines.content
             ):
+                if m.group("word_boundary") is None:
+                    continue
                 if m.group("warning_names") and warning_name not in m.group(
                     "warning_names"
                 ).split(","):
