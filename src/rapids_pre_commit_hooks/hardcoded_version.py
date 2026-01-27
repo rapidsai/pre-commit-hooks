@@ -164,6 +164,13 @@ def check_hardcoded_version(
             match.span("full"),
             f"do not hard-code version, read from {args.version_file} "
             "file instead",
+        ).add_note(
+            match.span("full"),
+            "if this is intentional (as part of a docstring or deprecation "
+            "notice), suppress it with rapids-pre-commit-hooks: "
+            "disable-next-line - see "
+            "https://github.com/rapidsai/pre-commit-hooks/blob/main/README.md"
+            "#suppressing-false-positives for details",
         )
 
 
