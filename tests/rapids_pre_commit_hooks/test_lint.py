@@ -423,6 +423,23 @@ class TestLinter:
                 [True],
                 id="invalid-directives",
             ),
+            pytest.param(
+                """\
+                + # rapids-pre-commit-hooks: disable-next-line
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0
+                + Hello
+                : ~~~~~1
+                :      ~2
+                + # rapids-pre-commit-hooks: disable-next-line
+                : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~2
+                + Hello
+                : ~~~~~3
+                :      ~4
+                """,
+                "test",
+                [True, False, True, False, True],
+                id="multiple-next-line",
+            ),
         ],
     )
     def test_get_disabled_enabled_boundaries(
