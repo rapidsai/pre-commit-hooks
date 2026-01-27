@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from rapids_pre_commit_hooks import hardcoded_version
-from rapids_pre_commit_hooks.lint import Lines, LintWarning, Linter
+from rapids_pre_commit_hooks.lint import Lines, LintWarning, Linter, Note
 from rapids_pre_commit_hooks_test_utils import parse_named_ranges
 
 
@@ -687,4 +687,20 @@ def test_check_hardcoded_version(
         mock_read_version_file.assert_called_once_with(version_file)
     else:
         mock_read_version_file.assert_not_called()
-    assert linter.warnings == [LintWarning(m, message) for m in r]
+    assert linter.warnings == [
+        LintWarning(
+            m,
+            message,
+            notes=[
+                Note(
+                    m,
+                    "if this is intentional (as part of a docstring or "
+                    "deprecation notice), suppress it with "
+                    "rapids-pre-commit-hooks: disable-next-line - see "
+                    "https://github.com/rapidsai/pre-commit-hooks/blob/main/"
+                    "README.md#suppressing-false-positives for details",
+                )
+            ],
+        )
+        for m in r
+    ]
