@@ -162,7 +162,7 @@ from rapids_pre_commit_hooks_test_utils import parse_named_ranges
             '"Apache-2.0"',
             id="license-trailing-whitespace",
         ),
-        # Apache-2.0 licenses should be added to a file
+        # Apache-2.0 license should be added to a file
         # totally missing [project] table
         pytest.param(
             """\
@@ -175,7 +175,7 @@ from rapids_pre_commit_hooks_test_utils import parse_named_ranges
             '[project]\nlicense = "Apache-2.0"\n',
             id="no-project-table",
         ),
-        # Apache-2.0 licenses should be added to a file with [project] table
+        # Apache-2.0 license should be added to a file with [project] table
         # but no 'license' key
         pytest.param(
             """\
@@ -191,7 +191,7 @@ from rapids_pre_commit_hooks_test_utils import parse_named_ranges
             'license = "Apache-2.0"\n',
             id="project-table-no-license-key",
         ),
-        # Apache-2.0 licenses should be correctly added to a file with
+        # Apache-2.0 license should be correctly added to a file with
         # [project] table and other [project.*] tables
         pytest.param(
             """\
@@ -207,7 +207,27 @@ from rapids_pre_commit_hooks_test_utils import parse_named_ranges
             'license = "Apache-2.0"\n',
             id="project-table-and-project-subtables",
         ),
-        # Apache-2.0 licenses should be correctly added to a file with
+        # Linter should warn about interleaved pyproject.toml tables
+        pytest.param(
+            """\
+            + [project]
+            + name = "test-project"
+            +
+            + [tool.ruff]
+            + line-length = 88
+            +
+            + [project.optional-dependencies]
+            + test = ["pytest"]
+            :                   ^warning
+            """,
+            (
+                "[project] table should proceed all other [project.*] tables "
+                "and all [project.*] tables should be grouped together."
+            ),
+            None,
+            id="project-table-and-non-contiguous-subtables",
+        ),
+        # Apache-2.0 license should be correctly added to a file with
         # [project.*] tables but no [project] table
         pytest.param(
             """\

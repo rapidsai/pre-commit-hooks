@@ -20,13 +20,30 @@ ACCEPTABLE_LICENSES: set[str] = {
 def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
     document = tomlkit.loads(linter.content)
     try:
+        # by default, assume the linter needs to add the [project] table
         add_project_table = True
         project_table = document["project"]
-        try:
-            add_project_table = project_table.is_super_table()
-        except:
-            import pdb
-            pdb.set_trace()
+
+        # If there are other non-[project*] tables between the first [project*]
+        # and the last one, tomlkit will return an OutOfOrderTableProxy object.
+        #
+        # Assume this order was unintentional (there's no functional reason to
+        # interleave tables like this) and just emit a warning saying this
+        # should be fixed.
+        #
+        # This is easier than having to special-case OutOfOrderTableProxy in
+        # the replacement / appending code, and also enforces a bit more
+        # standardization in pyproject.toml files (a good thing on its own!).
+        if isinstance(project_table, tomlkit.container.OutOfOrderTableProxy):
+            loc = (len(linter.content), len(linter.content))
+            linter.add_warning(
+                loc,
+                "[project] table should proceed all other [project.*] tables"
+                + " and all [project.*] tables should be grouped together.",
+            )
+            return
+
+        add_project_table = project_table.is_super_table()  # type: ignore[union-attr]
         license_value = project_table["license"]  # type: ignore[index]
     except tomlkit.exceptions.NonExistentKey:
         if add_project_table:
