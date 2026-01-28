@@ -207,7 +207,7 @@ from rapids_pre_commit_hooks_test_utils import parse_named_ranges
             'license = "Apache-2.0"\n',
             id="project-table-and-project-subtables",
         ),
-        # Linter should warn about interleaved pyproject.toml tables
+        # Linter should warn about interleaved [project*] tables
         pytest.param(
             """\
             + [project]
