@@ -22,7 +22,7 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
     try:
         add_project_table = True
         project_table = document["project"]
-        add_project_table = project_table.is_super_table()  # type: ignore[union-attr]
+        add_project_table = project_table.is_super_table()
         license_value = project_table["license"]  # type: ignore[index]
     except tomlkit.exceptions.NonExistentKey:
         if add_project_table:
