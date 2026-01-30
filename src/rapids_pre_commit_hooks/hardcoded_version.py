@@ -73,7 +73,7 @@ def get_excluded_sections(linter: Linter) -> "Generator[tuple[int, int]]":
 
 
 def is_deprecation_notice(lines: "Lines", match: "re.Match[str]") -> bool:
-    this_line = lines.line_for_pos(match.start())
+    this_line = lines.line_for_pos(match.start("full"))
     first_line = max(0, this_line - 3)
     start = lines.pos[first_line][0]
     end = lines.pos[this_line][1]
@@ -81,13 +81,13 @@ def is_deprecation_notice(lines: "Lines", match: "re.Match[str]") -> bool:
 
 
 def is_number_array(lines: "Lines", match: "re.Match[str]") -> bool:
-    this_line = lines.line_for_pos(match.start())
+    this_line = lines.line_for_pos(match.start("full"))
     start, end = lines.pos[this_line]
     return bool(NUMBER_ARRAY_RE.search(lines.content[start:end]))
 
 
 def is_version_doc(lines: "Lines", match: "re.Match[str]") -> bool:
-    return bool(VERSION_DOC_RE.search(lines.content[: match.start()]))
+    return bool(VERSION_DOC_RE.search(lines.content[: match.start("full")]))
 
 
 def skip_heuristics(lines: "Lines", match: "re.Match[str]") -> bool:
