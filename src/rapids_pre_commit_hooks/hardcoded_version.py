@@ -36,6 +36,7 @@ HARDCODED_VERSION_RE: re.Pattern = re.compile(
 PYPROJECT_TOML_RE: re.Pattern = re.compile(r"(?:^|/)pyproject\.toml$")
 DEPRECATED_RE: re.Pattern = re.compile(r"\.\. deprecated::|@deprecated")
 NUMBER_ARRAY_RE: re.Pattern = re.compile(r"^[ .,0-9-]*$")
+VERSION_DOC_RE: re.Pattern = re.compile(r"\b(?:in|since|after) $")
 
 
 def get_excluded_section_pyproject_toml(
@@ -85,10 +86,16 @@ def is_number_array(lines: "Lines", match: "re.Match[str]") -> bool:
     return bool(NUMBER_ARRAY_RE.search(lines.content[start:end]))
 
 
+def is_version_doc(lines: "Lines", match: "re.Match[str]") -> bool:
+    return bool(VERSION_DOC_RE.search(lines.content[: match.start()]))
+
+
 def skip_heuristics(lines: "Lines", match: "re.Match[str]") -> bool:
     if is_deprecation_notice(lines, match):
         return True
     if is_number_array(lines, match):
+        return True
+    if is_version_doc(lines, match):
         return True
     return False
 
