@@ -269,9 +269,87 @@ def test_is_number_array(content, expected_value):
 
 
 @pytest.mark.parametrize(
-    ["is_deprecation_notice", "is_number_array", "expected_value"],
+    ["content", "expected_value"],
     [
         pytest.param(
+            """\
+            + in 26.04
+            :    ~~~~~match
+            """,
+            True,
+            id="in",
+        ),
+        pytest.param(
+            """\
+            + since 26.04
+            :       ~~~~~match
+            """,
+            True,
+            id="since",
+        ),
+        pytest.param(
+            """\
+            + after 26.04
+            :       ~~~~~match
+            """,
+            True,
+            id="after",
+        ),
+        pytest.param(
+            """\
+            + removed in 26.04
+            :            ~~~~~match
+            """,
+            True,
+            id="word-before",
+        ),
+        pytest.param(
+            """\
+            + "in 26.04
+            :     ~~~~~match
+            """,
+            True,
+            id="quote-before",
+        ),
+        pytest.param(
+            """\
+            + 26.04
+            : ~~~~~match
+            """,
+            False,
+            id="nothing",
+        ),
+        pytest.param(
+            """\
+            + bin 26.04
+            :     ~~~~~match
+            """,
+            False,
+            id="wrong-word",
+        ),
+    ],
+)
+def test_is_version_doc(content, expected_value):
+    content, ranges = parse_named_ranges(content)
+    match_range = ranges["match"]
+    lines = Lines(content)
+    match = Mock(
+        start=Mock(return_value=match_range[0]),
+        end=Mock(return_value=match_range[1]),
+    )
+    assert hardcoded_version.is_version_doc(lines, match) == expected_value
+
+
+@pytest.mark.parametrize(
+    [
+        "is_deprecation_notice",
+        "is_number_array",
+        "is_version_doc",
+        "expected_value",
+    ],
+    [
+        pytest.param(
+            False,
             False,
             False,
             False,
@@ -280,19 +358,28 @@ def test_is_number_array(content, expected_value):
         pytest.param(
             True,
             False,
+            False,
             True,
             id="is-deprecation-notice",
         ),
         pytest.param(
             False,
             True,
+            False,
             True,
             id="is-number-array",
+        ),
+        pytest.param(
+            False,
+            False,
+            True,
+            True,
+            id="is-version-doc",
         ),
     ],
 )
 def test_skip_heuristics(
-    is_deprecation_notice, is_number_array, expected_value
+    is_deprecation_notice, is_number_array, is_version_doc, expected_value
 ):
     with (
         patch(
@@ -302,6 +389,10 @@ def test_skip_heuristics(
         patch(
             "rapids_pre_commit_hooks.hardcoded_version.is_number_array",
             Mock(return_value=is_number_array),
+        ),
+        patch(
+            "rapids_pre_commit_hooks.hardcoded_version.is_version_doc",
+            Mock(return_value=is_version_doc),
         ),
     ):
         assert (
