@@ -221,8 +221,8 @@ from rapids_pre_commit_hooks_test_utils import parse_named_ranges
             :                   ^warning
             """,
             (
-                "[project] table should proceed all other [project.*] tables "
-                "and all [project.*] tables should be grouped together."
+                "[project] table should precede all other [project.*] tables "
+                "and all [project.*] tables should be grouped together"
             ),
             None,
             id="project-table-and-non-contiguous-subtables",

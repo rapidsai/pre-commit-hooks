@@ -38,8 +38,11 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
             loc = (len(linter.content), len(linter.content))
             linter.add_warning(
                 loc,
-                "[project] table should proceed all other [project.*] tables"
-                + " and all [project.*] tables should be grouped together.",
+                (
+                    "[project] table should precede all other [project.*] "
+                    "tables and all [project.*] tables should be grouped "
+                    "together"
+                ),
             )
             return
 
