@@ -333,11 +333,14 @@ def test_is_version_doc(content, expected_value):
     content, ranges = parse_named_ranges(content)
     match_range = ranges["match"]
     lines = Lines(content)
+    start = Mock(return_value=match_range[0])
+    end = Mock(return_value=match_range[1])
     match = Mock(
-        start=Mock(return_value=match_range[0]),
-        end=Mock(return_value=match_range[1]),
+        start=start,
+        end=end,
     )
     assert hardcoded_version.is_version_doc(lines, match) == expected_value
+    start.assert_called_once_with("full")
 
 
 @pytest.mark.parametrize(
