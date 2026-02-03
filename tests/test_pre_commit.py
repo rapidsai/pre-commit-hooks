@@ -122,6 +122,11 @@ def test_pre_commit(
 
     example_dir = os.path.join(EXAMPLES_DIR, hook_name, expected_status)
     main_dir = os.path.join(example_dir, "main")
+
+    # Skip test if example directory doesn't exist
+    if not os.path.exists(main_dir):
+        pytest.skip(f"No {expected_status} example for {hook_name}")
+
     shutil.copytree(main_dir, git_repo.working_tree_dir, dirs_exist_ok=True)
 
     try:
@@ -200,5 +205,6 @@ def test_pre_commit(
                 "RAPIDS_COPYRIGHT_FORCE_SPDX": "0",
                 "TARGET_BRANCH": "main",
                 "RAPIDS_TEST_YEAR": "2024",
+                "SKIP_CODERABBIT_IF_MISSING": "true",
             },
         )

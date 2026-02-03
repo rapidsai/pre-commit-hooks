@@ -19,6 +19,13 @@
     (?x)
       ^[.]github/CODEOWNERS$
   args: [--fix]
+- id: verify-coderabbit-gitleaks
+  name: verify-coderabbit-gitleaks
+  description: check for secrets using CodeRabbit CLI Gitleaks
+  entry: verify-coderabbit-gitleaks
+  language: python
+  pass_filenames: false
+  always_run: true
 - id: verify-conda-yes
   name: pass -y/--yes to conda
   description: make sure that all calls to conda pass -y/--yes
