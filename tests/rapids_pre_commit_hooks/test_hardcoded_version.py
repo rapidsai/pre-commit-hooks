@@ -313,6 +313,30 @@ def test_is_number_array(content, expected_value):
         ),
         pytest.param(
             """\
+            + in version 26.04
+            :            ~~~~~match
+            """,
+            True,
+            id="with-version-word",
+        ),
+        pytest.param(
+            """\
+            + In 26.04
+            :    ~~~~~match
+            """,
+            True,
+            id="capitalized",
+        ),
+        pytest.param(
+            """\
+            + In version 26.04
+            :            ~~~~~match
+            """,
+            True,
+            id="capitalized-with-version-word",
+        ),
+        pytest.param(
+            """\
             + 26.04
             : ~~~~~match
             """,

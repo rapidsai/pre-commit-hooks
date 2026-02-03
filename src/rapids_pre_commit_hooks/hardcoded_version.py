@@ -36,7 +36,9 @@ HARDCODED_VERSION_RE: re.Pattern = re.compile(
 PYPROJECT_TOML_RE: re.Pattern = re.compile(r"(?:^|/)pyproject\.toml$")
 DEPRECATED_RE: re.Pattern = re.compile(r"\.\. deprecated::|@deprecated")
 NUMBER_ARRAY_RE: re.Pattern = re.compile(r"^[ .,0-9-]*$")
-VERSION_DOC_RE: re.Pattern = re.compile(r"\b(?:in|since|after) $")
+VERSION_DOC_RE: re.Pattern = re.compile(
+    r"\b(?:in|since|after) (?:version )?$", re.IGNORECASE
+)
 
 
 def get_excluded_section_pyproject_toml(
