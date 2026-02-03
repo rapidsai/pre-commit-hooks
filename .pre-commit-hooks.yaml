@@ -54,6 +54,8 @@
       (^|/)pom[.]xml$|
       ^[.]pre-commit-config[.]yaml$|
       ^conda/environments/|
+      (^|/)VERSION$|
+      (^|/)RAPIDS_BRANCH$|
       [.](md|rst|avro|parquet|png|orc|gz|pkl|sas7bdat)$
 - id: verify-pyproject-license
   name: verify-pyproject-license
