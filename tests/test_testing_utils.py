@@ -5,11 +5,11 @@ import contextlib
 
 import pytest
 
-from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
+from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_spans
 
 
 @pytest.mark.parametrize(
-    ["content", "root_type", "expected_content", "expected_ranges", "context"],
+    ["content", "root_type", "expected_content", "expected_spans", "context"],
     [
         pytest.param(
             "+",
@@ -41,7 +41,7 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             "Hello\nworld!\n",
             {},
             contextlib.nullcontext(),
-            id="no-ranges",
+            id="no-spans",
         ),
         pytest.param(
             "+ Hello\n+ world!\n",
@@ -49,7 +49,7 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             "Hello\nworld!\n",
             {},
             contextlib.nullcontext(),
-            id="no-ranges-empty-last-line",
+            id="no-spans-empty-last-line",
         ),
         pytest.param(
             """\
@@ -60,7 +60,7 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             "Hello\nworld!\n",
             {},
             contextlib.nullcontext(),
-            id="no-ranges-empty-range-line",
+            id="no-spans-empty-span-line",
         ),
         pytest.param(
             """\
@@ -71,7 +71,7 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             "Hello\nworld!",
             {},
             contextlib.nullcontext(),
-            id="no-ranges-no-newline",
+            id="no-spans-no-newline",
         ),
         pytest.param(
             """\
@@ -82,33 +82,33 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             "Hello world!",
             {},
             contextlib.nullcontext(),
-            id="no-ranges-multiple-no-newlines",
+            id="no-spans-multiple-no-newlines",
         ),
         pytest.param(
             """\
             + Hello
-            :  ^group1
+            :  ^span1
             """,
             dict,
             "Hello\n",
             {
-                "group1": (1, 1),
+                "span1": (1, 1),
             },
             contextlib.nullcontext(),
-            id="single-empty-group",
+            id="single-empty-span",
         ),
         pytest.param(
             """\
             > Hello
-            :  ^group1
+            :  ^span1
             """,
             dict,
             "Hello",
             {
-                "group1": (1, 1),
+                "span1": (1, 1),
             },
             contextlib.nullcontext(),
-            id="single-empty-group-no-newline",
+            id="single-empty-span-no-newline",
         ),
         pytest.param(
             """\
@@ -121,22 +121,22 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
                 "end": (6, 6),
             },
             contextlib.nullcontext(),
-            id="single-empty-group-at-end",
+            id="single-empty-span-at-end",
         ),
         pytest.param(
             """\
             + Hello
-            :  ^group1
-            :   ^group2
+            :  ^span1
+            :   ^span2
             """,
             dict,
             "Hello\n",
             {
-                "group1": (1, 1),
-                "group2": (2, 2),
+                "span1": (1, 1),
+                "span2": (2, 2),
             },
             contextlib.nullcontext(),
-            id="multiple-empty-groups",
+            id="multiple-empty-spans",
         ),
         pytest.param(
             """\
@@ -150,46 +150,46 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
                 "b": (4, 4),
             },
             contextlib.nullcontext(),
-            id="multiple-empty-groups-one-line",
+            id="multiple-empty-spans-one-line",
         ),
         pytest.param(
             """\
             + Hello
-            :  ~~group1
+            :  ~~span1
             """,
             dict,
             "Hello\n",
             {
-                "group1": (1, 3),
+                "span1": (1, 3),
             },
             contextlib.nullcontext(),
-            id="single-nonempty-group",
+            id="single-nonempty-span",
         ),
         pytest.param(
             """\
             + Hello
-            :  >large_group
+            :  >large_span
             + world
             + again
-            : !large_group
+            : !large_span
             """,
             dict,
             "Hello\nworld\nagain\n",
             {
-                "large_group": (1, 12),
+                "large_span": (1, 12),
             },
             contextlib.nullcontext(),
-            id="large-group",
+            id="large-span",
         ),
         pytest.param(
             """\
             + Hello
-            :  ~~group1  # This is the first group
+            :  ~~span1  # This is the first span
             """,
             dict,
             "Hello\n",
             {
-                "group1": (1, 3),
+                "span1": (1, 3),
             },
             contextlib.nullcontext(),
             id="comment",
@@ -197,15 +197,15 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         pytest.param(
             """\
             + Hello
-            : ~g#~g
+            : ~s#~s
             """,
             dict,
             "Hello\n",
             {
-                "g": (0, 1),
+                "s": (0, 1),
             },
             contextlib.nullcontext(),
-            id="comment-with-range",
+            id="comment-with-span",
         ),
         pytest.param(
             """\
@@ -221,89 +221,89 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         pytest.param(
             """\
             + Hello
-            :  ~~~~group1
+            :  ~~~~span1
             """,
             dict,
             "Hello\n",
             {
-                "group1": (1, 5),
+                "span1": (1, 5),
             },
             contextlib.nullcontext(),
-            id="single-nonempty-group-to-end-of-line",
+            id="single-nonempty-span-to-end-of-line",
         ),
         pytest.param(
             """\
             + Hello
-            :  ~~~~~group1
+            :  ~~~~~span1
             """,
             dict,
             "Hello\n",
             {
-                "group1": (1, 6),
+                "span1": (1, 6),
             },
             contextlib.nullcontext(),
-            id="single-line-ending-group",
+            id="single-line-ending-span",
         ),
         pytest.param(
             """\
             + Hello
-            :  ~~~~~group1
+            :  ~~~~~span1
             + world!
-            : ~~group1
+            : ~~span1
             """,
             dict,
             "Hello\nworld!\n",
             {
-                "group1": (1, 8),
+                "span1": (1, 8),
             },
             contextlib.nullcontext(),
-            id="single-multiline-group",
+            id="single-multiline-span",
         ),
         pytest.param(
             """\
             + Hello
-            :  ~~~~~group1
-            :    ~~~group2
+            :  ~~~~~span1
+            :    ~~~span2
             + world!
-            : ~~group1
-            : ~group2
+            : ~~span1
+            : ~span2
             """,
             dict,
             "Hello\nworld!\n",
             {
-                "group1": (1, 8),
-                "group2": (3, 7),
+                "span1": (1, 8),
+                "span2": (3, 7),
             },
             contextlib.nullcontext(),
-            id="multiple-multiline-groups",
+            id="multiple-multiline-spans",
         ),
         pytest.param(
             """\
             + Hello
-            : ~~group1
-            :   ~~group1
+            : ~~span1
+            :   ~~span1
             """,
             dict,
             "Hello\n",
             {
-                "group1": (0, 4),
+                "span1": (0, 4),
             },
             contextlib.nullcontext(),
-            id="joined-group-forward",
+            id="joined-span-forward",
         ),
         pytest.param(
             """\
             + Hello
-            :   ~~group1
-            : ~~group1
+            :   ~~span1
+            : ~~span1
             """,
             dict,
             "Hello\n",
             {
-                "group1": (0, 4),
+                "span1": (0, 4),
             },
             contextlib.nullcontext(),
-            id="joined-group-reverse",
+            id="joined-span-reverse",
         ),
         pytest.param(
             """\
@@ -438,45 +438,45 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         pytest.param(
             """\
             + Hello
-            :  ~~~~group1
+            :  ~~~~span1
             + world!
-            : ~group1
+            : ~span1
             """,
             dict,
             None,
             None,
             pytest.raises(ParseError),
-            id="broken-multiline-group-first",
+            id="broken-multiline-span-first",
         ),
         pytest.param(
             """\
             + Hello
-            :  ~~~~~group1
+            :  ~~~~~span1
             + world!
-            :  ~group1
+            :  ~span1
             """,
             dict,
             None,
             None,
             pytest.raises(ParseError),
-            id="broken-multiline-group-second",
+            id="broken-multiline-span-second",
         ),
         pytest.param(
             """\
             + Hello
-            : ~~g
-            :  ~~g
+            : ~~s
+            :  ~~s
             """,
             dict,
             None,
             None,
             pytest.raises(ParseError),
-            id="overlapping-group",
+            id="overlapping-span",
         ),
         pytest.param(
             """\
             + Hello
-            :  ~~~~~~group1
+            :  ~~~~~~span1
             """,
             dict,
             None,
@@ -487,7 +487,7 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         pytest.param(
             """\
             + Hello
-            : a ~group1
+            : a ~span1
             """,
             dict,
             None,
@@ -498,7 +498,7 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         pytest.param(
             """\
             + Hello
-            :   ~group1 a
+            :   ~span1 a
             """,
             dict,
             None,
@@ -509,7 +509,7 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         pytest.param(
             """\
             + Hello
-            @   ~group1
+            @   ~span1
             """,
             dict,
             None,
@@ -547,7 +547,7 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             None,
             None,
             pytest.raises(ParseError),
-            id="overwrite-range-with-dict",
+            id="overwrite-span-with-dict",
         ),
         pytest.param(
             """\
@@ -559,7 +559,7 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             None,
             None,
             pytest.raises(ParseError),
-            id="overwrite-dict-with-range",
+            id="overwrite-dict-with-span",
         ),
         pytest.param(
             """\
@@ -615,7 +615,7 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
             None,
             None,
             pytest.raises(ParseError),
-            id="group-on-no-content",
+            id="span-on-no-content",
         ),
         pytest.param(
             """\
@@ -631,46 +631,46 @@ from rapids_pre_commit_hooks_test_utils import ParseError, parse_named_ranges
         pytest.param(
             """\
             + Hello
-            : >g
-            :   >g
-            :    !g
+            : >s
+            :   >s
+            :    !s
             """,
             dict,
             None,
             None,
             pytest.raises(ParseError),
-            id="duplicate-large-group",
+            id="duplicate-large-span",
         ),
         pytest.param(
             """\
             + Hello
-            : >g
-            :  !g
-            :   !g
+            : >s
+            :  !s
+            :   !s
             """,
             dict,
             None,
             None,
             pytest.raises(ParseError),
-            id="double-terminate-large-group",
+            id="double-terminate-large-span",
         ),
         pytest.param(
             """\
             + Hello
-            : >g
+            : >s
             """,
             dict,
             None,
             None,
             pytest.raises(ParseError),
-            id="unterminated-large-group",
+            id="unterminated-large-span",
         ),
     ],
 )
-def test_parse_named_ranges(
-    content, root_type, expected_content, expected_ranges, context
+def test_parse_named_spans(
+    content, root_type, expected_content, expected_spans, context
 ):
     with context:
-        content, named_ranges = parse_named_ranges(content, root_type)
+        content, spans = parse_named_spans(content, root_type)
         assert content == expected_content
-        assert named_ranges == expected_ranges
+        assert spans == expected_spans

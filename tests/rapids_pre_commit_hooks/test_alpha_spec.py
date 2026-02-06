@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import contextlib
@@ -720,12 +720,12 @@ def test_check_alpha_spec_integration(tmp_path):
 
     start = CONTENT.find(REPLACED)
     end = start + len(REPLACED)
-    pos = (start, end)
+    span = (start, end)
 
     expected_linter = lint.Linter(
         "dependencies.yaml", CONTENT, "verify-alpha-spec"
     )
     expected_linter.add_warning(
-        pos, "add alpha spec for RAPIDS package cudf"
-    ).add_replacement(pos, "cudf>=24.04,<24.06,>=0.0.0a0")
+        span, "add alpha spec for RAPIDS package cudf"
+    ).add_replacement(span, "cudf>=24.04,<24.06,>=0.0.0a0")
     assert linter.warnings == expected_linter.warnings

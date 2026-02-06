@@ -17,7 +17,7 @@ from rich.markup import escape
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterator
 
-_PosType = tuple[int, int]
+Span = tuple[int, int]
 
 
 class OverlappingReplacementsError(RuntimeError):
@@ -30,53 +30,53 @@ class BinaryFileWarning(Warning):
 
 @dataclasses.dataclass
 class Replacement:
-    pos: _PosType
+    span: Span
     newtext: str
 
 
 @dataclasses.dataclass
 class Note:
-    pos: _PosType
+    span: Span
     msg: str
 
 
 @dataclasses.dataclass
 class LintWarning:
-    pos: _PosType
+    span: Span
     msg: str
     replacements: list[Replacement] = dataclasses.field(
         default_factory=list, kw_only=True
     )
     notes: list[Note] = dataclasses.field(default_factory=list, kw_only=True)
 
-    def add_replacement(self, pos: _PosType, newtext: str) -> None:
-        self.replacements.append(Replacement(pos, newtext))
+    def add_replacement(self, span: Span, newtext: str) -> None:
+        self.replacements.append(Replacement(span, newtext))
 
-    def add_note(self, pos: _PosType, msg: str) -> None:
-        self.notes.append(Note(pos, msg))
+    def add_note(self, span: Span, msg: str) -> None:
+        self.notes.append(Note(span, msg))
 
 
 class Lines:
     @functools.total_ordering
     class _LineComparator:
-        def __init__(self, pos: _PosType) -> None:
-            self.pos: _PosType = pos
+        def __init__(self, span: Span) -> None:
+            self.span: Span = span
 
         def __lt__(self, other: object) -> bool:
             assert isinstance(other, int)
-            return self.pos[1] < other
+            return self.span[1] < other
 
         def __gt__(self, other: object) -> bool:
             assert isinstance(other, int)
-            return self.pos[0] > other
+            return self.span[0] > other
 
         def __eq__(self, other: object) -> bool:
             assert isinstance(other, int)
-            return self.pos[0] <= other <= self.pos[1]
+            return self.span[0] <= other <= self.span[1]
 
     def __init__(self, content: str) -> None:
         self.content: str = content
-        self.pos: list[_PosType] = []
+        self.spans: list[Span] = []
 
         line_begin = 0
         line_end = 0
@@ -91,18 +91,18 @@ class Lines:
         for c in content:
             if state == "c":
                 if c == "\r":
-                    self.pos.append((line_begin, line_end))
+                    self.spans.append((line_begin, line_end))
                     line_end = line_begin = line_end + 1
                     state = "r"
                 elif c == "\n":
-                    self.pos.append((line_begin, line_end))
+                    self.spans.append((line_begin, line_end))
                     line_end = line_begin = line_end + 1
                     self.newline_count["\n"] += 1
                 else:
                     line_end += 1
             elif state == "r":
                 if c == "\r":
-                    self.pos.append((line_begin, line_end))
+                    self.spans.append((line_begin, line_end))
                     line_end = line_begin = line_end + 1
                     self.newline_count["\r"] += 1
                 elif c == "\n":
@@ -114,7 +114,7 @@ class Lines:
                     state = "c"
                     self.newline_count["\r"] += 1
 
-        self.pos.append((line_begin, line_end))
+        self.spans.append((line_begin, line_end))
         if state == "r":
             self.newline_count["\r"] += 1
         self.newline_style, _ = max(
@@ -122,17 +122,17 @@ class Lines:
             key=lambda item: item[1],
         )
 
-    def line_for_pos(self, index: int) -> int:
-        line_index = bisect.bisect_left(
-            [Lines._LineComparator(line) for line in self.pos], index
+    def line_for_pos(self, pos: int) -> int:
+        line_span_index = bisect.bisect_left(
+            [Lines._LineComparator(line) for line in self.spans], pos
         )
         try:
-            line_pos = self.pos[line_index]
+            line_span = self.spans[line_span_index]
         except IndexError:
-            raise IndexError(f"Position {index} is not in the string")
-        if not (line_pos[0] <= index <= line_pos[1]):
-            raise IndexError(f"Position {index} is inside a line separator")
-        return line_index
+            raise IndexError(f"Position {pos} is not in the string")
+        if not (line_span[0] <= pos <= line_span[1]):
+            raise IndexError(f"Position {pos} is inside a line separator")
+        return line_span_index
 
 
 class Linter:
@@ -155,8 +155,8 @@ class Linter:
             Linter.get_disabled_enabled_boundaries(self.lines, warning_name)
         )
 
-    def add_warning(self, pos: _PosType, msg: str) -> LintWarning:
-        w = LintWarning(pos, msg)
+    def add_warning(self, span: Span, msg: str) -> LintWarning:
+        w = LintWarning(span, msg)
         self.warnings.append(w)
         return w
 
@@ -167,19 +167,19 @@ class Linter:
                 for warning in self.get_enabled_warnings()
                 for replacement in warning.replacements
             ),
-            key=lambda replacement: replacement.pos,
+            key=lambda replacement: replacement.span,
         )
 
         for r1, r2 in pairwise(sorted_replacements):
-            if r1.pos[1] > r2.pos[0]:
+            if r1.span[1] > r2.span[0]:
                 raise OverlappingReplacementsError(f"{r1} overlaps with {r2}")
 
         cursor = 0
         replaced_content = ""
         for replacement in sorted_replacements:
-            replaced_content += self.content[cursor : replacement.pos[0]]
+            replaced_content += self.content[cursor : replacement.span[0]]
             replaced_content += replacement.newtext
-            cursor = replacement.pos[1]
+            cursor = replacement.span[1]
 
         replaced_content += self.content[cursor:]
         return replaced_content
@@ -187,42 +187,42 @@ class Linter:
     def _print_note(
         self,
         note_type: str,
-        pos: _PosType,
+        span: Span,
         msg: str,
         newtext: str | None = None,
     ) -> None:
-        line_index = self.lines.line_for_pos(pos[0])
-        line_pos = self.lines.pos[line_index]
+        line_index = self.lines.line_for_pos(span[0])
+        line_span = self.lines.spans[line_index]
         self.console.print(
             f"In file [bold]{escape(self.filename)}:{line_index + 1}:"
-            f"{pos[0] - line_pos[0] + 1}[/bold]:"
+            f"{span[0] - line_span[0] + 1}[/bold]:"
         )
-        self._print_highlighted_code(pos, newtext)
+        self._print_highlighted_code(span, newtext)
         self.console.print(f"[bold]{note_type}:[/bold] {escape(msg)}")
         self.console.print()
 
     def print_warnings(self, fix_applied: bool = False) -> None:
         sorted_warnings = sorted(
             self.get_enabled_warnings(),
-            key=lambda warning: warning.pos,
+            key=lambda warning: warning.span,
         )
 
         for warning in sorted_warnings:
-            self._print_note("warning", warning.pos, warning.msg)
+            self._print_note("warning", warning.span, warning.msg)
 
             for note in warning.notes:
-                self._print_note("note", note.pos, note.msg)
+                self._print_note("note", note.span, note.msg)
 
             for replacement in warning.replacements:
-                line_index = self.lines.line_for_pos(replacement.pos[0])
-                line_pos = self.lines.pos[line_index]
+                line_span_index = self.lines.line_for_pos(replacement.span[0])
+                line_span = self.lines.spans[line_span_index]
                 newtext = replacement.newtext
                 if match := self._NEWLINE_RE.search(newtext):
                     newtext = newtext[: match.start()]
                     long = True
                 else:
                     long = False
-                if replacement.pos[1] > line_pos[1]:
+                if replacement.span[1] > line_span[1]:
                     long = True
 
                 if fix_applied:
@@ -241,37 +241,37 @@ class Linter:
                     else:
                         replacement_msg = "suggested fix"
                 self._print_note(
-                    "note", replacement.pos, replacement_msg, newtext
+                    "note", replacement.span, replacement_msg, newtext
                 )
 
     def _print_highlighted_code(
-        self, pos: _PosType, replacement: str | None = None
+        self, span: Span, replacement: str | None = None
     ) -> None:
-        line_index = self.lines.line_for_pos(pos[0])
-        line_pos = self.lines.pos[line_index]
-        left = pos[0]
+        line_span_index = self.lines.line_for_pos(span[0])
+        line_span = self.lines.spans[line_span_index]
+        left = span[0]
 
-        if self.lines.line_for_pos(pos[1]) == line_index:
-            right = pos[1]
+        if self.lines.line_for_pos(span[1]) == line_span_index:
+            right = span[1]
         else:
-            right = line_pos[1]
+            right = line_span[1]
 
         if replacement is None:
             self.console.print(
-                f" {escape(self.content[line_pos[0] : left])}"
+                f" {escape(self.content[line_span[0] : left])}"
                 f"[bold]{escape(self.content[left:right])}[/bold]"
-                f"{escape(self.content[right : line_pos[1]])}"
+                f"{escape(self.content[right : line_span[1]])}"
             )
         else:
             self.console.print(
-                f"[red]-{escape(self.content[line_pos[0] : left])}"
+                f"[red]-{escape(self.content[line_span[0] : left])}"
                 f"[bold]{escape(self.content[left:right])}[/bold]"
-                f"{escape(self.content[right : line_pos[1]])}[/red]"
+                f"{escape(self.content[right : line_span[1]])}[/red]"
             )
             self.console.print(
-                f"[green]+{escape(self.content[line_pos[0] : left])}"
+                f"[green]+{escape(self.content[line_span[0] : left])}"
                 f"[bold]{escape(replacement)}[/bold]"
-                f"{escape(self.content[right : line_pos[1]])}[/green]"
+                f"{escape(self.content[right : line_span[1]])}[/green]"
             )
 
     @classmethod
@@ -279,30 +279,30 @@ class Linter:
         cls,
         lines: Lines,
         warning_name: str,
-    ) -> "list[tuple[_PosType, bool]]":
-        def helper() -> "Generator[tuple[_PosType, bool]]":
+    ) -> "list[tuple[Span, bool]]":
+        def helper() -> "Generator[tuple[Span, bool]]":
             start = 0
             enabled = True
-            next_line_directives: list[tuple[_PosType, bool]] = []
+            next_line_directives: list[tuple[Span, bool]] = []
 
-            def handle_end(end: int) -> "Generator[tuple[_PosType, bool]]":
+            def handle_end(end: int) -> "Generator[tuple[Span, bool]]":
                 nonlocal start
                 while True:
                     try:
-                        next_line_pos, next_line_enabled = (
+                        next_line_span, next_line_enabled = (
                             next_line_directives.pop(0)
                         )
                     except IndexError:
                         break
-                    if next_line_pos[0] >= end:
+                    if next_line_span[0] >= end:
                         next_line_directives.insert(
-                            0, (next_line_pos, next_line_enabled)
+                            0, (next_line_span, next_line_enabled)
                         )
                         break
-                    if next_line_pos[0] >= start:
-                        yield ((start, next_line_pos[0]), enabled)
-                    yield (next_line_pos, next_line_enabled)
-                    start = next_line_pos[1]
+                    if next_line_span[0] >= start:
+                        yield ((start, next_line_span[0]), enabled)
+                    yield (next_line_span, next_line_enabled)
+                    start = next_line_span[1]
                 if start <= end:
                     yield ((start, end), enabled)
 
@@ -322,15 +322,16 @@ class Linter:
                     next_line = this_line + 1
                     if (
                         next_line_directives
-                        and next_line_directives[-1][0] == lines.pos[next_line]
+                        and next_line_directives[-1][0]
+                        == lines.spans[next_line]
                     ):
                         next_line_directives[-1] = (
-                            lines.pos[next_line],
+                            lines.spans[next_line],
                             directive_is_enable,
                         )
                     else:
                         next_line_directives.append(
-                            (lines.pos[next_line], directive_is_enable)
+                            (lines.spans[next_line], directive_is_enable)
                         )
                 else:
                     yield from handle_end(m.start())
@@ -342,34 +343,34 @@ class Linter:
         return list(helper())
 
     @classmethod
-    def is_warning_range_enabled(
-        cls, boundaries: list[tuple[_PosType, bool]], warning_range: _PosType
+    def is_warning_span_enabled(
+        cls, boundaries: list[tuple[Span, bool]], warning_span: Span
     ) -> bool:
         start = bisect.bisect_left(
             boundaries,
-            warning_range[0],
+            warning_span[0],
             key=lambda b: b[0][0],
         )
         end = bisect.bisect_right(
             boundaries,
-            warning_range[1],
+            warning_span[1],
             key=lambda b: b[0][1],
         )
-        if warning_range[0] == warning_range[1]:
+        if warning_span[0] == warning_span[1]:
             move_start = (
-                start > 0 and warning_range[0] <= boundaries[start - 1][0][1]
+                start > 0 and warning_span[0] <= boundaries[start - 1][0][1]
             )
             move_end = (
                 end < len(boundaries)
-                and warning_range[1] >= boundaries[end][0][0]
+                and warning_span[1] >= boundaries[end][0][0]
             )
         else:
             move_start = (
-                start > 0 and warning_range[0] < boundaries[start - 1][0][1]
+                start > 0 and warning_span[0] < boundaries[start - 1][0][1]
             )
             move_end = (
                 end < len(boundaries)
-                and warning_range[1] > boundaries[end][0][0]
+                and warning_span[1] > boundaries[end][0][0]
             )
         if move_start:
             start -= 1
@@ -379,8 +380,8 @@ class Linter:
 
     def get_enabled_warnings(self) -> "Iterator[LintWarning]":
         return filter(
-            lambda w: Linter.is_warning_range_enabled(
-                self.disabled_enabled_boundaries, w.pos
+            lambda w: Linter.is_warning_span_enabled(
+                self.disabled_enabled_boundaries, w.span
             ),
             self.warnings,
         )

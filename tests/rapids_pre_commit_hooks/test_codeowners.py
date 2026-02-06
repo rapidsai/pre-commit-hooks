@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 from textwrap import dedent
@@ -41,18 +41,18 @@ patch_required_codeowners_lines = patch(
             codeowners.CodeownersLine(
                 file=codeowners.FilePattern(
                     filename="filename",
-                    pos=(0, 8),
+                    span=(0, 8),
                 ),
                 owners=[
                     codeowners.Owner(
                         owner="@owner1",
-                        pos=(9, 16),
-                        pos_with_leading_whitespace=(8, 16),
+                        span=(9, 16),
+                        span_with_leading_whitespace=(8, 16),
                     ),
                     codeowners.Owner(
                         owner="@owner2",
-                        pos=(17, 24),
-                        pos_with_leading_whitespace=(16, 24),
+                        span=(17, 24),
+                        span_with_leading_whitespace=(16, 24),
                     ),
                 ],
             ),
@@ -63,18 +63,18 @@ patch_required_codeowners_lines = patch(
             codeowners.CodeownersLine(
                 file=codeowners.FilePattern(
                     filename="filename",
-                    pos=(1, 9),
+                    span=(1, 9),
                 ),
                 owners=[
                     codeowners.Owner(
                         owner="@owner1",
-                        pos=(10, 17),
-                        pos_with_leading_whitespace=(9, 17),
+                        span=(10, 17),
+                        span_with_leading_whitespace=(9, 17),
                     ),
                     codeowners.Owner(
                         owner="@owner2",
-                        pos=(18, 25),
-                        pos_with_leading_whitespace=(17, 25),
+                        span=(18, 25),
+                        span_with_leading_whitespace=(17, 25),
                     ),
                 ],
             ),
@@ -85,18 +85,18 @@ patch_required_codeowners_lines = patch(
             codeowners.CodeownersLine(
                 file=codeowners.FilePattern(
                     filename="filename",
-                    pos=(0, 8),
+                    span=(0, 8),
                 ),
                 owners=[
                     codeowners.Owner(
                         owner="@owner1",
-                        pos=(10, 17),
-                        pos_with_leading_whitespace=(8, 17),
+                        span=(10, 17),
+                        span_with_leading_whitespace=(8, 17),
                     ),
                     codeowners.Owner(
                         owner="@owner2",
-                        pos=(19, 26),
-                        pos_with_leading_whitespace=(17, 26),
+                        span=(19, 26),
+                        span_with_leading_whitespace=(17, 26),
                     ),
                 ],
             ),
@@ -107,18 +107,18 @@ patch_required_codeowners_lines = patch(
             codeowners.CodeownersLine(
                 file=codeowners.FilePattern(
                     filename="file\\ name",
-                    pos=(0, 10),
+                    span=(0, 10),
                 ),
                 owners=[
                     codeowners.Owner(
                         owner="@owner\\ 1",
-                        pos=(11, 20),
-                        pos_with_leading_whitespace=(10, 20),
+                        span=(11, 20),
+                        span_with_leading_whitespace=(10, 20),
                     ),
                     codeowners.Owner(
                         owner="@owner\\ 2",
-                        pos=(21, 30),
-                        pos_with_leading_whitespace=(20, 30),
+                        span=(21, 30),
+                        span_with_leading_whitespace=(20, 30),
                     ),
                 ],
             ),
@@ -140,7 +140,7 @@ def test_parse_codeowners_line(line, skip, codeowners_line):
 
 
 @pytest.mark.parametrize(
-    ["line", "pos", "warnings"],
+    ["line", "span", "warnings"],
     [
         (
             "CMakeLists.txt @rapidsai/cudf-cmake-codeowners",
@@ -152,15 +152,15 @@ def test_parse_codeowners_line(line, skip, codeowners_line):
             (0, 14),
             [
                 LintWarning(
-                    pos=(0, 14),
+                    span=(0, 14),
                     msg="file 'CMakeLists.txt' has incorrect owners",
                     replacements=[
                         Replacement(
-                            pos=(14, 28),
+                            span=(14, 28),
                             newtext="",
                         ),
                         Replacement(
-                            pos=(28, 28),
+                            span=(28, 28),
                             newtext=" @rapidsai/cudf-cmake-codeowners",
                         ),
                     ],
@@ -172,11 +172,11 @@ def test_parse_codeowners_line(line, skip, codeowners_line):
             (0, 14),
             [
                 LintWarning(
-                    pos=(0, 14),
+                    span=(0, 14),
                     msg="file 'CMakeLists.txt' has incorrect owners",
                     replacements=[
                         Replacement(
-                            pos=(14, 28),
+                            span=(14, 28),
                             newtext="",
                         ),
                     ],
@@ -191,7 +191,7 @@ def test_parse_codeowners_line(line, skip, codeowners_line):
     ],
 )
 @patch_required_codeowners_lines
-def test_check_codeowners_line(line, pos, warnings):
+def test_check_codeowners_line(line, span, warnings):
     codeowners_line = codeowners.parse_codeowners_line(line, 0)
     linter = Linter(".github/CODEOWNERS", line, "verify-codeowners")
     found_files = []
@@ -200,7 +200,7 @@ def test_check_codeowners_line(line, pos, warnings):
     )
     assert linter.warnings == warnings
     assert found_files == [
-        (line, pos)
+        (line, span)
         for line in MOCK_REQUIRED_CODEOWNERS_LINES
         if line.file == codeowners_line.file.filename
     ]
@@ -227,15 +227,15 @@ def test_check_codeowners_line(line, pos, warnings):
             ),
             [
                 LintWarning(
-                    pos=(1, 15),
+                    span=(1, 15),
                     msg="file 'CMakeLists.txt' has incorrect owners",
                     replacements=[
                         Replacement(
-                            pos=(15, 29),
+                            span=(15, 29),
                             newtext="",
                         ),
                         Replacement(
-                            pos=(29, 29),
+                            span=(29, 29),
                             newtext=" @rapidsai/cudf-cmake-codeowners",
                         ),
                     ],
@@ -250,11 +250,11 @@ def test_check_codeowners_line(line, pos, warnings):
             ),
             [
                 LintWarning(
-                    pos=(0, 0),
+                    span=(0, 0),
                     msg="missing required codeowners",
                     replacements=[
                         Replacement(
-                            pos=(40, 40),
+                            span=(40, 40),
                             newtext="CMakeLists.txt "
                             "@rapidsai/cudf-cmake-codeowners\n",
                         ),
@@ -269,11 +269,11 @@ def test_check_codeowners_line(line, pos, warnings):
             ),
             [
                 LintWarning(
-                    pos=(0, 0),
+                    span=(0, 0),
                     msg="missing required codeowners",
                     replacements=[
                         Replacement(
-                            pos=(39, 39),
+                            span=(39, 39),
                             newtext="\nCMakeLists.txt "
                             "@rapidsai/cudf-cmake-codeowners\n",
                         ),
@@ -290,12 +290,12 @@ def test_check_codeowners_line(line, pos, warnings):
             ),
             [
                 LintWarning(
-                    pos=(1, 15),
+                    span=(1, 15),
                     msg="file 'pyproject.toml' should come after "
                     "'CMakeLists.txt'",
                     notes=[
                         Note(
-                            pos=(40, 54),
+                            span=(40, 54),
                             msg="file 'CMakeLists.txt' is here",
                         ),
                     ],

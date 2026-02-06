@@ -8,7 +8,7 @@ import tomlkit
 
 from rapids_pre_commit_hooks import pyproject_license
 from rapids_pre_commit_hooks.lint import LintWarning, Linter, Replacement
-from rapids_pre_commit_hooks_test_utils import parse_named_ranges
+from rapids_pre_commit_hooks_test_utils import parse_named_spans
 
 
 @pytest.mark.parametrize(
@@ -247,7 +247,7 @@ def test_check_pyproject_license(
     message,
     replacement_text,
 ):
-    content, positions = parse_named_ranges(content)
+    content, spans = parse_named_spans(content)
     linter = Linter("pyproject.toml", content, "verify-pyproject-license")
     pyproject_license.check_pyproject_license(linter, Mock())
 
@@ -256,11 +256,11 @@ def test_check_pyproject_license(
         if message is None
         else [
             LintWarning(
-                positions["warning"],
+                spans["warning"],
                 message,
                 replacements=[]
                 if replacement_text is None
-                else [Replacement(positions["replacement"], replacement_text)],
+                else [Replacement(spans["replacement"], replacement_text)],
             )
         ]
     )
