@@ -24,7 +24,7 @@ from rapids_pre_commit_hooks.lint import (
     Note,
     Replacement,
 )
-from rapids_pre_commit_hooks_test_utils import parse_named_ranges
+from rapids_pre_commit_hooks_test_utils import parse_named_spans
 
 
 @pytest.mark.parametrize(
@@ -565,7 +565,7 @@ def test_match_copyright(content, start, expected_match):
     ],
 )
 def test_match_all_copyright(content):
-    content, r = parse_named_ranges(content, list)
+    content, spans = parse_named_spans(content, list)
     lines = Lines(content)
     assert list(
         copyright.match_all_copyright(
@@ -583,7 +583,7 @@ def test_match_all_copyright(content):
                 **match,
             },
         )
-        for match in r
+        for match in spans
     ]
 
 
@@ -656,7 +656,7 @@ def test_compute_prefix(content, filename, index, expected_prefix):
 
 
 @pytest.mark.parametrize(
-    ["content", "index", "expected_pos"],
+    ["content", "pos", "expected_span"],
     [
         pytest.param(
             dedent(
@@ -835,12 +835,12 @@ def test_compute_prefix(content, filename, index, expected_prefix):
         ),
     ],
 )
-def test_find_long_form_text(content, index, expected_pos):
+def test_find_long_form_text(content, pos, expected_span):
     assert (
         copyright.find_long_form_text(
-            Lines(content), "file.txt", "Apache-2.0", index
+            Lines(content), "file.txt", "Apache-2.0", pos
         )
-        == expected_pos
+        == expected_span
     )
 
 

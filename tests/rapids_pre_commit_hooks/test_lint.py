@@ -15,7 +15,7 @@ from rapids_pre_commit_hooks.lint import (
     LintMain,
     OverlappingReplacementsError,
 )
-from rapids_pre_commit_hooks_test_utils import parse_named_ranges
+from rapids_pre_commit_hooks_test_utils import parse_named_spans
 
 
 class TestLines:
@@ -27,7 +27,7 @@ class TestLines:
     @pytest.mark.parametrize(
         [
             "content",
-            "expected_pos",
+            "expected_spans",
             "expected_lf_count",
             "expected_crlf_count",
             "expected_cr_count",
@@ -128,17 +128,17 @@ class TestLines:
             ),
         ],
     )
-    def test_pos(
+    def test_spans(
         self,
         content,
-        expected_pos,
+        expected_spans,
         expected_lf_count,
         expected_crlf_count,
         expected_cr_count,
         expected_newline_style,
     ):
         lines = Lines(content)
-        assert lines.pos == expected_pos
+        assert lines.spans == expected_spans
         assert lines.newline_count == {
             "\n": expected_lf_count,
             "\r\n": expected_crlf_count,
@@ -217,13 +217,13 @@ class TestLinter:
         )
         with pytest.raises(
             OverlappingReplacementsError,
-            match=r"^Replacement\(pos=\(11, 12\), newtext=''\) overlaps with "
-            + r"Replacement\(pos=\(11, 12\), newtext='\.'\)$",
+            match=r"^Replacement\(span=\(11, 12\), newtext=''\) overlaps with "
+            + r"Replacement\(span=\(11, 12\), newtext='\.'\)$",
         ):
             linter.fix()
 
     def test_fix_disabled(self):
-        content, r = parse_named_ranges(
+        content, spans = parse_named_spans(
             """\
             + # rapids-pre-commit-hooks: disable
             + Hello world!
@@ -231,8 +231,8 @@ class TestLinter:
             """
         )
         linter = Linter("test.txt", content, "test")
-        linter.add_warning(r["shout"], "don't shout").add_replacement(
-            r["shout"], ""
+        linter.add_warning(spans["shout"], "don't shout").add_replacement(
+            spans["shout"], ""
         )
         assert linter.fix() == content
 
@@ -449,10 +449,10 @@ class TestLinter:
     def test_get_disabled_enabled_boundaries(
         self, content, warning_name, expected_boundaries
     ):
-        content, r = parse_named_ranges(content)
+        content, spans = parse_named_spans(content)
         assert Linter.get_disabled_enabled_boundaries(
             Lines(content), warning_name
-        ) == list(zip(r, expected_boundaries, strict=True))
+        ) == list(zip(spans, expected_boundaries, strict=True))
 
     @pytest.mark.parametrize(
         ["content", "expected_enabled"],
@@ -468,7 +468,7 @@ class TestLinter:
                 : ^warning
                 """,
                 True,
-                id="empty-range-at-start",
+                id="empty-span-at-start",
             ),
             pytest.param(
                 """\
@@ -476,7 +476,7 @@ class TestLinter:
                 :    ^warning
                 """,
                 True,
-                id="empty-range-in-middle",
+                id="empty-span-in-middle",
             ),
             pytest.param(
                 """\
@@ -484,7 +484,7 @@ class TestLinter:
                 :       ^warning
                 """,
                 True,
-                id="empty-range-at-end",
+                id="empty-span-at-end",
             ),
             pytest.param(
                 """\
@@ -540,13 +540,13 @@ class TestLinter:
             ),
         ],
     )
-    def test_is_warning_range_enabled(self, content, expected_enabled):
-        content, r = parse_named_ranges(content)
+    def test_is_warning_span_enabled(self, content, expected_enabled):
+        content, spans = parse_named_spans(content)
         boundaries = Linter.get_disabled_enabled_boundaries(
             Lines(content), "relevant"
         )
         assert (
-            Linter.is_warning_range_enabled(boundaries, r["warning"])
+            Linter.is_warning_span_enabled(boundaries, spans["warning"])
             == expected_enabled
         )
 
@@ -594,7 +594,7 @@ class TestLintMain:
 
     @pytest.fixture
     def disabled_file_contents(self):
-        yield parse_named_ranges(
+        yield parse_named_spans(
             """\
             + # rapids-pre-commit-hooks: disable
             + Hello!

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import dataclasses
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterable
     from typing import Optional
 
-    from .lint import LintWarning
+    from .lint import LintWarning, Span
 
 
 SPDX_COPYRIGHT_RE: re.Pattern = re.compile(
@@ -86,21 +86,18 @@ LONG_FORM_LICENSE_TEXT: dict[str, list[str]] = {
 }
 
 
-_PosType = tuple[int, int]
-
-
 @dataclasses.dataclass
 class CopyrightMatch:
-    span: _PosType
-    spdx_filecopyrighttext_tag_span: _PosType | None
-    full_copyright_text_span: _PosType
-    nvidia_copyright_text_span: _PosType
-    years_span: _PosType
-    first_year_span: _PosType
-    last_year_span: _PosType | None
-    spdx_license_identifier_tag_span: _PosType | None
-    spdx_license_identifier_text_span: _PosType | None
-    long_form_text_span: _PosType | None = None
+    span: "Span"
+    spdx_filecopyrighttext_tag_span: "Span | None"
+    full_copyright_text_span: "Span"
+    nvidia_copyright_text_span: "Span"
+    years_span: "Span"
+    first_year_span: "Span"
+    last_year_span: "Span | None"
+    spdx_license_identifier_tag_span: "Span | None"
+    spdx_license_identifier_text_span: "Span | None"
+    long_form_text_span: "Span | None" = None
 
 
 class NoTargetBranchWarning(RuntimeWarning):
@@ -126,7 +123,7 @@ def match_copyright(
 ) -> CopyrightMatch | None:
     if re_match := SPDX_COPYRIGHT_RE.search(lines.content, start):
 
-        def optional_match(name: str) -> _PosType | None:
+        def optional_match(name: str) -> "Span | None":
             try:
                 return (
                     span if (span := re_match.span(name)) != (-1, -1) else None
@@ -157,7 +154,7 @@ def match_copyright(
         except IndexError:
             license_identifier = None
 
-        if pos := find_long_form_text(
+        if span := find_long_form_text(
             lines,
             filename,
             license_identifier,
@@ -167,8 +164,8 @@ def match_copyright(
                 or match.full_copyright_text_span
             )[0],
         ):
-            match.long_form_text_span = pos
-            match.span = (match.span[0], pos[1])
+            match.long_form_text_span = span
+            match.span = (match.span[0], span[1])
 
         return match
 
@@ -178,21 +175,21 @@ def match_copyright(
 def match_all_copyright(
     lines: Lines,
     filename: str | os.PathLike[str],
-    boundaries: list[tuple[_PosType, bool]],
+    boundaries: list[tuple["Span", bool]],
 ) -> "Generator[CopyrightMatch]":
     start = 0
 
     while match := match_copyright(lines, filename, start):
-        if Linter.is_warning_range_enabled(boundaries, match.span):
+        if Linter.is_warning_span_enabled(boundaries, match.span):
             yield match
         start = match.span[1]
 
 
 def compute_prefix(
-    lines: Lines, filename: str | os.PathLike[str], index: int
+    lines: Lines, filename: str | os.PathLike[str], pos: int
 ) -> str:
-    line = lines.line_for_pos(index)
-    prefix = lines.content[lines.pos[line][0] : index]
+    line = lines.line_for_pos(pos)
+    prefix = lines.content[lines.spans[line][0] : pos]
     if C_STYLE_COMMENTS_RE.search(str(filename)):
         prefix = prefix.replace("/*", " *")
     return prefix
@@ -202,11 +199,11 @@ def find_long_form_text(
     lines: Lines,
     filename: str | os.PathLike[str],
     identifier: str | None,
-    index: int,
-) -> _PosType | None:
-    prefix = compute_prefix(lines, filename, index)
-    line = lines.line_for_pos(index)
-    rest_of_lines = lines.pos[line + 1 :]
+    pos: int,
+) -> "Span | None":
+    prefix = compute_prefix(lines, filename, pos)
+    line = lines.line_for_pos(pos)
+    rest_of_lines = lines.spans[line + 1 :]
 
     licenses: Iterable[list[str]] = LONG_FORM_LICENSE_TEXT.values()
     if identifier:
@@ -217,7 +214,7 @@ def find_long_form_text(
 
     def license_levenshtein_distance(
         license_text: str,
-    ) -> tuple[_PosType, int] | None:
+    ) -> tuple["Span", int] | None:
         """Do a line-by-line Levenshtein comparison between the license and \
         the text.
 
@@ -238,8 +235,8 @@ def find_long_form_text(
         first_line: str | None = None
         actual_license_lines: list[str] = []
         score = 0
-        for license_line, file_pos in zip(license_lines, rest_of_lines):
-            file_line = lines.content[slice(*file_pos)]
+        for license_line, file_span in zip(license_lines, rest_of_lines):
+            file_line = lines.content[slice(*file_span)]
             if first_line is None:
                 first_line = file_line
             if not file_line.startswith(prefix) and not prefix.startswith(
@@ -255,13 +252,13 @@ def find_long_form_text(
         assert first_line is not None
         return (
             (
-                lines.pos[line + 1][0] + min(len(prefix), len(first_line)),
-                lines.pos[line + len(actual_license_lines)][1],
+                lines.spans[line + 1][0] + min(len(prefix), len(first_line)),
+                lines.spans[line + len(actual_license_lines)][1],
             ),
             score,
         )
 
-    scores: itertools.chain[tuple[_PosType, int]] = itertools.chain(
+    scores: itertools.chain[tuple["Span", int]] = itertools.chain(
         (
             score_tuple
             for license_texts in licenses
@@ -281,9 +278,9 @@ def find_long_form_text(
             is not None
         ),
     )
-    pos, score = min(scores, key=lambda score: score[1], default=(None, None))
+    span, score = min(scores, key=lambda score: score[1], default=(None, None))
     if score is not None:
-        return pos
+        return span
 
     return None
 
@@ -309,7 +306,7 @@ def has_cmake_format_off_comment(
     return (
         previous_line >= 0
         and "cmake-format: off"
-        in linter.content[slice(*linter.lines.pos[previous_line])]
+        in linter.content[slice(*linter.lines.spans[previous_line])]
     )
 
 
@@ -318,9 +315,9 @@ def has_cmake_format_on_comment(
 ) -> bool:
     next_line = linter.lines.line_for_pos(match.span[1]) + 1
     return (
-        next_line < len(linter.lines.pos)
+        next_line < len(linter.lines.spans)
         and "cmake-format: on"
-        in linter.content[slice(*linter.lines.pos[next_line])]
+        in linter.content[slice(*linter.lines.spans[next_line])]
     )
 
 
@@ -363,11 +360,11 @@ def apply_copyright_revert(
         old_content[slice(*old_match.years_span)]
         == linter.content[slice(*new_match.years_span)]
     ):
-        warning_pos = new_match.full_copyright_text_span
+        warning_span = new_match.full_copyright_text_span
     else:
-        warning_pos = new_match.years_span
+        warning_span = new_match.years_span
     w = linter.add_warning(
-        warning_pos,
+        warning_span,
         "copyright is not out of date and should not be updated",
     )
     w.add_replacement(
@@ -424,7 +421,7 @@ def apply_spdx_filecopyrighttext_tag_insert(
     )
     if add_cmake_format_off:
         w.add_note(
-            linter.lines.pos[
+            linter.lines.spans[
                 linter.lines.line_for_pos(match.full_copyright_text_span[0])
             ],
             "no cmake-format: off comment before copyright notice",
@@ -460,7 +457,7 @@ def apply_spdx_license_insert(
     if cmake and not match.long_form_text_span:
         add_cmake_format_on = not has_cmake_format_on_comment(linter, match)
 
-    next_line_start_pos = linter.lines.pos[line][1]
+    next_line_start_pos = linter.lines.spans[line][1]
     w = linter.add_warning(
         (match_start_pos, match.full_copyright_text_span[1]),
         "no SPDX-License-Identifier header found",
@@ -477,7 +474,7 @@ def apply_spdx_license_insert(
     )
     if add_cmake_format_on:
         w.add_note(
-            linter.lines.pos[line],
+            linter.lines.spans[line],
             "no cmake-format: on comment after copyright notice",
         )
 
@@ -514,24 +511,26 @@ def apply_spdx_long_form_text_removal(
 def apply_cmake_format_off_insert(
     linter: "Linter", match: CopyrightMatch
 ) -> None:
-    line = linter.lines.pos[linter.lines.line_for_pos(match.span[0])]
+    line_span = linter.lines.spans[linter.lines.line_for_pos(match.span[0])]
     w = linter.add_warning(
-        line, "no cmake-format: off comment before copyright notice"
+        line_span, "no cmake-format: off comment before copyright notice"
     )
     w.add_replacement(
-        (line[0], line[0]), f"# cmake-format: off{linter.lines.newline_style}"
+        (line_span[0], line_span[0]),
+        f"# cmake-format: off{linter.lines.newline_style}",
     )
 
 
 def apply_cmake_format_on_insert(
     linter: "Linter", match: CopyrightMatch
 ) -> None:
-    line = linter.lines.pos[linter.lines.line_for_pos(match.span[1])]
+    line_span = linter.lines.spans[linter.lines.line_for_pos(match.span[1])]
     w = linter.add_warning(
-        line, "no cmake-format: on comment after copyright notice"
+        line_span, "no cmake-format: on comment after copyright notice"
     )
     w.add_replacement(
-        (line[1], line[1]), f"{linter.lines.newline_style}# cmake-format: on"
+        (line_span[1], line_span[1]),
+        f"{linter.lines.newline_style}# cmake-format: on",
     )
 
 
@@ -616,7 +615,7 @@ def apply_copyright_insert(
 
     pos = 0
     if linter.content.startswith("#!"):
-        pos = linter.lines.pos[1][0]
+        pos = linter.lines.spans[1][0]
 
     extra_newline = (
         ""
@@ -689,7 +688,9 @@ def apply_copyright_check(
                 )
             )
 
-        def match_year_sort(match: CopyrightMatch) -> tuple[int, int]:
+        def match_year_sort(
+            match: CopyrightMatch,
+        ) -> tuple[int, int]:  # not a Span
             return (
                 int(
                     linter.content[

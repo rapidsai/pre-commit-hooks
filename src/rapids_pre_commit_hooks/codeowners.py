@@ -1,12 +1,15 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
 import dataclasses
 import re
-from typing import Protocol
+from typing import Protocol, TYPE_CHECKING
 
-from rapids_pre_commit_hooks.lint import Linter, LintMain, LintWarning
+from .lint import Linter, LintMain
+
+if TYPE_CHECKING:
+    from .lint import LintWarning, Span
 
 CODEOWNERS_OWNER_RE_STR = r"([^\n#\s\\]|\\[^\n])+"
 CODEOWNERS_OWNER_RE = re.compile(rf"\s+(?P<owner>{CODEOWNERS_OWNER_RE_STR})")
@@ -18,14 +21,14 @@ CODEOWNERS_LINE_RE = re.compile(
 @dataclasses.dataclass
 class FilePattern:
     filename: str
-    pos: tuple[int, int]
+    span: "Span"
 
 
 @dataclasses.dataclass
 class Owner:
     owner: str
-    pos: tuple[int, int]
-    pos_with_leading_whitespace: tuple[int, int]
+    span: "Span"
+    span_with_leading_whitespace: "Span"
 
 
 @dataclasses.dataclass
@@ -136,7 +139,7 @@ def parse_codeowners_line(line: str, skip: int) -> CodeownersLine | None:
 
     file_pattern = FilePattern(
         filename=line_match.group("file"),
-        pos=(
+        span=(
             line_match.span("file")[0] + skip,
             line_match.span("file")[1] + skip,
         ),
@@ -152,8 +155,8 @@ def parse_codeowners_line(line: str, skip: int) -> CodeownersLine | None:
         owners.append(
             Owner(
                 owner=owner_match.group("owner"),
-                pos=(start + line_skip, end + line_skip),
-                pos_with_leading_whitespace=(
+                span=(start + line_skip, end + line_skip),
+                span_with_leading_whitespace=(
                     whitespace_start + line_skip,
                     end + line_skip,
                 ),
@@ -167,7 +170,7 @@ def check_codeowners_line(
     linter: Linter,
     args: argparse.Namespace,
     codeowners_line: CodeownersLine,
-    found_files: list[tuple[RequiredCodeownersLine, tuple[int, int]]],
+    found_files: list[tuple[RequiredCodeownersLine, "Span"]],
 ) -> None:
     for required_codeowners_line in required_codeowners_lines(args):
         if required_codeowners_line.file == codeowners_line.file.filename:
@@ -186,13 +189,13 @@ def check_codeowners_line(
                 ]
                 if extraneous_owners:
                     warning = linter.add_warning(
-                        codeowners_line.file.pos,
+                        codeowners_line.file.span,
                         f"file '{codeowners_line.file.filename}' has "
                         "incorrect owners",
                     )
                     for owner in extraneous_owners:
                         warning.add_replacement(
-                            owner.pos_with_leading_whitespace, ""
+                            owner.span_with_leading_whitespace, ""
                         )
 
             missing_required_owners: list[str] = []
@@ -205,34 +208,34 @@ def check_codeowners_line(
             if missing_required_owners:
                 if not warning:
                     warning = linter.add_warning(
-                        codeowners_line.file.pos,
+                        codeowners_line.file.span,
                         f"file '{codeowners_line.file.filename}' has "
                         "incorrect owners",
                     )
                 extra_string = " " + " ".join(missing_required_owners)
-                last = codeowners_line.owners[-1].pos[1]
+                last = codeowners_line.owners[-1].span[1]
                 warning.add_replacement((last, last), extra_string)
 
-            for found_file, found_pos in found_files:
+            for found_file, found_span in found_files:
                 if codeowners_line.file.filename in found_file.after:
                     linter.add_warning(
-                        found_pos,
+                        found_span,
                         f"file '{found_file.file}' should come after "
                         f"'{codeowners_line.file.filename}'",
                     ).add_note(
-                        codeowners_line.file.pos,
+                        codeowners_line.file.span,
                         f"file '{codeowners_line.file.filename}' is here",
                     )
 
             found_files.append(
-                (required_codeowners_line, codeowners_line.file.pos)
+                (required_codeowners_line, codeowners_line.file.span)
             )
             break
 
 
 def check_codeowners(linter: Linter, args: argparse.Namespace) -> None:
-    found_files: list[tuple[RequiredCodeownersLine, tuple[int, int]]] = []
-    for begin, end in linter.lines.pos:
+    found_files: list[tuple[RequiredCodeownersLine, "Span"]] = []
+    for begin, end in linter.lines.spans:
         line = linter.content[begin:end]
         codeowners_line = parse_codeowners_line(line, begin)
         if codeowners_line:

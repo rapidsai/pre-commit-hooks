@@ -8,7 +8,7 @@ import pytest
 
 from rapids_pre_commit_hooks import hardcoded_version
 from rapids_pre_commit_hooks.lint import Lines, LintWarning, Linter, Note
-from rapids_pre_commit_hooks_test_utils import parse_named_ranges
+from rapids_pre_commit_hooks_test_utils import parse_named_spans
 
 
 @pytest.mark.parametrize(
@@ -97,12 +97,12 @@ from rapids_pre_commit_hooks_test_utils import parse_named_ranges
         ),
     ],
 )
-def test_get_excluded_sections_pyproject_toml(content):
-    content, ranges = parse_named_ranges(content, root_type=list)
+def test_get_excluded_spans_pyproject_toml(content):
+    content, spans = parse_named_spans(content, root_type=list)
     linter = Linter("pyproject.toml", content, "verify-hardcoded-version")
     assert (
-        list(hardcoded_version.get_excluded_sections_pyproject_toml(linter))
-        == ranges
+        list(hardcoded_version.get_excluded_spans_pyproject_toml(linter))
+        == spans
     )
 
 
@@ -148,10 +148,10 @@ def test_get_excluded_sections_pyproject_toml(content):
         ),
     ],
 )
-def test_get_excluded_sections(filename, content):
-    content, ranges = parse_named_ranges(content, root_type=list)
+def test_get_excluded_spans(filename, content):
+    content, spans = parse_named_spans(content, root_type=list)
     linter = Linter(filename, content, "verify-hardcoded-version")
-    assert list(hardcoded_version.get_excluded_sections(linter)) == ranges
+    assert list(hardcoded_version.get_excluded_spans(linter)) == spans
 
 
 @pytest.mark.parametrize(
@@ -219,12 +219,12 @@ def test_get_excluded_sections(filename, content):
     ],
 )
 def test_is_deprecation_notice(content, expected_value):
-    content, ranges = parse_named_ranges(content)
-    match_range = ranges["match"]
+    content, spans = parse_named_spans(content)
+    match_span = spans["match"]
     lines = Lines(content)
     match = Mock(
-        start=Mock(return_value=match_range[0]),
-        end=Mock(return_value=match_range[1]),
+        start=Mock(return_value=match_span[0]),
+        end=Mock(return_value=match_span[1]),
     )
     assert (
         hardcoded_version.is_deprecation_notice(lines, match) == expected_value
@@ -258,12 +258,12 @@ def test_is_deprecation_notice(content, expected_value):
     ],
 )
 def test_is_number_array(content, expected_value):
-    content, ranges = parse_named_ranges(content)
-    match_range = ranges["match"]
+    content, spans = parse_named_spans(content)
+    match_span = spans["match"]
     lines = Lines(content)
     match = Mock(
-        start=Mock(return_value=match_range[0]),
-        end=Mock(return_value=match_range[1]),
+        start=Mock(return_value=match_span[0]),
+        end=Mock(return_value=match_span[1]),
     )
     assert hardcoded_version.is_number_array(lines, match) == expected_value
 
@@ -354,11 +354,11 @@ def test_is_number_array(content, expected_value):
     ],
 )
 def test_is_version_doc(content, expected_value):
-    content, ranges = parse_named_ranges(content)
-    match_range = ranges["match"]
+    content, spans = parse_named_spans(content)
+    match_span = spans["match"]
     lines = Lines(content)
-    start = Mock(return_value=match_range[0])
-    end = Mock(return_value=match_range[1])
+    start = Mock(return_value=match_span[0])
+    end = Mock(return_value=match_span[1])
     match = Mock(
         start=start,
         end=end,
@@ -592,13 +592,13 @@ def test_skip_heuristics(
     ],
 )
 def test_find_hardcoded_versions(content, version):
-    content, r = parse_named_ranges(content, list)
+    content, spans = parse_named_spans(content, list)
     assert [
         {group: match.span(group) for group in match.groupdict().keys()}
         for match in hardcoded_version.find_hardcoded_versions(
             content, version
         )
-    ] == [{"patch": (-1, -1), **m} for m in r]
+    ] == [{"patch": (-1, -1), **s} for s in spans]
 
 
 @pytest.mark.parametrize(
@@ -792,7 +792,7 @@ def test_check_hardcoded_version(
     version_file_read,
     message,
 ):
-    content, r = parse_named_ranges(content, list)
+    content, spans = parse_named_spans(content, list)
     linter = Linter(filename, content, "verify-hardcoded-version")
     with patch(
         "rapids_pre_commit_hooks.hardcoded_version.read_version_file",
@@ -807,11 +807,11 @@ def test_check_hardcoded_version(
         mock_read_version_file.assert_not_called()
     assert linter.warnings == [
         LintWarning(
-            m,
+            s,
             message,
             notes=[
                 Note(
-                    m,
+                    s,
                     "if this is intentional (as part of a docstring or "
                     "deprecation notice), suppress it with "
                     "rapids-pre-commit-hooks: disable-next-line - see "
@@ -820,5 +820,5 @@ def test_check_hardcoded_version(
                 )
             ],
         )
-        for m in r
+        for s in spans
     ]

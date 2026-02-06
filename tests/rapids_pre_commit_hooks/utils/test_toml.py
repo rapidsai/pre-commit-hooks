@@ -4,8 +4,8 @@
 import pytest
 import tomlkit
 
-from rapids_pre_commit_hooks.utils.toml import find_value_location
-from rapids_pre_commit_hooks_test_utils import parse_named_ranges
+from rapids_pre_commit_hooks.utils.toml import find_value_span
+from rapids_pre_commit_hooks_test_utils import parse_named_spans
 
 
 @pytest.mark.parametrize(
@@ -53,8 +53,8 @@ from rapids_pre_commit_hooks_test_utils import parse_named_ranges
         ),
     ],
 )
-def test_find_value_location(key, append):
-    content, positions = parse_named_ranges(
+def test_find_value_span(key, append):
+    content, spans = parse_named_spans(
         """\
         + [table]
         + key1 = "value"
@@ -76,9 +76,9 @@ def test_find_value_location(key, append):
         """
     )
     parsed_doc = tomlkit.loads(content)
-    loc = positions
+    span = spans
     for component in key:
-        loc = loc[component]
-    loc = loc["_append" if append else "_value"]
-    assert find_value_location(parsed_doc, key, append=append) == loc
+        span = span[component]
+    span = span["_append" if append else "_value"]
+    assert find_value_span(parsed_doc, key, append=append) == span
     assert parsed_doc.as_string() == content

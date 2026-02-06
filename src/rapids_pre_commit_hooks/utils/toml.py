@@ -3,21 +3,22 @@
 
 import copy
 import uuid
+from typing import TYPE_CHECKING
 
 import tomlkit
 
+if TYPE_CHECKING:
+    from ..lint import Span
 
-_LocType = tuple[int, int]
 
-
-def find_value_location(
+def find_value_span(
     document: "tomlkit.TOMLDocument",
     key: tuple[str, ...],
     *,
     append: bool,
-) -> _LocType:
+) -> "Span":
     """
-    Find the exact location of a key in a stringified TOML document.
+    Find the exact span of a key in a stringified TOML document.
 
     Parameters
     ----------
@@ -30,12 +31,12 @@ def find_value_location(
         in a pyproject.toml, ``key = ("project", "license",)``.
     append : bool
         If ``True``, returns the location where new text will be added.
-        If ``False``, returns the range of characters to be replaced.
+        If ``False``, returns the span of characters to be replaced.
 
     Returns
     -------
-    loc : tuple[int, int]
-        Location of the key and its value in the document.
+    span : tuple[int, int]
+        Span of the key and its value in the document.
         e.g., ``(20, 35)`` = "the 20th-35th characters, including newlines"
           * element 0: number of characters from beginning of the document to
                        beginning of the section indicated by ``key``
@@ -57,8 +58,8 @@ def find_value_location(
     if append:
         node.add(str(placeholder), placeholder_toml)
         value_to_find = f"{placeholder} = {placeholder_repr}"
-        begin_loc = copied_document.as_string().find(value_to_find)
-        return begin_loc, begin_loc
+        begin_pos = copied_document.as_string().find(value_to_find)
+        return begin_pos, begin_pos
 
     # otherwise, if replacing without appending
     old_value = node[key[0]]
@@ -71,6 +72,6 @@ def find_value_location(
         else (str(placeholder), placeholder_repr)
     )
     node[key[0]] = placeholder_value
-    begin_loc = copied_document.as_string().find(value_to_find)
-    end_loc = begin_loc + len(old_value.as_string())
-    return begin_loc, end_loc
+    begin_pos = copied_document.as_string().find(value_to_find)
+    end_pos = begin_pos + len(old_value.as_string())
+    return begin_pos, end_pos

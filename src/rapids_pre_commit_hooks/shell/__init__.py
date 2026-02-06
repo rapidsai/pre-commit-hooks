@@ -1,22 +1,24 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+from typing import TYPE_CHECKING
 
 import bashlex
 
-from ..lint import ExecutionContext, Linter, LintMain, LintWarning
+from ..lint import ExecutionContext, LintMain
 
-_PosType = tuple[int, int]
+if TYPE_CHECKING:
+    from ..lint import Linter, LintWarning, Span
 
 
 class LintVisitor(bashlex.ast.nodevisitor):
-    def __init__(self, linter: Linter, args: argparse.Namespace) -> None:
-        self.linter: Linter = linter
+    def __init__(self, linter: "Linter", args: argparse.Namespace) -> None:
+        self.linter: "Linter" = linter
         self.args: argparse.Namespace = args
 
-    def add_warning(self, pos: _PosType, msg: str) -> LintWarning:
-        return self.linter.add_warning(pos, msg)
+    def add_warning(self, span: "Span", msg: str) -> "LintWarning":
+        return self.linter.add_warning(span, msg)
 
 
 class ShellExecutionContext(ExecutionContext):
@@ -28,7 +30,7 @@ class ShellExecutionContext(ExecutionContext):
     def add_visitor_class(self, cls: type) -> None:
         self.visitors.append(cls)
 
-    def check_shell(self, linter: Linter, args: argparse.Namespace) -> None:
+    def check_shell(self, linter: "Linter", args: argparse.Namespace) -> None:
         parts = bashlex.parse(linter.content)
 
         for cls in self.visitors:

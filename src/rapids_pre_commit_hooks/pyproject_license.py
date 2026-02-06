@@ -8,7 +8,7 @@ import tomlkit
 import tomlkit.exceptions
 
 from .lint import Linter, LintMain
-from .utils.toml import find_value_location
+from .utils.toml import find_value_span
 
 RAPIDS_LICENSE: str = "Apache-2.0"
 ACCEPTABLE_LICENSES: set[str] = {
@@ -35,9 +35,9 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
         # the replacement / appending code, and also enforces a bit more
         # standardization in pyproject.toml files (a good thing on its own!).
         if isinstance(project_table, tomlkit.container.OutOfOrderTableProxy):
-            loc = (len(linter.content), len(linter.content))
+            span = (len(linter.content), len(linter.content))
             linter.add_warning(
-                loc,
+                span,
                 (
                     "[project] table should precede all other [project.*] "
                     "tables and all [project.*] tables should be grouped "
@@ -50,21 +50,21 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
         license_value = project_table["license"]  # type: ignore[index]
     except tomlkit.exceptions.NonExistentKey:
         if add_project_table:
-            loc = (len(linter.content), len(linter.content))
+            span = (len(linter.content), len(linter.content))
             linter.add_warning(
-                loc, f'add project.license with value "{RAPIDS_LICENSE}"'
+                span, f'add project.license with value "{RAPIDS_LICENSE}"'
             ).add_replacement(
-                loc,
+                span,
                 f"[project]{linter.lines.newline_style}license = "
                 f"{tomlkit.string(RAPIDS_LICENSE).as_string()}"
                 + linter.lines.newline_style,
             )
         else:
-            loc = find_value_location(document, ("project",), append=True)
+            span = find_value_span(document, ("project",), append=True)
             linter.add_warning(
-                loc, f'add project.license with value "{RAPIDS_LICENSE}"'
+                span, f'add project.license with value "{RAPIDS_LICENSE}"'
             ).add_replacement(
-                loc,
+                span,
                 f"license = {tomlkit.string(RAPIDS_LICENSE).as_string()}"
                 + linter.lines.newline_style,
             )
@@ -73,49 +73,45 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
     # handle case where the license is still in
     # "license = { text = 'something' }" form
     if isinstance(license_value, tomlkit.items.InlineTable):
-        loc = find_value_location(
-            document, ("project", "license"), append=False
-        )
+        span = find_value_span(document, ("project", "license"), append=False)
         if license_value := document["project"]["license"].get("text", None):  # type: ignore[index, union-attr]
             slugified_license_value = re.sub(
                 r"\s+", "-", str(license_value).strip()
             )
             if slugified_license_value in ACCEPTABLE_LICENSES:
                 linter.add_warning(
-                    loc, f'license should be "{slugified_license_value}"'
+                    span, f'license should be "{slugified_license_value}"'
                 ).add_replacement(
-                    loc,
+                    span,
                     f"{tomlkit.string(slugified_license_value).as_string()}",
                 )
             else:
                 linter.add_warning(
-                    loc,
+                    span,
                     f'license should be "{RAPIDS_LICENSE}"'
                     + f', got license = {{ text = "{license_value}" }}',
                 )
         else:
-            linter.add_warning(loc, f'license should be "{RAPIDS_LICENSE}"')
+            linter.add_warning(span, f'license should be "{RAPIDS_LICENSE}"')
         return
 
     if license_value not in ACCEPTABLE_LICENSES:
-        loc = find_value_location(
-            document, ("project", "license"), append=False
-        )
+        span = find_value_span(document, ("project", "license"), append=False)
         slugified_license_value = re.sub(
             r"\s+", "-", str(license_value).strip()
         )
         if slugified_license_value in ACCEPTABLE_LICENSES:
             linter.add_warning(
-                loc,
+                span,
                 f'license should be "{slugified_license_value}"'
                 + f', got "{license_value}"',
             ).add_replacement(
-                loc,
+                span,
                 f"{tomlkit.string(slugified_license_value).as_string()}",
             )
             return
 
-        linter.add_warning(loc, f'license should be "{RAPIDS_LICENSE}"')
+        linter.add_warning(span, f'license should be "{RAPIDS_LICENSE}"')
 
 
 def main() -> None:

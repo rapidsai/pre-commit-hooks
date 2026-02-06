@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2025, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
 from . import LintVisitor, ShellMain
@@ -56,13 +56,13 @@ class VerifyCondaYesVisitor(LintVisitor):
             return
 
         if not any(arg in command["args"] for arg in command_args):
-            warning_pos = (parts[0].pos[0], parts[command_index].pos[1])
-            insert_pos = (warning_pos[1], warning_pos[1])
+            warning_span = (parts[0].pos[0], parts[command_index].pos[1])
+            insert_span = (warning_span[1], warning_span[1])
 
             warning = self.add_warning(
-                warning_pos, f"add {command['args'][0]} argument"
+                warning_span, f"add {command['args'][0]} argument"
             )
-            warning.add_replacement(insert_pos, f" {command['args'][0]}")
+            warning.add_replacement(insert_span, f" {command['args'][0]}")
 
 
 def main() -> None:
