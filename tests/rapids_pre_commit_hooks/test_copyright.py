@@ -2540,13 +2540,15 @@ def test_apply_copyright_check(
             replacements=[
                 Replacement(replacement_span, replacement_text)
                 for replacement_span, replacement_text in zip(
-                    warning_spans.get("replacements", []), replacements
+                    warning_spans.get("replacements", []),
+                    replacements,
+                    strict=True,
                 )
             ],
             notes=[
                 Note(note_span, note_msg)
                 for note_span, note_msg in zip(
-                    warning_spans.get("notes", []), notes
+                    warning_spans.get("notes", []), notes, strict=True
                 )
             ],
         )
