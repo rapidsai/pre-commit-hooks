@@ -1,3 +1,3 @@
-# Copyright (c) 2023, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 
 print("New code")
