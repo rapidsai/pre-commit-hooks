@@ -185,6 +185,16 @@ def match_all_copyright(
         start = match.span[1]
 
 
+def get_first_year(content: str, match: CopyrightMatch) -> int:
+    return int(content[slice(*match.first_year_span)])
+
+
+def get_last_year(content: str, match: CopyrightMatch) -> int:
+    return int(
+        content[slice(*(match.last_year_span or match.first_year_span))]
+    )
+
+
 def compute_prefix(
     lines: Lines, filename: str | os.PathLike[str], pos: int
 ) -> str:
@@ -299,6 +309,18 @@ def strip_copyright(
     return segments
 
 
+def get_canonical_copyright_notice(first_year: int, last_year: int) -> str:
+    years = (
+        f"{first_year}-{last_year}"
+        if first_year < last_year
+        else f"{last_year}"
+    )
+    return (
+        f"Copyright (c) {years}, NVIDIA CORPORATION & AFFILIATES. All rights "
+        "reserved."
+    )
+
+
 def has_cmake_format_off_comment(
     linter: "Linter", match: CopyrightMatch
 ) -> bool:
@@ -368,8 +390,11 @@ def apply_copyright_revert(
         "copyright is not out of date and should not be updated",
     )
     w.add_replacement(
-        new_match.nvidia_copyright_text_span,
-        old_content[slice(*old_match.nvidia_copyright_text_span)],
+        new_match.full_copyright_text_span,
+        get_canonical_copyright_notice(
+            get_first_year(old_content, old_match),
+            get_last_year(old_content, old_match),
+        ),
     )
     add_copy_rename_note(linter, w, change_type, old_filename)
 
@@ -378,13 +403,15 @@ def apply_copyright_update(
     linter: "Linter",
     match: CopyrightMatch,
     year: int,
+    warning_span: "Span",
+    msg: str,
 ) -> None:
-    w = linter.add_warning(match.years_span, "copyright is out of date")
+    w = linter.add_warning(warning_span, msg)
     w.add_replacement(
-        match.nvidia_copyright_text_span,
-        "Copyright (c) "
-        f"{linter.content[slice(*match.first_year_span)]}-{year}, "
-        "NVIDIA CORPORATION",
+        match.full_copyright_text_span,
+        get_canonical_copyright_notice(
+            get_first_year(linter.content, match), year
+        ),
     )
 
 
@@ -588,23 +615,16 @@ def apply_copyright_insert(
             first_year = datetime.datetime.fromtimestamp(
                 repo.commit(first_commit).authored_date
             ).year
-    first_year_str = "" if first_year == last_year else f"{first_year}-"
 
     if spdx(args):
         lines = [
-            (
-                "SPDX-FileCopyrightText: Copyright (c) "
-                f"{first_year_str}{last_year}, NVIDIA CORPORATION & "
-                "AFFILIATES. All rights reserved."
-            ),
+            "SPDX-FileCopyrightText: "
+            f"{get_canonical_copyright_notice(first_year, last_year)}",
             f"SPDX-License-Identifier: {args.spdx_license_identifier}",
         ]
     else:
         lines = [
-            (
-                f"Copyright (c) {first_year_str}{last_year}, NVIDIA "
-                "CORPORATION & AFFILIATES. All rights reserved."
-            ),
+            get_canonical_copyright_notice(first_year, last_year),
         ]
     if CMAKE_FILENAME_RE.search(linter.filename):
         lines = [
@@ -692,12 +712,8 @@ def apply_copyright_check(
             match: CopyrightMatch,
         ) -> tuple[int, int]:  # not a Span
             return (
-                int(
-                    linter.content[
-                        slice(*(match.last_year_span or match.first_year_span))
-                    ]
-                ),
-                int(linter.content[slice(*match.first_year_span)]),
+                get_last_year(linter.content, match),
+                get_first_year(linter.content, match),
             )
 
         if old_content is not None and strip_copyright(
@@ -708,12 +724,11 @@ def apply_copyright_check(
                     old_copyright_matches, new_copyright_matches
                 ):
                     if (
-                        old_content[
-                            slice(*old_match.nvidia_copyright_text_span)
-                        ]
-                        != linter.content[
-                            slice(*new_match.nvidia_copyright_text_span)
-                        ]
+                        get_first_year(old_content, old_match),
+                        get_last_year(old_content, old_match),
+                    ) != (
+                        get_first_year(linter.content, new_match),
+                        get_last_year(linter.content, new_match),
                     ):
                         apply_copyright_revert(
                             linter,
@@ -722,6 +737,23 @@ def apply_copyright_check(
                             old_content,
                             old_match,
                             new_match,
+                        )
+                    elif old_content[
+                        slice(*old_match.full_copyright_text_span)
+                    ] != linter.content[
+                        slice(*new_match.full_copyright_text_span)
+                    ] and linter.content[
+                        slice(*new_match.full_copyright_text_span)
+                    ] != get_canonical_copyright_notice(
+                        get_first_year(linter.content, new_match),
+                        get_last_year(linter.content, new_match),
+                    ):
+                        apply_copyright_update(
+                            linter,
+                            new_match,
+                            get_last_year(linter.content, new_match),
+                            new_match.full_copyright_text_span,
+                            "copyright notice does not match canonical notice",
                         )
 
             if force_spdx(args):
@@ -734,20 +766,27 @@ def apply_copyright_check(
                     apply_copyright_insert(repo, linter, args)
         elif new_copyright_matches:
             newest_match = max(new_copyright_matches, key=match_year_sort)
-            if (
-                int(
-                    linter.content[
-                        slice(
-                            *(
-                                newest_match.last_year_span
-                                or newest_match.first_year_span
-                            )
-                        )
-                    ]
+            if get_last_year(linter.content, newest_match) < current_year:
+                apply_copyright_update(
+                    linter,
+                    newest_match,
+                    current_year,
+                    newest_match.years_span,
+                    "copyright is out of date",
                 )
-                < current_year
+            elif linter.content[
+                slice(*newest_match.full_copyright_text_span)
+            ] != get_canonical_copyright_notice(
+                get_first_year(linter.content, newest_match),
+                get_last_year(linter.content, newest_match),
             ):
-                apply_copyright_update(linter, newest_match, current_year)
+                apply_copyright_update(
+                    linter,
+                    newest_match,
+                    get_last_year(linter.content, newest_match),
+                    newest_match.full_copyright_text_span,
+                    "copyright notice does not match canonical notice",
+                )
             if spdx(args):
                 apply_spdx_updates(linter, args, newest_match)
         else:
