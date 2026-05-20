@@ -183,6 +183,22 @@ def test_get_excluded_spans(filename, content):
         ),
         pytest.param(
             """\
+            + .. versionadded:: 26.04
+            :                   ~~~~~match
+            """,
+            True,
+            id="versionadded",
+        ),
+        pytest.param(
+            """\
+            + .. versionchanged:: 26.04
+            :                     ~~~~~match
+            """,
+            True,
+            id="versionchanged",
+        ),
+        pytest.param(
+            """\
             + /**
             +  * @brief Compute the edit distance between all the strings in the input column.
             +  *
@@ -218,7 +234,7 @@ def test_get_excluded_spans(filename, content):
         ),
     ],
 )
-def test_is_deprecation_notice(content, expected_value):
+def test_is_deprecation_versionadd(content, expected_value):
     content, spans = parse_named_spans(content)
     match_span = spans["match"]
     lines = Lines(content)
@@ -227,7 +243,8 @@ def test_is_deprecation_notice(content, expected_value):
         end=Mock(return_value=match_span[1]),
     )
     assert (
-        hardcoded_version.is_deprecation_notice(lines, match) == expected_value
+        hardcoded_version.is_deprecation_versionadd(lines, match)
+        == expected_value
     )
 
 
@@ -321,6 +338,14 @@ def test_is_number_array(content, expected_value):
         ),
         pytest.param(
             """\
+            + after release 26.04
+            :               ~~~~~match
+            """,
+            True,
+            id="with-release-word",
+        ),
+        pytest.param(
+            """\
             + In 26.04
             :    ~~~~~match
             """,
@@ -334,6 +359,14 @@ def test_is_number_array(content, expected_value):
             """,
             True,
             id="capitalized-with-version-word",
+        ),
+        pytest.param(
+            """\
+            + After release 26.04
+            :               ~~~~~match
+            """,
+            True,
+            id="capitalized-with-release-word",
         ),
         pytest.param(
             """\
@@ -368,14 +401,51 @@ def test_is_version_doc(content, expected_value):
 
 
 @pytest.mark.parametrize(
+    ["content", "expected_value"],
     [
-        "is_deprecation_notice",
+        pytest.param(
+            """\
+            + TODO(26.04)
+            :      ~~~~~match
+            """,
+            True,
+            id="todo",
+        ),
+        pytest.param(
+            """\
+            + TODO something else 26.04
+            :                     ~~~~~match
+            """,
+            False,
+            id="todo-unrelated",
+        ),
+    ],
+)
+def test_is_todo_doc(content, expected_value):
+    content, spans = parse_named_spans(content)
+    match_span = spans["match"]
+    lines = Lines(content)
+    start = Mock(return_value=match_span[0])
+    end = Mock(return_value=match_span[1])
+    match = Mock(
+        start=start,
+        end=end,
+    )
+    assert hardcoded_version.is_todo_doc(lines, match) == expected_value
+    start.assert_called_once_with("full")
+
+
+@pytest.mark.parametrize(
+    [
+        "is_deprecation_versionadd",
         "is_number_array",
         "is_version_doc",
+        "is_todo_doc",
         "expected_value",
     ],
     [
         pytest.param(
+            False,
             False,
             False,
             False,
@@ -386,12 +456,14 @@ def test_is_version_doc(content, expected_value):
             True,
             False,
             False,
+            False,
             True,
             id="is-deprecation-notice",
         ),
         pytest.param(
             False,
             True,
+            False,
             False,
             True,
             id="is-number-array",
@@ -400,18 +472,31 @@ def test_is_version_doc(content, expected_value):
             False,
             False,
             True,
+            False,
             True,
             id="is-version-doc",
+        ),
+        pytest.param(
+            False,
+            False,
+            False,
+            True,
+            True,
+            id="is_todo_doc",
         ),
     ],
 )
 def test_skip_heuristics(
-    is_deprecation_notice, is_number_array, is_version_doc, expected_value
+    is_deprecation_versionadd,
+    is_number_array,
+    is_version_doc,
+    is_todo_doc,
+    expected_value,
 ):
     with (
         patch(
-            "rapids_pre_commit_hooks.hardcoded_version.is_deprecation_notice",
-            Mock(return_value=is_deprecation_notice),
+            "rapids_pre_commit_hooks.hardcoded_version.is_deprecation_versionadd",
+            Mock(return_value=is_deprecation_versionadd),
         ),
         patch(
             "rapids_pre_commit_hooks.hardcoded_version.is_number_array",
@@ -420,6 +505,10 @@ def test_skip_heuristics(
         patch(
             "rapids_pre_commit_hooks.hardcoded_version.is_version_doc",
             Mock(return_value=is_version_doc),
+        ),
+        patch(
+            "rapids_pre_commit_hooks.hardcoded_version.is_todo_doc",
+            Mock(return_value=is_todo_doc),
         ),
     ):
         assert (

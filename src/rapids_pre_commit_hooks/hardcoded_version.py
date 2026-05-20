@@ -34,11 +34,14 @@ HARDCODED_VERSION_RE: re.Pattern = re.compile(
 )
 
 PYPROJECT_TOML_RE: re.Pattern = re.compile(r"(?:^|/)pyproject\.toml$")
-DEPRECATED_RE: re.Pattern = re.compile(r"\.\. deprecated::|@deprecated")
+DEPRECATED_VERSIONADD_RE: re.Pattern = re.compile(
+    r"\.\. (deprecated|versionchanged|versionadded)::|@deprecated"
+)
 NUMBER_ARRAY_RE: re.Pattern = re.compile(r"^[ .,0-9-]*$")
 VERSION_DOC_RE: re.Pattern = re.compile(
-    r"\b(?:in|since|after) (?:version )?$", re.IGNORECASE
+    r"\b(?:in|since|after) (?:(version|release) )?$", re.IGNORECASE
 )
+TODO_DOC_RE: re.Pattern = re.compile(r"TODO\((\d{1,2}|\.)*\)")
 
 
 def get_excluded_span_pyproject_toml(
@@ -74,12 +77,12 @@ def get_excluded_spans(linter: Linter) -> "Generator[Span]":
         yield from get_excluded_spans_pyproject_toml(linter)
 
 
-def is_deprecation_notice(lines: "Lines", match: "re.Match[str]") -> bool:
+def is_deprecation_versionadd(lines: "Lines", match: "re.Match[str]") -> bool:
     this_line = lines.line_for_pos(match.start("full"))
     first_line = max(0, this_line - 3)
     start = lines.spans[first_line][0]
     end = lines.spans[this_line][1]
-    return bool(DEPRECATED_RE.search(lines.content[start:end]))
+    return bool(DEPRECATED_VERSIONADD_RE.search(lines.content[start:end]))
 
 
 def is_number_array(lines: "Lines", match: "re.Match[str]") -> bool:
@@ -92,12 +95,20 @@ def is_version_doc(lines: "Lines", match: "re.Match[str]") -> bool:
     return bool(VERSION_DOC_RE.search(lines.content[: match.start("full")]))
 
 
+def is_todo_doc(lines: "Lines", match: "re.Match[str]") -> bool:
+    this_line = lines.line_for_pos(match.start("full"))
+    start, end = lines.spans[this_line]
+    return bool(TODO_DOC_RE.search(lines.content[start:end]))
+
+
 def skip_heuristics(lines: "Lines", match: "re.Match[str]") -> bool:
-    if is_deprecation_notice(lines, match):
+    if is_deprecation_versionadd(lines, match):
         return True
     if is_number_array(lines, match):
         return True
     if is_version_doc(lines, match):
+        return True
+    if is_todo_doc(lines, match):
         return True
     return False
 
