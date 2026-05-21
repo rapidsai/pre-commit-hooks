@@ -35,13 +35,15 @@ HARDCODED_VERSION_RE: re.Pattern = re.compile(
 
 PYPROJECT_TOML_RE: re.Pattern = re.compile(r"(?:^|/)pyproject\.toml$")
 DEPRECATED_VERSIONADD_RE: re.Pattern = re.compile(
-    r"\.\. (deprecated|versionchanged|versionadded)::|@deprecated"
+    r"\.\. (?:deprecated|versionchanged|versionadded)::|@deprecated"
 )
 NUMBER_ARRAY_RE: re.Pattern = re.compile(r"^[ .,0-9-]*$")
 VERSION_DOC_RE: re.Pattern = re.compile(
-    r"\b(?:in|since|after) (?:(version|release) )?$", re.IGNORECASE
+    r"\b(?:in|since|after) (?:(?:version|release) )?$", re.IGNORECASE
 )
-TODO_DOC_RE: re.Pattern = re.compile(r"TODO\((\d{1,2}|\.)*\)")
+TODO_DOC_RE: re.Pattern = re.compile(
+    r"TODO\((?P<version>\d{1,2}+(?:\.\d{1,2})+)\)"
+)
 
 
 def get_excluded_span_pyproject_toml(
@@ -98,7 +100,12 @@ def is_version_doc(lines: "Lines", match: "re.Match[str]") -> bool:
 def is_todo_doc(lines: "Lines", match: "re.Match[str]") -> bool:
     this_line = lines.line_for_pos(match.start("full"))
     start, end = lines.spans[this_line]
-    return bool(TODO_DOC_RE.search(lines.content[start:end]))
+    todo_match = TODO_DOC_RE.search(lines.content[start:end])
+    return (
+        bool(todo_match)
+        and todo_match.start("version") == start + match.start("full")
+        and todo_match.end("version") == start + match.end("full")
+    )
 
 
 def skip_heuristics(lines: "Lines", match: "re.Match[str]") -> bool:

@@ -432,7 +432,6 @@ def test_is_todo_doc(content, expected_value):
         end=end,
     )
     assert hardcoded_version.is_todo_doc(lines, match) == expected_value
-    start.assert_called_once_with("full")
 
 
 @pytest.mark.parametrize(
