@@ -102,7 +102,7 @@ def is_todo_doc(lines: "Lines", match: "re.Match[str]") -> bool:
     start, end = lines.spans[this_line]
     todo_match = TODO_DOC_RE.search(lines.content[start:end])
     return (
-        bool(todo_match)
+        todo_match is not None
         and todo_match.start("version") == start + match.start("full")
         and todo_match.end("version") == start + match.end("full")
     )
