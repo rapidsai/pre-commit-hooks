@@ -419,6 +419,14 @@ def test_is_version_doc(content, expected_value):
             False,
             id="todo-unrelated",
         ),
+        pytest.param(
+            """\
+            + TODO(unrelated): filler 26.04
+            :                         ~~~~~match
+            """,
+            False,
+            id="todo",
+        ),
     ],
 )
 def test_is_todo_doc(content, expected_value):
