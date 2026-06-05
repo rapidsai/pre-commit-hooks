@@ -35,7 +35,7 @@ SPDX_COPYRIGHT_RE: re.Pattern = re.compile(
     r"(?P<spdx_license_identifier_text>[^\r\n]+))?"
 )
 C_STYLE_COMMENTS_RE: re.Pattern = re.compile(
-    r"\.(?:c|cc|cpp|cxx|cu|cuh|go|groovy|h|hpp|hxx|i|js|java|rs|ts|tsx)$"
+    r"\.(?:c|cc|cpp|css|cu|cuh|cxx|go|groovy|h|hpp|hxx|i|js|java|rs|ts|tsx)$"
 )
 CMAKE_FILENAME_RE: re.Pattern = re.compile(
     r"(?:\.cmake|(?:^|/)CMakeLists\.txt)$"
