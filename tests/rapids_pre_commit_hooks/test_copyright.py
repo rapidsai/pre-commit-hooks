@@ -581,6 +581,16 @@ def test_match_all_copyright(content):
             " * ",
             id="c-style-comment-in-c-style-file",
         ),
+        pytest.param(
+            """\
+            +
+            + /* Comment
+            :    ^pos
+            """,
+            "file.ts",
+            " * ",
+            id="c-style-comment-in-typescript-file",
+        ),
     ],
 )
 def test_compute_prefix(content, filename, expected_prefix):
