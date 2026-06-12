@@ -591,6 +591,46 @@ def test_match_all_copyright(content):
             " * ",
             id="c-style-comment-in-typescript-file",
         ),
+        pytest.param(
+            """\
+            +
+            + /* Comment
+            :    ^pos
+            """,
+            "file.scss",
+            " * ",
+            id="c-style-comment-in-scss-file",
+        ),
+        pytest.param(
+            """\
+            +
+            + /* Comment
+            :    ^pos
+            """,
+            "file.jsx",
+            " * ",
+            id="c-style-comment-in-jsx-file",
+        ),
+        pytest.param(
+            """\
+            +
+            + /* Comment
+            :    ^pos
+            """,
+            "file.mjs",
+            " * ",
+            id="c-style-comment-in-mjs-file",
+        ),
+        pytest.param(
+            """\
+            +
+            + /* Comment
+            :    ^pos
+            """,
+            "file.cjs",
+            " * ",
+            id="c-style-comment-in-cjs-file",
+        ),
     ],
 )
 def test_compute_prefix(content, filename, expected_prefix):
