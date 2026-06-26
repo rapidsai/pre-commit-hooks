@@ -176,7 +176,7 @@ def test_parse_codeowners_line(content, skip):
             : ~~~~~~~~~~~~~~filename
             """,
             [],
-            id="unchecked",
+            id="extraneous-owner-allow-extra",
         ),
     ],
 )
