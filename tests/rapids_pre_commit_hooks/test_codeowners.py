@@ -186,12 +186,40 @@ def test_parse_codeowners_line(content, skip):
         ),
         pytest.param(
             """\
+            > CMakeLists.txt @NVIDIA/cudf-cmake-codeowners
+            : ~~~~~~~~~~~~~~filename
+            """,
+            "NVIDIA",
+            [],
+            id="nvidia-org-cmake",
+        ),
+        pytest.param(
+            """\
+            > CMakeLists.txt @rapidsai/cudf-cmake-codeowners
+            : ~~~~~~~~~~~~~~filename
+            : ~~~~~~~~~~~~~~warnings.0.span
+            :               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~warnings.0.replacements.0
+            :                                               ^warnings.0.replacements.1
+            """,  # noqa: E501
+            "NVIDIA",
+            [
+                {
+                    "replacements": [
+                        "",
+                        " @NVIDIA/cudf-cmake-codeowners",
+                    ],
+                },
+            ],
+            id="nvidia-org-cmake-wrong-owner",
+        ),
+        pytest.param(
+            """\
             > pyproject.toml @NVIDIA/adi-ci-codeowners
             : ~~~~~~~~~~~~~~filename
             """,
             "NVIDIA",
             [],
-            id="nvidia-org",
+            id="nvidia-org-ci",
         ),
         pytest.param(
             """\
@@ -208,7 +236,7 @@ def test_parse_codeowners_line(content, skip):
                     ],
                 },
             ],
-            id="nvidia-org-wrong-owner",
+            id="nvidia-org-ci-wrong-owner",
         ),
     ],
 )
