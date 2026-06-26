@@ -273,7 +273,7 @@ def main() -> None:
         help="Version scheme to use (default: calver)",
         type=VersionScheme,
         default=VersionScheme.CALVER,
-        choices=list(VersionScheme),
+        choices=[s.value for s in VersionScheme],
     )
     with m.execute() as ctx:
         ctx.add_check(check_hardcoded_version)
