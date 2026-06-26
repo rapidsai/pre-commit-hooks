@@ -35,7 +35,7 @@ patch_required_codeowners_lines = patch(
 @pytest.mark.parametrize(
     ["content", "skip"],
     [
-        (
+        pytest.param(
             """\
             > filename @owner1 @owner2
             : ~~~~~~~~filename
@@ -45,8 +45,9 @@ patch_required_codeowners_lines = patch(
             :                 ~~~~~~~~owners.1.span_with_leading_whitespace
             """,
             0,
+            id="basic",
         ),
-        (
+        pytest.param(
             """\
             > filename @owner1 @owner2
             : ~~~~~~~~filename
@@ -56,8 +57,9 @@ patch_required_codeowners_lines = patch(
             :                 ~~~~~~~~owners.1.span_with_leading_whitespace
             """,
             1,
+            id="skip",
         ),
-        (
+        pytest.param(
             # Spans are deliberately misaligned because of the \t
             """\
             > filename\t @owner1  @owner2  # Comment
@@ -68,8 +70,9 @@ patch_required_codeowners_lines = patch(
             :                  ~~~~~~~~~owners.1.span_with_leading_whitespace
             """,
             0,
+            id="whitespace-and-comment",
         ),
-        (
+        pytest.param(
             # Spans are deliberately misaligned because of the escaped
             # backslashes
             """\
@@ -81,14 +84,17 @@ patch_required_codeowners_lines = patch(
             :                     ~~~~~~~~~~owners.1.span_with_leading_whitespace
             """,  # noqa: E501
             0,
+            id="backslashes",
         ),
-        (
+        pytest.param(
             "",
             0,
+            id="empty",
         ),
-        (
+        pytest.param(
             "> # comment",
             0,
+            id="empty-with-comment",
         ),
     ],
 )
@@ -122,14 +128,15 @@ def test_parse_codeowners_line(content, skip):
 @pytest.mark.parametrize(
     ["content", "warnings"],
     [
-        (
+        pytest.param(
             """\
             > CMakeLists.txt @rapidsai/cudf-cmake-codeowners
             : ~~~~~~~~~~~~~~filename
             """,
             [],
+            id="good",
         ),
-        (
+        pytest.param(
             """\
             > CMakeLists.txt @someone-else  # comment
             : ~~~~~~~~~~~~~~filename
@@ -145,8 +152,9 @@ def test_parse_codeowners_line(content, skip):
                     ],
                 },
             ],
+            id="wrong-owner",
         ),
-        (
+        pytest.param(
             """\
             > CMakeLists.txt @someone-else @rapidsai/cudf-cmake-codeowners
             : ~~~~~~~~~~~~~~filename
@@ -160,13 +168,15 @@ def test_parse_codeowners_line(content, skip):
                     ],
                 },
             ],
+            id="extraneous-owner",
         ),
-        (
+        pytest.param(
             """\
             > pyproject.toml @someone-else @rapidsai/ci-codeowners
             : ~~~~~~~~~~~~~~filename
             """,
             [],
+            id="unchecked",
         ),
     ],
 )
@@ -209,15 +219,16 @@ def test_check_codeowners_line(content, warnings):
 @pytest.mark.parametrize(
     ["content", "warnings"],
     [
-        (
+        pytest.param(
             """\
             +
             + CMakeLists.txt @rapidsai/cudf-cmake-codeowners
             + pyproject.toml @rapidsai/ci-codeowners
             """,
             [],
+            id="good",
         ),
-        (
+        pytest.param(
             """\
             +
             + CMakeLists.txt @someone-else
@@ -236,8 +247,9 @@ def test_check_codeowners_line(content, warnings):
                     ],
                 },
             ],
+            id="wrong-owners",
         ),
-        (
+        pytest.param(
             """\
             +
             : ^0.span
@@ -253,8 +265,9 @@ def test_check_codeowners_line(content, warnings):
                     ],
                 },
             ],
+            id="missing-files",
         ),
-        (
+        pytest.param(
             """\
             +
             : ^0.span
@@ -270,8 +283,9 @@ def test_check_codeowners_line(content, warnings):
                     ],
                 },
             ],
+            id="missing-files-no-newline",
         ),
-        (
+        pytest.param(
             """\
             +
             + pyproject.toml @rapidsai/ci-codeowners
@@ -289,6 +303,7 @@ def test_check_codeowners_line(content, warnings):
                     "replacements": [],
                 },
             ],
+            id="wrong-order",
         ),
     ],
 )
