@@ -40,6 +40,42 @@ def _parse_path_item(item: str) -> str | int:
 def parse_named_spans(
     content: str, root_type: type | None = None
 ) -> "tuple[str, NamedSpans | None]":
+    """Parse a document with named spans.
+
+    This function parses a DSL that allows the developer to write a document
+    with named spans interspersed. These named spans can be used to easily pick
+    out parts of the document and their exact locations to be used for warning
+    locations, replacement locations, and note locations.
+
+    The DSL works as follows:
+
+    - A line beginning with ``+`` adds content to the document with a newline
+      at the end.
+    - A line beginning with ``>`` adds content to the document with no newline
+      at the end.
+    - A line beginning with ``:`` adds named spans to the document.
+
+    The named span syntax is as follows:
+
+    - Named spans require one or more components. These spans can be arranged
+      hierarchically by specifying the component for each level in the
+      hierarchy. Each component can be either an integer or an alphanumeric
+      string. If it's an integer, the hierarchy level is a list, and if it's a
+      string, the hierarchy level is a dictionary. Components are separated by
+      periods and can consist of letters, numbers, and underscores.
+    - A named span marked with one or more tildes (``~``) will contain the text
+      underlined in the immediately preceding content line. Overlapping named
+      spans can be specified by placing them on separate lines, as long as no
+      new content lines are introduced between them (if they are, anything span
+      lines after the new content line will mark that content line instead.)
+      Single named spans can span multiple lines as long as there is no break
+      or overlap between the parts.
+    - A named span marked with a single caret (``^``) will contain no text but
+      will be at the marked location in the immediately preceding content line.
+    - A named span can start with ``>`` and end with ``!``. Both of these
+      markings require the span's name immediately after. This syntax can be
+      used to specify lengthy multi-line spans without adding tons of tildes.
+    """
     assert root_type is dict or root_type is list or root_type is None
     lines = Lines(dedent(content))
     content = ""
