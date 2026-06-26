@@ -1,13 +1,13 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
 # SPDX-License-Identifier: Apache-2.0
 
-from textwrap import dedent
 from unittest.mock import Mock, patch
 
 import pytest
 
 from rapids_pre_commit_hooks import codeowners
 from rapids_pre_commit_hooks.lint import Linter, LintWarning, Note, Replacement
+from rapids_pre_commit_hooks_test_utils import parse_named_spans
 
 MOCK_REQUIRED_CODEOWNERS_LINES = [
     codeowners.RequiredCodeownersLine(
@@ -33,174 +33,174 @@ patch_required_codeowners_lines = patch(
 
 
 @pytest.mark.parametrize(
-    ["line", "skip", "codeowners_line"],
+    ["content", "skip"],
     [
         (
-            "filename @owner1 @owner2",
+            """\
+            > filename @owner1 @owner2
+            : ~~~~~~~~filename
+            :          ~~~~~~~owners.0.span
+            :         ~~~~~~~~owners.0.span_with_leading_whitespace
+            :                  ~~~~~~~owners.1.span
+            :                 ~~~~~~~~owners.1.span_with_leading_whitespace
+            """,
             0,
-            codeowners.CodeownersLine(
-                file=codeowners.FilePattern(
-                    filename="filename",
-                    span=(0, 8),
-                ),
-                owners=[
-                    codeowners.Owner(
-                        owner="@owner1",
-                        span=(9, 16),
-                        span_with_leading_whitespace=(8, 16),
-                    ),
-                    codeowners.Owner(
-                        owner="@owner2",
-                        span=(17, 24),
-                        span_with_leading_whitespace=(16, 24),
-                    ),
-                ],
-            ),
         ),
         (
-            "filename @owner1 @owner2",
+            """\
+            > filename @owner1 @owner2
+            : ~~~~~~~~filename
+            :          ~~~~~~~owners.0.span
+            :         ~~~~~~~~owners.0.span_with_leading_whitespace
+            :                  ~~~~~~~owners.1.span
+            :                 ~~~~~~~~owners.1.span_with_leading_whitespace
+            """,
             1,
-            codeowners.CodeownersLine(
-                file=codeowners.FilePattern(
-                    filename="filename",
-                    span=(1, 9),
-                ),
-                owners=[
-                    codeowners.Owner(
-                        owner="@owner1",
-                        span=(10, 17),
-                        span_with_leading_whitespace=(9, 17),
-                    ),
-                    codeowners.Owner(
-                        owner="@owner2",
-                        span=(18, 25),
-                        span_with_leading_whitespace=(17, 25),
-                    ),
-                ],
-            ),
         ),
         (
-            "filename\t @owner1  @owner2  # Comment",
+            # Spans are deliberately misaligned because of the \t
+            """\
+            > filename\t @owner1  @owner2  # Comment
+            : ~~~~~~~~filename
+            :           ~~~~~~~owners.0.span
+            :         ~~~~~~~~~owners.0.span_with_leading_whitespace
+            :                    ~~~~~~~owners.1.span
+            :                  ~~~~~~~~~owners.1.span_with_leading_whitespace
+            """,
             0,
-            codeowners.CodeownersLine(
-                file=codeowners.FilePattern(
-                    filename="filename",
-                    span=(0, 8),
-                ),
-                owners=[
-                    codeowners.Owner(
-                        owner="@owner1",
-                        span=(10, 17),
-                        span_with_leading_whitespace=(8, 17),
-                    ),
-                    codeowners.Owner(
-                        owner="@owner2",
-                        span=(19, 26),
-                        span_with_leading_whitespace=(17, 26),
-                    ),
-                ],
-            ),
         ),
         (
-            "file\\ name @owner\\ 1 @owner\\ 2",
+            # Spans are deliberately misaligned because of the escaped
+            # backslashes
+            """\
+            > file\\ name @owner\\ 1 @owner\\ 2
+            : ~~~~~~~~~~filename
+            :            ~~~~~~~~~owners.0.span
+            :           ~~~~~~~~~~owners.0.span_with_leading_whitespace
+            :                      ~~~~~~~~~owners.1.span
+            :                     ~~~~~~~~~~owners.1.span_with_leading_whitespace
+            """,  # noqa: E501
             0,
-            codeowners.CodeownersLine(
-                file=codeowners.FilePattern(
-                    filename="file\\ name",
-                    span=(0, 10),
-                ),
-                owners=[
-                    codeowners.Owner(
-                        owner="@owner\\ 1",
-                        span=(11, 20),
-                        span_with_leading_whitespace=(10, 20),
-                    ),
-                    codeowners.Owner(
-                        owner="@owner\\ 2",
-                        span=(21, 30),
-                        span_with_leading_whitespace=(20, 30),
-                    ),
-                ],
-            ),
         ),
         (
             "",
             0,
-            None,
         ),
         (
-            " # comment",
+            "> # comment",
             0,
-            None,
         ),
     ],
 )
-def test_parse_codeowners_line(line, skip, codeowners_line):
-    assert codeowners.parse_codeowners_line(line, skip) == codeowners_line
+def test_parse_codeowners_line(content, skip):
+    content, spans = parse_named_spans(content, root_type=dict)
+    try:
+        filename = spans["filename"]
+        owners = spans["owners"]
+    except KeyError:
+        codeowners_line = None
+    else:
+        codeowners_line = codeowners.CodeownersLine(
+            file=codeowners.FilePattern(
+                filename=content[slice(*filename)],
+                span=tuple(c + skip for c in filename),
+            ),
+            owners=[
+                codeowners.Owner(
+                    owner=content[slice(*owner["span"])],
+                    span=tuple(c + skip for c in owner["span"]),
+                    span_with_leading_whitespace=tuple(
+                        c + skip for c in owner["span_with_leading_whitespace"]
+                    ),
+                )
+                for owner in owners
+            ],
+        )
+    assert codeowners.parse_codeowners_line(content, skip) == codeowners_line
 
 
 @pytest.mark.parametrize(
-    ["line", "span", "warnings"],
+    ["content", "warnings"],
     [
         (
-            "CMakeLists.txt @rapidsai/cudf-cmake-codeowners",
-            (0, 14),
+            """\
+            > CMakeLists.txt @rapidsai/cudf-cmake-codeowners
+            : ~~~~~~~~~~~~~~filename
+            """,
             [],
         ),
         (
-            "CMakeLists.txt @someone-else  # comment",
-            (0, 14),
+            """\
+            > CMakeLists.txt @someone-else  # comment
+            : ~~~~~~~~~~~~~~filename
+            : ~~~~~~~~~~~~~~warnings.0.span
+            :               ~~~~~~~~~~~~~~warnings.0.replacements.0
+            :                             ^warnings.0.replacements.1
+            """,
             [
-                LintWarning(
-                    span=(0, 14),
-                    msg="file 'CMakeLists.txt' has incorrect owners",
-                    replacements=[
-                        Replacement(
-                            span=(14, 28),
-                            newtext="",
-                        ),
-                        Replacement(
-                            span=(28, 28),
-                            newtext=" @rapidsai/cudf-cmake-codeowners",
-                        ),
+                {
+                    "replacements": [
+                        "",
+                        " @rapidsai/cudf-cmake-codeowners",
                     ],
-                ),
+                },
             ],
         ),
         (
-            "CMakeLists.txt @someone-else @rapidsai/cudf-cmake-codeowners",
-            (0, 14),
+            """\
+            > CMakeLists.txt @someone-else @rapidsai/cudf-cmake-codeowners
+            : ~~~~~~~~~~~~~~filename
+            : ~~~~~~~~~~~~~~warnings.0.span
+            :               ~~~~~~~~~~~~~~warnings.0.replacements.0
+            """,
             [
-                LintWarning(
-                    span=(0, 14),
-                    msg="file 'CMakeLists.txt' has incorrect owners",
-                    replacements=[
-                        Replacement(
-                            span=(14, 28),
-                            newtext="",
-                        ),
+                {
+                    "replacements": [
+                        "",
                     ],
-                ),
+                },
             ],
         ),
         (
-            "pyproject.toml @someone-else @rapidsai/ci-codeowners",
-            (0, 14),
+            """\
+            > pyproject.toml @someone-else @rapidsai/ci-codeowners
+            : ~~~~~~~~~~~~~~filename
+            """,
             [],
         ),
     ],
 )
 @patch_required_codeowners_lines
-def test_check_codeowners_line(line, span, warnings):
-    codeowners_line = codeowners.parse_codeowners_line(line, 0)
-    linter = Linter(".github/CODEOWNERS", line, "verify-codeowners")
+def test_check_codeowners_line(content, warnings):
+    content, spans = parse_named_spans(content)
+    warnings = [
+        LintWarning(
+            span=warning_spans["span"],
+            msg=f"file '{content[slice(*spans['filename'])]}'"
+            " has incorrect owners",
+            replacements=[
+                Replacement(span=replacement_span, newtext=replacement)
+                for replacement, replacement_span in zip(
+                    warning["replacements"],
+                    warning_spans["replacements"],
+                    strict=True,
+                )
+            ],
+        )
+        for warning, warning_spans in zip(
+            warnings, spans.get("warnings", []), strict=True
+        )
+    ]
+
+    codeowners_line = codeowners.parse_codeowners_line(content, 0)
+    linter = Linter(".github/CODEOWNERS", content, "verify-codeowners")
     found_files = []
     codeowners.check_codeowners_line(
         linter, Mock(project_prefix="cudf"), codeowners_line, found_files
     )
     assert linter.warnings == warnings
     assert found_files == [
-        (line, span)
+        (line, spans["filename"])
         for line in MOCK_REQUIRED_CODEOWNERS_LINES
         if line.file == codeowners_line.file.filename
     ]
@@ -210,102 +210,121 @@ def test_check_codeowners_line(line, span, warnings):
     ["content", "warnings"],
     [
         (
-            dedent(
-                """
-                CMakeLists.txt @rapidsai/cudf-cmake-codeowners
-                pyproject.toml @rapidsai/ci-codeowners
-                """
-            ),
+            """\
+            +
+            + CMakeLists.txt @rapidsai/cudf-cmake-codeowners
+            + pyproject.toml @rapidsai/ci-codeowners
+            """,
             [],
         ),
         (
-            dedent(
-                """
-                CMakeLists.txt @someone-else
-                pyproject.toml @rapidsai/ci-codeowners
-                """
-            ),
+            """\
+            +
+            + CMakeLists.txt @someone-else
+            : ~~~~~~~~~~~~~~0.span
+            :               ~~~~~~~~~~~~~~0.replacements.0
+            :                             ^0.replacements.1
+            + pyproject.toml @rapidsai/ci-codeowners
+            """,
             [
-                LintWarning(
-                    span=(1, 15),
-                    msg="file 'CMakeLists.txt' has incorrect owners",
-                    replacements=[
-                        Replacement(
-                            span=(15, 29),
-                            newtext="",
-                        ),
-                        Replacement(
-                            span=(29, 29),
-                            newtext=" @rapidsai/cudf-cmake-codeowners",
-                        ),
+                {
+                    "msg": "file 'CMakeLists.txt' has incorrect owners",
+                    "notes": [],
+                    "replacements": [
+                        "",
+                        " @rapidsai/cudf-cmake-codeowners",
                     ],
-                ),
+                },
             ],
         ),
         (
-            dedent(
-                """
-                pyproject.toml @rapidsai/ci-codeowners
-                """
-            ),
+            """\
+            +
+            : ^0.span
+            + pyproject.toml @rapidsai/ci-codeowners
+            :                                        ^0.replacements.0
+            """,
             [
-                LintWarning(
-                    span=(0, 0),
-                    msg="missing required codeowners",
-                    replacements=[
-                        Replacement(
-                            span=(40, 40),
-                            newtext="CMakeLists.txt "
-                            "@rapidsai/cudf-cmake-codeowners\n",
-                        ),
+                {
+                    "msg": "missing required codeowners",
+                    "notes": [],
+                    "replacements": [
+                        "CMakeLists.txt @rapidsai/cudf-cmake-codeowners\n",
                     ],
-                ),
+                },
             ],
         ),
         (
-            dedent(
-                """
-                pyproject.toml @rapidsai/ci-codeowners"""
-            ),
+            """\
+            +
+            : ^0.span
+            > pyproject.toml @rapidsai/ci-codeowners
+            :                                       ^0.replacements.0
+            """,
             [
-                LintWarning(
-                    span=(0, 0),
-                    msg="missing required codeowners",
-                    replacements=[
-                        Replacement(
-                            span=(39, 39),
-                            newtext="\nCMakeLists.txt "
-                            "@rapidsai/cudf-cmake-codeowners\n",
-                        ),
+                {
+                    "msg": "missing required codeowners",
+                    "notes": [],
+                    "replacements": [
+                        "\nCMakeLists.txt @rapidsai/cudf-cmake-codeowners\n",
                     ],
-                ),
+                },
             ],
         ),
         (
-            dedent(
-                """
-                pyproject.toml @rapidsai/ci-codeowners
-                CMakeLists.txt @rapidsai/cudf-cmake-codeowners
-                """
-            ),
+            """\
+            +
+            + pyproject.toml @rapidsai/ci-codeowners
+            : ~~~~~~~~~~~~~~0.span
+            + CMakeLists.txt @rapidsai/cudf-cmake-codeowners
+            : ~~~~~~~~~~~~~~0.notes.0
+            """,
             [
-                LintWarning(
-                    span=(1, 15),
-                    msg="file 'pyproject.toml' should come after "
+                {
+                    "msg": "file 'pyproject.toml' should come after "
                     "'CMakeLists.txt'",
-                    notes=[
-                        Note(
-                            span=(40, 54),
-                            msg="file 'CMakeLists.txt' is here",
-                        ),
+                    "notes": [
+                        "file 'CMakeLists.txt' is here",
                     ],
-                ),
+                    "replacements": [],
+                },
             ],
         ),
     ],
 )
 @patch_required_codeowners_lines
 def test_check_codeowners(content, warnings):
+    content, spans = parse_named_spans(content, root_type=list)
+    warnings = [
+        LintWarning(
+            span=warning_spans["span"],
+            msg=warning["msg"],
+            notes=[
+                Note(
+                    span=note_span,
+                    msg=note,
+                )
+                for note, note_span in zip(
+                    warning["notes"],
+                    warning_spans.get("notes", []),
+                    strict=True,
+                )
+            ],
+            replacements=[
+                Replacement(
+                    span=replacement_span,
+                    newtext=replacement,
+                )
+                for replacement, replacement_span in zip(
+                    warning["replacements"],
+                    warning_spans.get("replacements", []),
+                    strict=True,
+                )
+            ],
+        )
+        for warning, warning_spans in zip(warnings, spans, strict=True)
+    ]
+
     linter = Linter(".github/CODEOWNERS", content, "verify-codeowners")
     codeowners.check_codeowners(linter, Mock(project_prefix="cudf"))
     assert linter.warnings == warnings
