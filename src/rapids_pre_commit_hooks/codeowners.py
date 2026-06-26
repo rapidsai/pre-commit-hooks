@@ -38,7 +38,7 @@ class CodeownersLine:
 
 
 class CodeownersTransform(Protocol):
-    def __call__(self, *, project_prefix: str) -> str: ...
+    def __call__(self, *, org: str, project_prefix: str) -> str: ...
 
 
 @dataclasses.dataclass
@@ -49,14 +49,15 @@ class RequiredCodeownersLine:
     after: list[str] = dataclasses.field(default_factory=list)
 
 
-def hard_coded_codeowners(owners: str) -> CodeownersTransform:
-    return lambda *, project_prefix: owners  # noqa: ARG005
+def hard_coded_codeowners(owners: dict[str, str]) -> CodeownersTransform:
+    return lambda *, org, project_prefix: f"@{org}/{owners[org]}"  # noqa: ARG005
 
 
 def project_codeowners(category: str) -> CodeownersTransform:
     return (
         lambda *,
-        project_prefix: f"@rapidsai/{project_prefix}-{category}-codeowners"
+        org,
+        project_prefix: f"@{org}/{project_prefix}-{category}-codeowners"
     )
 
 
@@ -74,7 +75,11 @@ REQUIRED_CI_CODEOWNERS_LINES = required_codeowners_list(
         "/.github/",
         "/ci/",
     ],
-    [hard_coded_codeowners("@rapidsai/ci-codeowners")],
+    [
+        hard_coded_codeowners(
+            {"rapidsai": "ci-codeowners", "NVIDIA": "adi-ci-codeowners"}
+        )
+    ],
 )
 REQUIRED_PACKAGING_CODEOWNERS_LINES = required_codeowners_list(
     [
@@ -85,7 +90,14 @@ REQUIRED_PACKAGING_CODEOWNERS_LINES = required_codeowners_list(
         "/.pre-commit-config.yaml",
         "/.devcontainer/",
     ],
-    [hard_coded_codeowners("@rapidsai/packaging-codeowners")],
+    [
+        hard_coded_codeowners(
+            {
+                "rapidsai": "packaging-codeowners",
+                "NVIDIA": "adi-packaging-codeowners",
+            }
+        )
+    ],
 )
 REQUIRED_CPP_CODEOWNERS_LINES = required_codeowners_list(
     [
@@ -175,7 +187,9 @@ def check_codeowners_line(
     for required_codeowners_line in required_codeowners_lines(args):
         if required_codeowners_line.file == codeowners_line.file.filename:
             required_owners = [
-                required_owner(project_prefix=args.project_prefix)
+                required_owner(
+                    org=args.org, project_prefix=args.project_prefix
+                )
                 for required_owner in required_codeowners_line.owners
             ]
 
@@ -247,7 +261,7 @@ def check_codeowners(linter: Linter, args: argparse.Namespace) -> None:
             lambda line: line[0].file, found_files
         ):
             owners_text = " ".join(
-                owner(project_prefix=args.project_prefix)
+                owner(org=args.org, project_prefix=args.project_prefix)
                 for owner in required_codeowners_line.owners
             )
             new_text += (
@@ -273,6 +287,12 @@ def main() -> None:
         metavar="<project prefix>",
         help="project prefix to insert for project-specific team names",
         required=True,
+    )
+    m.argparser.add_argument(
+        "--org",
+        metavar="<organization>",
+        help="name of organization the project nbelongs to",
+        default="rapidsai",
     )
     m.argparser.add_argument(
         "--ci",

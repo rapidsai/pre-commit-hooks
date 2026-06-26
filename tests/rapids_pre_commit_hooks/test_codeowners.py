@@ -19,7 +19,9 @@ MOCK_REQUIRED_CODEOWNERS_LINES = [
     codeowners.RequiredCodeownersLine(
         file="pyproject.toml",
         owners=[
-            codeowners.hard_coded_codeowners("@rapidsai/ci-codeowners"),
+            codeowners.hard_coded_codeowners(
+                {"rapidsai": "ci-codeowners", "NVIDIA": "adi-ci-codeowners"}
+            ),
         ],
         allow_extra=True,
         after=["CMakeLists.txt"],
@@ -126,13 +128,14 @@ def test_parse_codeowners_line(content, skip):
 
 
 @pytest.mark.parametrize(
-    ["content", "warnings"],
+    ["content", "org", "warnings"],
     [
         pytest.param(
             """\
             > CMakeLists.txt @rapidsai/cudf-cmake-codeowners
             : ~~~~~~~~~~~~~~filename
             """,
+            "rapidsai",
             [],
             id="good",
         ),
@@ -144,6 +147,7 @@ def test_parse_codeowners_line(content, skip):
             :               ~~~~~~~~~~~~~~warnings.0.replacements.0
             :                             ^warnings.0.replacements.1
             """,
+            "rapidsai",
             [
                 {
                     "replacements": [
@@ -161,6 +165,7 @@ def test_parse_codeowners_line(content, skip):
             : ~~~~~~~~~~~~~~warnings.0.span
             :               ~~~~~~~~~~~~~~warnings.0.replacements.0
             """,
+            "rapidsai",
             [
                 {
                     "replacements": [
@@ -175,13 +180,40 @@ def test_parse_codeowners_line(content, skip):
             > pyproject.toml @someone-else @rapidsai/ci-codeowners
             : ~~~~~~~~~~~~~~filename
             """,
+            "rapidsai",
             [],
             id="extraneous-owner-allow-extra",
+        ),
+        pytest.param(
+            """\
+            > pyproject.toml @NVIDIA/adi-ci-codeowners
+            : ~~~~~~~~~~~~~~filename
+            """,
+            "NVIDIA",
+            [],
+            id="nvidia-org",
+        ),
+        pytest.param(
+            """\
+            > pyproject.toml @rapidsai/ci-codeowners
+            : ~~~~~~~~~~~~~~filename
+            : ~~~~~~~~~~~~~~warnings.0.span
+            :                                       ^warnings.0.replacements.0
+            """,
+            "NVIDIA",
+            [
+                {
+                    "replacements": [
+                        " @NVIDIA/adi-ci-codeowners",
+                    ],
+                },
+            ],
+            id="nvidia-org-wrong-owner",
         ),
     ],
 )
 @patch_required_codeowners_lines
-def test_check_codeowners_line(content, warnings):
+def test_check_codeowners_line(content, org, warnings):
     content, spans = parse_named_spans(content)
     warnings = [
         LintWarning(
@@ -206,7 +238,10 @@ def test_check_codeowners_line(content, warnings):
     linter = Linter(".github/CODEOWNERS", content, "verify-codeowners")
     found_files = []
     codeowners.check_codeowners_line(
-        linter, Mock(project_prefix="cudf"), codeowners_line, found_files
+        linter,
+        Mock(org=org, project_prefix="cudf"),
+        codeowners_line,
+        found_files,
     )
     assert linter.warnings == warnings
     assert found_files == [
@@ -341,5 +376,7 @@ def test_check_codeowners(content, warnings):
     ]
 
     linter = Linter(".github/CODEOWNERS", content, "verify-codeowners")
-    codeowners.check_codeowners(linter, Mock(project_prefix="cudf"))
+    codeowners.check_codeowners(
+        linter, Mock(org="rapidsai", project_prefix="cudf")
+    )
     assert linter.warnings == warnings
