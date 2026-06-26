@@ -12,6 +12,138 @@ from rapids_pre_commit_hooks_test_utils import parse_named_spans
 
 
 @pytest.mark.parametrize(
+    ["version", "version_scheme", "expected_version"],
+    [
+        pytest.param(
+            (26, 1, 0),
+            hardcoded_version.VersionScheme.CALVER,
+            (25, 11, 0),
+            id="calver-january",
+        ),
+        pytest.param(
+            (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
+            (25, 12, 0),
+            id="calver-february",
+        ),
+        pytest.param(
+            (26, 3, 0),
+            hardcoded_version.VersionScheme.CALVER,
+            (26, 1, 0),
+            id="calver-march",
+        ),
+        pytest.param(
+            (26, 11, 0),
+            hardcoded_version.VersionScheme.CALVER,
+            (26, 9, 0),
+            id="calver-november",
+        ),
+        pytest.param(
+            (26, 12, 0),
+            hardcoded_version.VersionScheme.CALVER,
+            (26, 10, 0),
+            id="calver-december",
+        ),
+        pytest.param(
+            (26, 1, 2),
+            hardcoded_version.VersionScheme.CALVER,
+            (25, 11, 0),
+            id="calver-patch",
+        ),
+        pytest.param(
+            (0, 49, 0),
+            hardcoded_version.VersionScheme.SEMVER,
+            (0, 48, 0),
+            id="semver",
+        ),
+        pytest.param(
+            (0, 49, 1),
+            hardcoded_version.VersionScheme.SEMVER,
+            (0, 48, 0),
+            id="semver-patch",
+        ),
+        pytest.param(
+            (1, 0, 0),
+            hardcoded_version.VersionScheme.SEMVER,
+            None,
+            id="semver-major",
+        ),
+    ],
+)
+def test_get_previous_minor_version(version, version_scheme, expected_version):
+    assert (
+        hardcoded_version.get_previous_minor_version(version, version_scheme)
+        == expected_version
+    )
+
+
+@pytest.mark.parametrize(
+    ["version", "version_scheme", "expected_version"],
+    [
+        pytest.param(
+            (26, 1, 0),
+            hardcoded_version.VersionScheme.CALVER,
+            (26, 3, 0),
+            id="calver-january",
+        ),
+        pytest.param(
+            (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
+            (26, 4, 0),
+            id="calver-february",
+        ),
+        pytest.param(
+            (26, 10, 0),
+            hardcoded_version.VersionScheme.CALVER,
+            (26, 12, 0),
+            id="calver-october",
+        ),
+        pytest.param(
+            (26, 11, 0),
+            hardcoded_version.VersionScheme.CALVER,
+            (27, 1, 0),
+            id="calver-november",
+        ),
+        pytest.param(
+            (26, 12, 0),
+            hardcoded_version.VersionScheme.CALVER,
+            (27, 2, 0),
+            id="calver-december",
+        ),
+        pytest.param(
+            (26, 1, 2),
+            hardcoded_version.VersionScheme.CALVER,
+            (26, 3, 0),
+            id="calver-patch",
+        ),
+        pytest.param(
+            (0, 49, 0),
+            hardcoded_version.VersionScheme.SEMVER,
+            (0, 50, 0),
+            id="semver",
+        ),
+        pytest.param(
+            (0, 49, 1),
+            hardcoded_version.VersionScheme.SEMVER,
+            (0, 50, 0),
+            id="semver-patch",
+        ),
+        pytest.param(
+            (1, 0, 0),
+            hardcoded_version.VersionScheme.SEMVER,
+            (1, 1, 0),
+            id="semver-major",
+        ),
+    ],
+)
+def test_get_next_minor_version(version, version_scheme, expected_version):
+    assert (
+        hardcoded_version.get_next_minor_version(version, version_scheme)
+        == expected_version
+    )
+
+
+@pytest.mark.parametrize(
     ["content"],
     [
         pytest.param(
@@ -524,7 +656,7 @@ def test_skip_heuristics(
 
 
 @pytest.mark.parametrize(
-    ["content", "version"],
+    ["content", "version", "version_scheme"],
     [
         pytest.param(
             """\
@@ -534,6 +666,7 @@ def test_skip_heuristics(
             :    ~~0.minor
             """,
             (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
             id="no-patch-version",
         ),
         pytest.param(
@@ -544,6 +677,7 @@ def test_skip_heuristics(
             :     ~~0.minor
             """,
             (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
             id="text-before",
         ),
         pytest.param(
@@ -554,6 +688,7 @@ def test_skip_heuristics(
             :    ~~0.minor
             """,
             (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
             id="text-after",
         ),
         pytest.param(
@@ -564,6 +699,7 @@ def test_skip_heuristics(
             :     ~~0.minor
             """,
             (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
             id="text-before-and-after",
         ),
         pytest.param(
@@ -578,6 +714,7 @@ def test_skip_heuristics(
             :    ~~1.minor
             """,
             (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
             id="multiple-instances",
         ),
         pytest.param(
@@ -589,6 +726,7 @@ def test_skip_heuristics(
             :       ~~0.patch
             """,
             (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
             id="patch-version",
         ),
         pytest.param(
@@ -596,13 +734,15 @@ def test_skip_heuristics(
             > 26.02.01
             """,
             (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
             id="wrong-patch-version",
         ),
         pytest.param(
             """\
-            > 26.04
+            > 26.03
             """,
             (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
             id="wrong-major-minor-version",
         ),
         pytest.param(
@@ -613,6 +753,7 @@ def test_skip_heuristics(
             :   ~~0.minor
             """,
             (0, 48, 0),
+            hardcoded_version.VersionScheme.SEMVER,
             id="ucxx-version",
         ),
         pytest.param(
@@ -624,6 +765,7 @@ def test_skip_heuristics(
             :      ~~0.patch
             """,
             (0, 48, 0),
+            hardcoded_version.VersionScheme.SEMVER,
             id="ucxx-patch-version",
         ),
         pytest.param(
@@ -631,6 +773,7 @@ def test_skip_heuristics(
             > 026.02
             """,
             (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
             id="number-before",
         ),
         pytest.param(
@@ -638,6 +781,7 @@ def test_skip_heuristics(
             > 26.020
             """,
             (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
             id="number-after",
         ),
         pytest.param(
@@ -649,6 +793,7 @@ def test_skip_heuristics(
             :      ~0.patch
             """,
             (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
             id="no-zero-prefix",
         ),
         pytest.param(
@@ -659,6 +804,7 @@ def test_skip_heuristics(
             :    ~0.minor
             """,
             (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
             id="no-zero-prefix-asterisk",
         ),
         pytest.param(
@@ -666,6 +812,7 @@ def test_skip_heuristics(
             > 2026.02.00
             """,
             (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
             id="4-digit-major",
         ),
         pytest.param(
@@ -673,6 +820,7 @@ def test_skip_heuristics(
             > 26.0002.00
             """,
             (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
             id="4-digit-minor",
         ),
         pytest.param(
@@ -683,16 +831,181 @@ def test_skip_heuristics(
             :    ~~0.minor
             """,
             (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
             id="4-digit-patch",
+        ),
+        pytest.param(
+            """\
+            > 25.12
+            : ~~~~~0.full
+            : ~~0.major
+            :    ~~0.minor
+            """,
+            (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
+            id="calver-previous",
+        ),
+        pytest.param(
+            """\
+            > 25.12.00
+            : ~~~~~~~~0.full
+            : ~~0.major
+            :    ~~0.minor
+            :       ~~0.patch
+            """,
+            (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
+            id="calver-previous-patch",
+        ),
+        pytest.param(
+            """\
+            > 25.12.01
+            """,
+            (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
+            id="calver-previous-patch-wrong",
+        ),
+        pytest.param(
+            """\
+            > 25.10
+            """,
+            (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
+            id="calver-previous-too-far",
+        ),
+        pytest.param(
+            """\
+            > 26.04
+            : ~~~~~0.full
+            : ~~0.major
+            :    ~~0.minor
+            """,
+            (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
+            id="calver-next",
+        ),
+        pytest.param(
+            """\
+            > 26.04.00
+            : ~~~~~~~~0.full
+            : ~~0.major
+            :    ~~0.minor
+            :       ~~0.patch
+            """,
+            (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
+            id="calver-next-patch",
+        ),
+        pytest.param(
+            """\
+            > 26.04.01
+            """,
+            (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
+            id="calver-next-patch-wrong",
+        ),
+        pytest.param(
+            """\
+            > 26.06
+            """,
+            (26, 2, 0),
+            hardcoded_version.VersionScheme.CALVER,
+            id="calver-next-too-far",
+        ),
+        pytest.param(
+            """\
+            > 0.48
+            : ~~~~0.full
+            : ~0.major
+            :   ~~0.minor
+            """,
+            (0, 49, 0),
+            hardcoded_version.VersionScheme.SEMVER,
+            id="semver-previous",
+        ),
+        pytest.param(
+            """\
+            > 0.48.00
+            """,
+            (1, 0, 0),
+            hardcoded_version.VersionScheme.SEMVER,
+            id="semver-previous-major",
+        ),
+        pytest.param(
+            """\
+            > 0.48.00
+            : ~~~~~~~0.full
+            : ~0.major
+            :   ~~0.minor
+            :      ~~0.patch
+            """,
+            (0, 49, 0),
+            hardcoded_version.VersionScheme.SEMVER,
+            id="semver-previous-patch",
+        ),
+        pytest.param(
+            """\
+            > 0.48.01
+            """,
+            (0, 49, 0),
+            hardcoded_version.VersionScheme.SEMVER,
+            id="semver-previous-patch-wrong",
+        ),
+        pytest.param(
+            """\
+            > 0.47
+            """,
+            (0, 49, 0),
+            hardcoded_version.VersionScheme.SEMVER,
+            id="semver-previous-too-far",
+        ),
+        pytest.param(
+            """\
+            > 0.50
+            : ~~~~0.full
+            : ~0.major
+            :   ~~0.minor
+            """,
+            (0, 49, 0),
+            hardcoded_version.VersionScheme.SEMVER,
+            id="semver-next",
+        ),
+        pytest.param(
+            """\
+            > 0.50.00
+            : ~~~~~~~0.full
+            : ~0.major
+            :   ~~0.minor
+            :      ~~0.patch
+            """,
+            (0, 49, 0),
+            hardcoded_version.VersionScheme.SEMVER,
+            id="semver-next-patch",
+        ),
+        pytest.param(
+            """\
+            > 0.50.01
+            """,
+            (0, 49, 0),
+            hardcoded_version.VersionScheme.SEMVER,
+            id="semver-next-patch-wrong",
+        ),
+        pytest.param(
+            """\
+            > 0.51
+            """,
+            (0, 49, 0),
+            hardcoded_version.VersionScheme.SEMVER,
+            id="semver-next-too-far",
         ),
     ],
 )
-def test_find_hardcoded_versions(content, version):
+def test_find_hardcoded_versions(content, version, version_scheme):
     content, spans = parse_named_spans(content, list)
     assert [
         {group: match.span(group) for group in match.groupdict().keys()}
         for match in hardcoded_version.find_hardcoded_versions(
-            content, version
+            content, version, version_scheme
         )
     ] == [{"patch": (-1, -1), **s} for s in spans]
 
@@ -823,7 +1136,7 @@ def test_read_version_file(tmp_path, content, version, context):
         pytest.param(
             "file.txt",
             """\
-            + RAPIDS 26.04
+            + RAPIDS 26.06
             """,
             "VERSION",
             (26, 2, 0),
@@ -895,7 +1208,11 @@ def test_check_hardcoded_version(
         Mock(return_value=version),
     ) as mock_read_version_file:
         hardcoded_version.check_hardcoded_version(
-            linter, Mock(version_file=version_file)
+            linter,
+            Mock(
+                version_file=version_file,
+                version_scheme=hardcoded_version.VersionScheme.CALVER,
+            ),
         )
     if version_file_read:
         mock_read_version_file.assert_called_once_with(version_file)

@@ -3,6 +3,7 @@
 
 import bisect
 import re
+from enum import Enum
 from typing import TYPE_CHECKING
 
 import tomlkit
@@ -15,6 +16,7 @@ if TYPE_CHECKING:
     import argparse
     import os
     from collections.abc import Generator
+    from typing import Optional
 
     from .lint import Lines, Span
 
@@ -44,6 +46,47 @@ VERSION_DOC_RE: re.Pattern = re.compile(
 TODO_DOC_RE: re.Pattern = re.compile(
     r"TODO\((?P<version>\d{1,2}+(?:\.\d{1,2})+)\)"
 )
+
+
+class VersionScheme(Enum):
+    CALVER = "calver"
+    SEMVER = "semver"
+
+
+def get_previous_minor_version(
+    version: tuple[int, int, int], version_scheme: VersionScheme
+) -> "Optional[tuple[int, int, int]]":
+    if version_scheme == VersionScheme.CALVER:
+        year, month, _ = version
+        month_index = year * 12 + month - 1
+        prev_month_index = month_index - 2
+        prev_year = prev_month_index // 12
+        prev_month = (prev_month_index % 12) + 1
+        return (prev_year, prev_month, 0)
+    elif version_scheme == VersionScheme.SEMVER:
+        major, minor, _ = version
+        if minor == 0:
+            return None
+        return (major, minor - 1, 0)
+
+    raise ValueError
+
+
+def get_next_minor_version(
+    version: tuple[int, int, int], version_scheme: VersionScheme
+) -> tuple[int, int, int]:
+    if version_scheme == VersionScheme.CALVER:
+        year, month, _ = version
+        month_index = year * 12 + month - 1
+        next_month_index = month_index + 2
+        next_year = next_month_index // 12
+        next_month = (next_month_index % 12) + 1
+        return (next_year, next_month, 0)
+    elif version_scheme == VersionScheme.SEMVER:
+        major, minor, _ = version
+        return (major, minor + 1, 0)
+
+    raise ValueError
 
 
 def get_excluded_span_pyproject_toml(
@@ -121,18 +164,32 @@ def skip_heuristics(lines: "Lines", match: "re.Match[str]") -> bool:
 
 
 def find_hardcoded_versions(
-    content: str, full_version: tuple[int, int, int]
+    content: str,
+    full_version: tuple[int, int, int],
+    version_scheme: VersionScheme,
 ) -> "Generator[re.Match[str]]":
     """Detect all instances of a specific 2- or 3-part version in text
     content."""
 
-    major, minor, patch = full_version
+    to_check = [
+        full_version,
+        get_next_minor_version(full_version, version_scheme),
+    ]
+    if (
+        prev := get_previous_minor_version(full_version, version_scheme)
+    ) is not None:
+        to_check.append(prev)
     return (
         match
         for match in HARDCODED_VERSION_RE.finditer(content)
-        if int(match.group("major")) == major
-        and int(match.group("minor")) == minor
-        and (not match.group("patch") or int(match.group("patch")) == patch)
+        if any(
+            int(match.group("major")) == major
+            and int(match.group("minor")) == minor
+            and (
+                not match.group("patch") or int(match.group("patch")) == patch
+            )
+            for major, minor, patch in to_check
+        )
     )
 
 
@@ -172,7 +229,9 @@ def check_hardcoded_version(
 
     full_version = read_version_file(args.version_file)
     excluded_spans = sorted(get_excluded_spans(linter))
-    for match in find_hardcoded_versions(linter.content, full_version):
+    for match in find_hardcoded_versions(
+        linter.content, full_version, VersionScheme(args.version_scheme)
+    ):
         span_index = bisect.bisect_right(excluded_spans, match.span("full"))
         if span_index > 0:
             span_start, span_end = excluded_spans[span_index - 1]
@@ -208,6 +267,13 @@ def main() -> None:
         "--version-file",
         help="File to read the version from (default: VERSION)",
         default="VERSION",
+    )
+    m.argparser.add_argument(
+        "--version-scheme",
+        help="Version scheme to use (default: calver)",
+        type=VersionScheme,
+        default=VersionScheme.CALVER,
+        choices=list(VersionScheme),
     )
     with m.execute() as ctx:
         ctx.add_check(check_hardcoded_version)
