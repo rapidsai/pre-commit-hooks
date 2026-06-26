@@ -1,3 +1,3 @@
 #!/bin/sh
 
-echo "RAPIDS 26.04"
+echo "RAPIDS 26.06"
