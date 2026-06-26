@@ -545,6 +545,15 @@ def test_is_version_doc(content, expected_value):
         ),
         pytest.param(
             """\
+            +
+            + TODO(26.04)
+            :      ~~~~~match
+            """,
+            True,
+            id="todo-next-line",
+        ),
+        pytest.param(
+            """\
             + TODO something else 26.04
             :                     ~~~~~match
             """,
