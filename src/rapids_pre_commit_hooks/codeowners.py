@@ -291,7 +291,7 @@ def main() -> None:
     m.argparser.add_argument(
         "--org",
         metavar="<organization>",
-        help="name of organization the project nbelongs to",
+        help="name of organization the project belongs to",
         default="rapidsai",
     )
     m.argparser.add_argument(
