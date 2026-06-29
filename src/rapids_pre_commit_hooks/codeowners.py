@@ -293,6 +293,7 @@ def main() -> None:
         metavar="<organization>",
         help="name of organization the project belongs to",
         default="rapidsai",
+        choices=["rapidsai", "NVIDIA"],
     )
     m.argparser.add_argument(
         "--ci",
