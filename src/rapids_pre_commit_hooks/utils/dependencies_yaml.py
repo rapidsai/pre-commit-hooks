@@ -657,3 +657,7 @@ def traverse_dependencies_yaml(handler: Handler, content: str) -> None:
     finally:
         loader.dispose()
     traverse_root(handler, loader.document_anchors[0], set(), root)
+
+
+def is_python_output_type(output_type: str) -> bool:
+    return output_type in {"requirements", "constraints", "pyproject"}

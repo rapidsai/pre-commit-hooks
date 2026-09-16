@@ -69,7 +69,12 @@ def test_is_cupy_ctk_package(name, expected_result):
 
 class TestUseCUDAWheelsHandler:
     @pytest.mark.parametrize(
-        ["content", "suspicious_package_names", "expected_warnings"],
+        [
+            "content",
+            "has_python_output_type",
+            "suspicious_package_names",
+            "expected_warnings",
+        ],
         [
             pytest.param(
                 """\
@@ -79,6 +84,7 @@ class TestUseCUDAWheelsHandler:
                 +     - package2
                 +     - package3
                 """,
+                True,
                 [],
                 [],
                 id="no-suspicious-packages",
@@ -94,6 +100,7 @@ class TestUseCUDAWheelsHandler:
                 :       ~~~~~~~~warnings.0.warning
                 +     - package3
                 """,
+                True,
                 ["package2"],
                 [
                     {
@@ -107,10 +114,26 @@ class TestUseCUDAWheelsHandler:
                 ],
                 id="suspicious-packages",
             ),
+            pytest.param(
+                """\
+                + common:
+                +   packages:
+                +     - package2
+                :       ~~~~~~~~packages.0
+                """,
+                False,
+                ["package2"],
+                [],
+                id="non-python-output",
+            ),
         ],
     )
     def test_handle_common(
-        self, content, suspicious_package_names, expected_warnings
+        self,
+        content,
+        has_python_output_type,
+        suspicious_package_names,
+        expected_warnings,
     ):
         content, spans = parse_named_spans(content, dict)
 
@@ -129,16 +152,20 @@ class TestUseCUDAWheelsHandler:
         with handler.handle_common(
             Mock(), common_key, common
         ) as common_context:
-            common_context.suspicious_packages.extend(
-                zip(
-                    (
-                        find_yaml_node_for_span(composed, span)
-                        for span in spans.get("packages", [])
-                    ),
-                    suspicious_package_names,
-                    strict=True,
+            with handler.handle_common_item(
+                common_context, common
+            ) as item_context:
+                item_context.has_python_output_type = has_python_output_type
+                item_context.suspicious_packages.extend(
+                    zip(
+                        (
+                            find_yaml_node_for_span(composed, span)
+                            for span in spans.get("packages", [])
+                        ),
+                        suspicious_package_names,
+                        strict=True,
+                    )
                 )
-            )
 
         assert linter.warnings == [
             lint.LintWarning(
@@ -296,25 +323,27 @@ class TestUseCUDAWheelsHandler:
             loader.dispose()
 
         handler = UseCUDAWheelsHandler(linter, args)
-        with handler.handle_matrices_item(
-            Mock(), composed
-        ) as matrices_item_context:
-            matrices_item_context.has_use_cuda_wheels = has_use_cuda_wheels
-            matrices_item_context.use_cuda_wheels_node = (
-                find_yaml_node_for_span(composed, use_cuda_wheels_span)
-                if (use_cuda_wheels_span := spans.get("use_cuda_wheels"))
-                else None
-            )
-            matrices_item_context.suspicious_packages.extend(
-                zip(
-                    (
-                        find_yaml_node_for_span(composed, span)
-                        for span in spans.get("packages", [])
-                    ),
-                    suspicious_package_names,
-                    strict=True,
+        with handler.handle_specific_item(Mock(), composed) as item_context:
+            item_context.has_python_output_type = True
+            with handler.handle_matrices_item(
+                item_context, composed
+            ) as matrices_item_context:
+                matrices_item_context.has_use_cuda_wheels = has_use_cuda_wheels
+                matrices_item_context.use_cuda_wheels_node = (
+                    find_yaml_node_for_span(composed, use_cuda_wheels_span)
+                    if (use_cuda_wheels_span := spans.get("use_cuda_wheels"))
+                    else None
                 )
-            )
+                matrices_item_context.suspicious_packages.extend(
+                    zip(
+                        (
+                            find_yaml_node_for_span(composed, span)
+                            for span in spans.get("packages", [])
+                        ),
+                        suspicious_package_names,
+                        strict=True,
+                    )
+                )
 
         assert linter.warnings == [
             lint.LintWarning(
@@ -678,6 +707,19 @@ class TestUseCUDAWheelsHandler:
             + dependencies:
             +   file_set:
             +     common:
+            +       - output_types: conda
+            +         packages:
+            +           - cuda-toolkit==13.0
+            +           - cupy-cuda13x[ctk]
+            """,
+            [],
+            id="common-non-python-output",
+        ),
+        pytest.param(
+            """\
+            + dependencies:
+            +   file_set:
+            +     common:
             +       - output_types: pyproject
             +         packages:
             +           - cupy-cuda13x
@@ -722,6 +764,22 @@ class TestUseCUDAWheelsHandler:
                 },
             ],
             id="specific-use-cuda-wheels-false",
+        ),
+        pytest.param(
+            """\
+            + dependencies:
+            +   file_set:
+            +     specific:
+            +       - output_types: conda
+            +         matrices:
+            +           - matrix:
+            +               use_cuda_wheels: "false"
+            +             packages:
+            +               - cuda-toolkit==13.0
+            +               - cupy-cuda13x[ctk]
+            """,
+            [],
+            id="specific-non-python-output",
         ),
         pytest.param(
             """\

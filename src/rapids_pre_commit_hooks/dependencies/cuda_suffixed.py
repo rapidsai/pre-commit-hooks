@@ -12,6 +12,7 @@ from packaging.requirements import InvalidRequirement, Requirement
 
 from ..utils.dependencies_yaml import (
     Handler,
+    is_python_output_type,
 )
 from ..utils.yaml import Anchor, is_reference_anchor
 from rapids_metadata.remote import fetch_latest
@@ -103,7 +104,7 @@ class CUDASuffixedHandler(Handler):
         ),
         item: "yaml.Node",
     ) -> None:
-        if item.value in {"requirements", "constraints", "pyproject"}:
+        if is_python_output_type(item.value):
             output_types_context.has_python_output_type = True
 
     @contextlib.contextmanager

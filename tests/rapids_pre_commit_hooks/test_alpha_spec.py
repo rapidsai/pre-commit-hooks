@@ -20,7 +20,10 @@ from rapids_pre_commit_hooks.utils.yaml import (
     AnchorPreservingLoader,
     AnchorType,
 )
-from rapids_pre_commit_hooks_test_utils import parse_named_spans
+from rapids_pre_commit_hooks_test_utils import (
+    parse_named_spans,
+    zip_expected_warnings,
+)
 
 latest_version, latest_metadata = max(
     alpha_spec.all_metadata().versions.items(),
@@ -157,9 +160,11 @@ class TestAlphaSpecHandler:
     def test_handle_packages(self, anchor, packages_is_reference_anchor):
         handler = alpha_spec.AlphaSpecHandler(Mock(), Mock())
 
+        item_context = alpha_spec.AlphaSpecHandler.ItemContext()
         with handler.handle_packages(
-            None, anchor, Mock(), Mock()
+            item_context, anchor, Mock(), Mock()
         ) as packages_context:
+            assert packages_context.parent_context is item_context
             assert (
                 packages_context.packages_is_reference_anchor
                 == packages_is_reference_anchor
@@ -422,11 +427,18 @@ class TestAlphaSpecHandler:
         finally:
             loader.dispose()
         handler = alpha_spec.AlphaSpecHandler(linter, args)
+        item_context = alpha_spec.AlphaSpecHandler.ItemContext(
+            has_python_output_type=True
+        )
         handler.handle_package(
-            Mock(packages_is_reference_anchor=packages_is_reference_anchor),
+            alpha_spec.AlphaSpecHandler.PackagesContext(
+                item_context, packages_is_reference_anchor
+            ),
             anchor,
             composed,
         )
+        for package_anchor, package_node in item_context.packages:
+            handler._check_package(package_anchor, package_node)
         if replacement is None:
             assert linter.warnings == []
         else:
@@ -464,21 +476,46 @@ def test_check_alpha_spec():
     )
 
 
-def test_check_alpha_spec_integration(tmp_path):
-    content, spans = parse_named_spans(
-        """\
-        + dependencies:
-        +   test:
-        +     common:
-        +       - output_types: pyproject
-        +         packages: &packages
-        +           - &cudf cudf>=24.04,<24.06
-        :             ~~~~~~~~~~~~~~~~~~~~~~~~package
-        +           - *cudf
-        +       - output_types: requirements
-        +         packages: *packages
-        """
-    )
+@pytest.mark.parametrize(
+    ["content", "warnings"],
+    [
+        pytest.param(
+            """\
+            + dependencies:
+            +   test:
+            +     common:
+            +       - output_types: pyproject
+            +         packages: &packages
+            +           - &cudf cudf>=24.04,<24.06
+            :             ~~~~~~~~~~~~~~~~~~~~~~~~warnings.0.warning
+            :             ~~~~~~~~~~~~~~~~~~~~~~~~warnings.0.replacements.0
+            +           - *cudf
+            """,
+            [
+                {
+                    "warning": "add alpha spec for RAPIDS package cudf",
+                    "replacements": ["&cudf cudf>=24.04,<24.06,>=0.0.0a0"],
+                }
+            ],
+            id="python-output",
+        ),
+        pytest.param(
+            """\
+            + dependencies:
+            +   test:
+            +     common:
+            +       - output_types: conda
+            +         packages: &packages
+            +           - &cudf cudf>=24.04,<24.06
+            +           - *cudf
+            """,
+            [],
+            id="non-python-output",
+        ),
+    ],
+)
+def test_check_alpha_spec_integration(tmp_path, content, warnings):
+    content, spans = parse_named_spans(content, dict)
 
     args = Mock(
         mode="development", rapids_version=None, rapids_version_file="VERSION"
@@ -489,10 +526,6 @@ def test_check_alpha_spec_integration(tmp_path):
     with set_cwd(tmp_path):
         alpha_spec.check_alpha_spec(linter, args)
 
-    expected_linter = lint.Linter(
-        "dependencies.yaml", content, "verify-alpha-spec"
+    assert linter.warnings == zip_expected_warnings(
+        spans.get("warnings", []), warnings
     )
-    expected_linter.add_warning(
-        spans["package"], "add alpha spec for RAPIDS package cudf"
-    ).add_replacement(spans["package"], "&cudf cudf>=24.04,<24.06,>=0.0.0a0")
-    assert linter.warnings == expected_linter.warnings

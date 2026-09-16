@@ -949,3 +949,23 @@ def test_traverse_root():
         dependencies_yaml.traverse_root(manager.handler, {}, set(), root)
 
     assert manager.mock_calls == expected_calls
+
+
+@pytest.mark.parametrize(
+    ["output_type", "is_python"],
+    [
+        pytest.param(
+            output_type,
+            is_python,
+            id=output_type,
+        )
+        for output_type, is_python in [
+            ("conda", False),
+            ("requirements", True),
+            ("constraints", True),
+            ("pyproject", True),
+        ]
+    ],
+)
+def test_is_python_output_type(output_type, is_python):
+    assert dependencies_yaml.is_python_output_type(output_type) is is_python

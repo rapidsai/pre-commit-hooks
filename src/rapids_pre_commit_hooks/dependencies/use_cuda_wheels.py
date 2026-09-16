@@ -10,6 +10,7 @@ from packaging.requirements import InvalidRequirement, Requirement
 
 from ..utils.dependencies_yaml import (
     Handler,
+    is_python_output_type,
 )
 from ..utils.yaml import Anchor, is_reference_anchor
 
@@ -73,10 +74,22 @@ def is_cupy_ctk_package(req: "Requirement") -> bool:
 
 class UseCUDAWheelsHandler(Handler):
     @dataclass
+    class CommonContext:
+        common_key: "yaml.Node"
+
+    @dataclass
     class CommonOrMatricesItemContext:
+        has_python_output_type: bool = False
         has_use_cuda_wheels: bool = False
         use_cuda_wheels_node: "Optional[yaml.Node]" = None
         suspicious_packages: "list[tuple[yaml.Node, str]]" = field(
+            default_factory=list
+        )
+
+    @dataclass
+    class ItemContext:
+        has_python_output_type: bool = False
+        matrices_item_contexts: "list[UseCUDAWheelsHandler.CommonOrMatricesItemContext]" = field(  # noqa: E501
             default_factory=list
         )
 
@@ -89,52 +102,95 @@ class UseCUDAWheelsHandler(Handler):
         self.linter = linter
         self.args = args
 
+    def handle_output_type(
+        self,
+        output_types_context: (
+            "UseCUDAWheelsHandler.CommonOrMatricesItemContext | "
+            "UseCUDAWheelsHandler.ItemContext"
+        ),
+        item: "yaml.Node",
+    ) -> None:
+        if is_python_output_type(item.value):
+            output_types_context.has_python_output_type = True
+
     @contextlib.contextmanager
     def handle_common(
         self,
         dependency_set_context: "Any",  # noqa: ARG002
         key: "yaml.Node",
         value: "yaml.Node",  # noqa: ARG002
-    ) -> "Generator[UseCUDAWheelsHandler.CommonOrMatricesItemContext]":
-        context = UseCUDAWheelsHandler.CommonOrMatricesItemContext()
-        yield context
-
-        for node, name in context.suspicious_packages:
-            w = self.linter.add_warning(
-                (node.start_mark.index, node.end_mark.index),
-                f'package "{name}" in common dependency set',
-            )
-            w.add_note(
-                (key.start_mark.index, key.end_mark.index),
-                "place in a specific dependency set with "
-                'use_cuda_wheels: "true" instead',
-            )
+    ) -> "Generator[UseCUDAWheelsHandler.CommonContext]":
+        yield UseCUDAWheelsHandler.CommonContext(key)
 
     @contextlib.contextmanager
-    def handle_matrices_item(
+    def handle_common_item(
         self,
-        matrices_context: "Any",  # noqa: ARG002
+        common_context: "UseCUDAWheelsHandler.CommonContext",
         item: "yaml.Node",  # noqa: ARG002
     ) -> "Generator[UseCUDAWheelsHandler.CommonOrMatricesItemContext]":
         context = UseCUDAWheelsHandler.CommonOrMatricesItemContext()
         yield context
 
-        if not context.has_use_cuda_wheels:
+        if context.has_python_output_type:
             for node, name in context.suspicious_packages:
                 w = self.linter.add_warning(
                     (node.start_mark.index, node.end_mark.index),
-                    f'package "{name}" in specific dependency set without '
-                    'use_cuda_wheels: "true"',
+                    f'package "{name}" in common dependency set',
                 )
-                if context.use_cuda_wheels_node:
-                    w.add_note(
-                        (
-                            context.use_cuda_wheels_node.start_mark.index,
-                            context.use_cuda_wheels_node.end_mark.index,
-                        ),
-                        "place in a specific dependency set with "
-                        'use_cuda_wheels: "true" instead',
-                    )
+                w.add_note(
+                    (
+                        common_context.common_key.start_mark.index,
+                        common_context.common_key.end_mark.index,
+                    ),
+                    "place in a specific dependency set with "
+                    'use_cuda_wheels: "true" instead',
+                )
+
+    @contextlib.contextmanager
+    def handle_specific_item(
+        self,
+        specific_context: "Any",  # noqa: ARG002
+        item: "yaml.Node",  # noqa: ARG002
+    ) -> "Generator[UseCUDAWheelsHandler.ItemContext]":
+        context = UseCUDAWheelsHandler.ItemContext()
+        yield context
+
+        if context.has_python_output_type:
+            for matrices_item_context in context.matrices_item_contexts:
+                self._warn_for_matrices_item(matrices_item_context)
+
+    @contextlib.contextmanager
+    def handle_matrices_item(
+        self,
+        matrices_context: "UseCUDAWheelsHandler.ItemContext",
+        item: "yaml.Node",  # noqa: ARG002
+    ) -> "Generator[UseCUDAWheelsHandler.CommonOrMatricesItemContext]":
+        context = UseCUDAWheelsHandler.CommonOrMatricesItemContext()
+        yield context
+
+        matrices_context.matrices_item_contexts.append(context)
+
+    def _warn_for_matrices_item(
+        self,
+        context: "UseCUDAWheelsHandler.CommonOrMatricesItemContext",
+    ) -> None:
+        if context.has_use_cuda_wheels:
+            return
+        for node, name in context.suspicious_packages:
+            w = self.linter.add_warning(
+                (node.start_mark.index, node.end_mark.index),
+                f'package "{name}" in specific dependency set without '
+                'use_cuda_wheels: "true"',
+            )
+            if context.use_cuda_wheels_node:
+                w.add_note(
+                    (
+                        context.use_cuda_wheels_node.start_mark.index,
+                        context.use_cuda_wheels_node.end_mark.index,
+                    ),
+                    "place in a specific dependency set with "
+                    'use_cuda_wheels: "true" instead',
+                )
 
     def handle_matrix(
         self,
