@@ -10,12 +10,4 @@ runs:
     - id: read-pyproject-toml
       shell: bash
       run: |
-        perl -e '
-          while (<>) {
-            if (/^requires-python = ">=(\d+\.\d+(\.\d+)?)"$/) {
-              print("python-version=$1\n");
-              exit(0);
-            }
-          }
-          exit(1);
-        ' pyproject.toml | tee -a "$GITHUB_OUTPUT"
+        sed -n -E '/^requires-python = / { s/^requires-python = ">=([0-9]+\.[0-9]+(\.[0-9]+)?)"$/python-version=\1/p; q 0 }; $ q 1' pyproject.toml | tee -a "$GITHUB_OUTPUT"
