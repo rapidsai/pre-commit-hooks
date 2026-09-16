@@ -11,4 +11,7 @@ runs:
       shell: bash
       run: |
         # Exit with 0 if `requires-python` is found, 1 otherwise
-        sed -n -E '/^requires-python = / { s/^requires-python = ">=([0-9]+\.[0-9]+(\.[0-9]+)?)"$/python-version=\1/p; t matched }; $ q 1; b; :matched; q 0' pyproject.toml | tee -a "$GITHUB_OUTPUT"
+        sed -n -E '/^requires-python = / {
+          s/^requires-python = ">=([0-9]+\.[0-9]+(\.[0-9]+)?)"$/python-version=\1/p;
+          t matched
+        }; $ q 1; b; :matched; q 0' pyproject.toml | tee -a "$GITHUB_OUTPUT"
