@@ -16,14 +16,13 @@ from rapids_metadata.remote import fetch_latest
 
 from .lint import Linter, LintMain
 from .utils.yaml import Anchor, is_reference_anchor
-from .utils.dependencies_yaml import Handler, traverse_dependencies_yaml
+from .utils.dependencies_yaml import (
+    Handler,
+    is_python_output_type,
+    traverse_dependencies_yaml,
+)
 
 ALPHA_SPECIFIER: str = ">=0.0.0a0"
-
-ALPHA_SPEC_OUTPUT_TYPES: set[str] = {
-    "pyproject",
-    "requirements",
-}
 
 CUDA_SUFFIX_REGEX: re.Pattern = re.compile(r"^(?P<package>.*)-cu[0-9]{2}$")
 
@@ -52,22 +51,63 @@ def strip_cuda_suffix(args: argparse.Namespace, name: str) -> str:
 
 class AlphaSpecHandler(Handler):
     @dataclasses.dataclass
+    class ItemContext:
+        has_python_output_type: bool = False
+        packages: "list[tuple[Optional[Anchor], yaml.Node]]" = (
+            dataclasses.field(default_factory=list)
+        )
+
+    @dataclasses.dataclass
     class PackagesContext:
+        parent_context: "AlphaSpecHandler.ItemContext"
         packages_is_reference_anchor: bool
 
     def __init__(self, linter: Linter, args: argparse.Namespace):
         self.linter = linter
         self.args = args
 
+    def handle_output_type(
+        self,
+        output_types_context: "AlphaSpecHandler.ItemContext",
+        item: "yaml.Node",
+    ) -> None:
+        if is_python_output_type(item.value):
+            output_types_context.has_python_output_type = True
+
+    @contextlib.contextmanager
+    def _handle_item(self) -> "Any":
+        context = AlphaSpecHandler.ItemContext()
+        yield context
+
+        if context.has_python_output_type:
+            for anchor, node in context.packages:
+                self._check_package(anchor, node)
+
+    def handle_common_item(
+        self,
+        common_context: "Any",  # noqa: ARG002
+        item: "yaml.Node",  # noqa: ARG002
+    ) -> "Any":
+        return self._handle_item()
+
+    def handle_specific_item(
+        self,
+        specific_context: "Any",  # noqa: ARG002
+        item: "yaml.Node",  # noqa: ARG002
+    ) -> "Any":
+        return self._handle_item()
+
     def handle_packages(
         self,
-        common_or_matrices_item_context: "Any",  # noqa: ARG002
+        common_or_matrices_item_context: "AlphaSpecHandler.ItemContext",
         anchor: "Optional[Anchor]",  # noqa: ARG002
         key: "yaml.Node",  # noqa: ARG002
         value: "yaml.Node",  # noqa: ARG002
     ) -> "contextlib.nullcontext[AlphaSpecHandler.PackagesContext]":
         return contextlib.nullcontext(
-            AlphaSpecHandler.PackagesContext(is_reference_anchor(anchor))
+            AlphaSpecHandler.PackagesContext(
+                common_or_matrices_item_context, is_reference_anchor(anchor)
+            )
         )
 
     def handle_package(
@@ -82,6 +122,13 @@ class AlphaSpecHandler(Handler):
         ):
             return
 
+        packages_context.parent_context.packages.append((anchor, node))
+
+    def _check_package(
+        self,
+        anchor: "Optional[Anchor]",
+        node: "yaml.Node",
+    ) -> None:
         @total_ordering
         class SpecPriority:
             def __init__(self, spec: str):
