@@ -26,6 +26,10 @@ reviews:
   request_changes_workflow: false
   review_status: false
 
+  pre_merge_checks:
+    docstrings:
+      mode: "off"
+
   # Path-specific review instructions
   path_instructions:
     - path: "src/rapids_pre_commit_hooks/**"
