@@ -31,6 +31,30 @@ class TestChainedHandler:
                 id="handle_dependencies",
             ),
             pytest.param(
+                "handle_files",
+                True,
+                (Mock(), Mock()),
+                id="handle_files",
+            ),
+            pytest.param(
+                "handle_files_item",
+                True,
+                (Mock(), Mock()),
+                id="handle_files_item",
+            ),
+            pytest.param(
+                "handle_file_output",
+                True,
+                (Mock(), Mock()),
+                id="handle_file_output",
+            ),
+            pytest.param(
+                "handle_extras",
+                True,
+                (Mock(), Mock()),
+                id="handle_extras",
+            ),
+            pytest.param(
                 "handle_dependency_set",
                 True,
                 (Mock(), Mock()),
@@ -156,6 +180,26 @@ class TestChainedHandler:
                 (Mock(),),
                 id="handle_output_type",
             ),
+            pytest.param(
+                "handle_file_output_item",
+                (Mock(),),
+                id="handle_file_output_item",
+            ),
+            pytest.param(
+                "handle_extras_table",
+                (Mock(), Mock()),
+                id="handle_extras_table",
+            ),
+            pytest.param(
+                "handle_extras_key",
+                (Mock(), Mock()),
+                id="handle_extras_key",
+            ),
+            pytest.param(
+                "handle_pyproject_dir",
+                (Mock(), Mock()),
+                id="handle_pyproject_dir",
+            ),
         ],
     )
     def test_no_context(self, hook_name, hook_args):
@@ -176,6 +220,286 @@ class TestChainedHandler:
         )
 
         assert manager.mock_calls == expected_calls
+
+
+def test_traverse_file_output_item():
+    file_output = yaml.SafeLoader("[pyproject]").get_single_node()
+    file_output_item = file_output.value[0]
+    file_output_context = Mock()
+    manager = MagicMock()
+
+    expected_calls = [
+        call.handler.handle_file_output_item(
+            file_output_context, file_output_item
+        ),
+    ]
+    manager.reset_mock()
+
+    dependencies_yaml.traverse_file_output_item(
+        manager.handler, file_output_context, file_output_item
+    )
+
+    assert manager.mock_calls == expected_calls
+
+
+@pytest.mark.parametrize(
+    ["content"],
+    [
+        pytest.param(
+            """\
+            + output: pyproject
+            : ~~~~~~key_node
+            :         ~~~~~~~~~node
+            :         ~~~~~~~~~items.0
+            """,
+            id="string-item",
+        ),
+        pytest.param(
+            """\
+            + output: [requirements, pyproject]
+            : ~~~~~~key_node
+            :         ~~~~~~~~~~~~~~~~~~~~~~~~~node
+            :          ~~~~~~~~~~~~items.0
+            :                        ~~~~~~~~~items.1
+            """,
+            id="list",
+        ),
+        pytest.param(
+            """\
+            + output: []
+            : ~~~~~~key_node
+            :         ~~node
+            """,
+            id="empty-list",
+        ),
+    ],
+)
+def test_traverse_file_output(content):
+    content, spans = parse_named_spans(content)
+    files_item = yaml.SafeLoader(content).get_single_node()
+    output_key = find_yaml_node_for_span(files_item, spans["key_node"])
+    output = find_yaml_node_for_span(files_item, spans["node"])
+    files_item_context = Mock()
+    manager = MagicMock()
+
+    expected_calls = [
+        call.handler.handle_file_output(
+            files_item_context, output_key, output
+        ),
+        call.handler.handle_file_output().__enter__(),
+        *(
+            call.traverse_file_output_item(
+                manager.handler,
+                manager.handler.handle_file_output().__enter__(),
+                find_yaml_node_for_span(files_item, item_span),
+            )
+            for item_span in spans.get("items", [])
+        ),
+        call.handler.handle_file_output().__exit__(None, None, None),
+    ]
+    manager.reset_mock()
+
+    with patch(
+        "rapids_pre_commit_hooks.utils.dependencies_yaml."
+        "traverse_file_output_item",
+        manager.traverse_file_output_item,
+    ):
+        dependencies_yaml.traverse_file_output(
+            manager.handler, files_item_context, output_key, output
+        )
+
+    assert manager.mock_calls == expected_calls
+
+
+@pytest.mark.parametrize(
+    ["function_name", "handler_name", "content"],
+    [
+        pytest.param(
+            "traverse_extras_table",
+            "handle_extras_table",
+            "table: project.optional-dependencies",
+            id="extras-table",
+        ),
+        pytest.param(
+            "traverse_extras_key",
+            "handle_extras_key",
+            "key: test",
+            id="extras-key",
+        ),
+        pytest.param(
+            "traverse_pyproject_dir",
+            "handle_pyproject_dir",
+            "pyproject_dir: python",
+            id="pyproject-dir",
+        ),
+    ],
+)
+def test_traverse_string_value(function_name, handler_name, content):
+    parent = yaml.SafeLoader(content).get_single_node()
+    key, value = parent.value[0]
+    parent_context = Mock()
+    manager = MagicMock()
+
+    expected_calls = [
+        getattr(call.handler, handler_name)(parent_context, key, value),
+    ]
+    manager.reset_mock()
+
+    getattr(dependencies_yaml, function_name)(
+        manager.handler, parent_context, key, value
+    )
+
+    assert manager.mock_calls == expected_calls
+
+
+def test_traverse_extras():
+    files_item = yaml.SafeLoader("""\
+    extras:
+        table: project.optional-dependencies
+        key: test
+    """).get_single_node()
+    extras_key, extras = files_item.value[0]
+    files_item_context = Mock()
+    manager = MagicMock()
+
+    expected_calls = [
+        call.handler.handle_extras(files_item_context, extras_key, extras),
+        call.handler.handle_extras().__enter__(),
+        call.traverse_extras_table(
+            manager.handler,
+            manager.handler.handle_extras().__enter__(),
+            extras.value[0][0],
+            extras.value[0][1],
+        ),
+        call.traverse_extras_key(
+            manager.handler,
+            manager.handler.handle_extras().__enter__(),
+            extras.value[1][0],
+            extras.value[1][1],
+        ),
+        call.handler.handle_extras().__exit__(None, None, None),
+    ]
+    manager.reset_mock()
+
+    with (
+        patch(
+            "rapids_pre_commit_hooks.utils.dependencies_yaml."
+            "traverse_extras_table",
+            manager.traverse_extras_table,
+        ),
+        patch(
+            "rapids_pre_commit_hooks.utils.dependencies_yaml."
+            "traverse_extras_key",
+            manager.traverse_extras_key,
+        ),
+    ):
+        dependencies_yaml.traverse_extras(
+            manager.handler, files_item_context, extras_key, extras
+        )
+
+    assert manager.mock_calls == expected_calls
+
+
+def test_traverse_files_item():
+    files = yaml.SafeLoader("""\
+    test:
+        output: pyproject
+        extras: {}
+        pyproject_dir: python
+        includes: []
+    """).get_single_node()
+    files_item_key, files_item = files.value[0]
+    files_context = Mock()
+    manager = MagicMock()
+
+    expected_calls = [
+        call.handler.handle_files_item(
+            files_context, files_item_key, files_item
+        ),
+        call.handler.handle_files_item().__enter__(),
+        call.traverse_file_output(
+            manager.handler,
+            manager.handler.handle_files_item().__enter__(),
+            files_item.value[0][0],
+            files_item.value[0][1],
+        ),
+        call.traverse_extras(
+            manager.handler,
+            manager.handler.handle_files_item().__enter__(),
+            files_item.value[1][0],
+            files_item.value[1][1],
+        ),
+        call.traverse_pyproject_dir(
+            manager.handler,
+            manager.handler.handle_files_item().__enter__(),
+            files_item.value[2][0],
+            files_item.value[2][1],
+        ),
+        call.handler.handle_files_item().__exit__(None, None, None),
+    ]
+    manager.reset_mock()
+
+    with (
+        patch(
+            "rapids_pre_commit_hooks.utils.dependencies_yaml."
+            "traverse_file_output",
+            manager.traverse_file_output,
+        ),
+        patch(
+            "rapids_pre_commit_hooks.utils.dependencies_yaml.traverse_extras",
+            manager.traverse_extras,
+        ),
+        patch(
+            "rapids_pre_commit_hooks.utils.dependencies_yaml."
+            "traverse_pyproject_dir",
+            manager.traverse_pyproject_dir,
+        ),
+    ):
+        dependencies_yaml.traverse_files_item(
+            manager.handler, files_context, files_item_key, files_item
+        )
+
+    assert manager.mock_calls == expected_calls
+
+
+def test_traverse_files():
+    root = yaml.SafeLoader("""\
+    files:
+        test: {}
+        all: {}
+    """).get_single_node()
+    files_key, files = root.value[0]
+    root_context = Mock()
+    manager = MagicMock()
+
+    expected_calls = [
+        call.handler.handle_files(root_context, files_key, files),
+        call.handler.handle_files().__enter__(),
+        call.traverse_files_item(
+            manager.handler,
+            manager.handler.handle_files().__enter__(),
+            files.value[0][0],
+            files.value[0][1],
+        ),
+        call.traverse_files_item(
+            manager.handler,
+            manager.handler.handle_files().__enter__(),
+            files.value[1][0],
+            files.value[1][1],
+        ),
+        call.handler.handle_files().__exit__(None, None, None),
+    ]
+    manager.reset_mock()
+
+    with patch(
+        "rapids_pre_commit_hooks.utils.dependencies_yaml.traverse_files_item",
+        manager.traverse_files_item,
+    ):
+        dependencies_yaml.traverse_files(
+            manager.handler, root_context, files_key, files
+        )
+
+    assert manager.mock_calls == expected_calls
 
 
 @pytest.mark.parametrize(
@@ -930,6 +1254,12 @@ def test_traverse_root():
     expected_calls = [
         call.handler.handle_root(root),
         call.handler.handle_root().__enter__(),
+        call.traverse_files(
+            manager.handler,
+            manager.handler.handle_root().__enter__(),
+            root.value[0][0],
+            root.value[0][1],
+        ),
         call.traverse_dependencies(
             manager.handler,
             manager.handler.handle_root().__enter__(),
@@ -942,9 +1272,16 @@ def test_traverse_root():
     ]
     manager.reset_mock()
 
-    with patch(
-        "rapids_pre_commit_hooks.utils.dependencies_yaml.traverse_dependencies",
-        manager.traverse_dependencies,
+    with (
+        patch(
+            "rapids_pre_commit_hooks.utils.dependencies_yaml.traverse_files",
+            manager.traverse_files,
+        ),
+        patch(
+            "rapids_pre_commit_hooks.utils.dependencies_yaml."
+            "traverse_dependencies",
+            manager.traverse_dependencies,
+        ),
     ):
         dependencies_yaml.traverse_root(manager.handler, {}, set(), root)
 
