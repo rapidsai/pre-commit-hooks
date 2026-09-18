@@ -129,6 +129,18 @@ class TestNamingConventionsHandler:
                 + files:
                 +   wrong_name:
                 +     output: pyproject
+                +     pyproject_dir: python/
+                +     extras:
+                +       table: project
+                """,
+                [],
+                id="empty-python-dir",
+            ),
+            pytest.param(
+                """\
+                + files:
+                +   wrong_name:
+                +     output: pyproject
                 +     extras:
                 +       table: project
                 """,

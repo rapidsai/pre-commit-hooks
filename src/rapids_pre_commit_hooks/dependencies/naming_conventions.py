@@ -134,7 +134,7 @@ class NamingConventionsHandler(Handler):
         value: "yaml.Node",
     ) -> None:
         if match := re.search(
-            r"^python/(?P<project_dirname>[^/]*)$", value.value
+            r"^python/(?P<project_dirname>[^/]+)$", value.value
         ):
             files_item_context.project_name = match.group(
                 "project_dirname"
