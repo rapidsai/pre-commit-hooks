@@ -4,6 +4,7 @@
 import argparse
 
 from .cuda_suffixed import CUDASuffixedHandler
+from .naming_conventions import NamingConventionsHandler
 from .use_cuda_wheels import UseCUDAWheelsHandler
 from ..lint import Linter, LintMain
 from ..utils.dependencies_yaml import (
@@ -15,6 +16,7 @@ from ..utils.dependencies_yaml import (
 def check_dependencies(linter: "Linter", args: "argparse.Namespace") -> None:
     handler = ChainedHandler()
     handler.add_handler(CUDASuffixedHandler(linter, args))
+    handler.add_handler(NamingConventionsHandler(linter, args))
     handler.add_handler(UseCUDAWheelsHandler(linter, args))
     traverse_dependencies_yaml(handler, linter.content)
 

@@ -24,6 +24,69 @@ class Handler:
     ) -> "contextlib.AbstractContextManager[Any]":
         return contextlib.nullcontext()
 
+    def handle_files(
+        self,
+        root_context: "Any",
+        key: "yaml.Node",  # noqa: ARG002
+        value: "yaml.Node",  # noqa: ARG002
+    ) -> "contextlib.AbstractContextManager[Any]":
+        return contextlib.nullcontext(root_context)
+
+    def handle_files_item(
+        self,
+        files_context: "Any",
+        key: "yaml.Node",  # noqa: ARG002
+        value: "yaml.Node",  # noqa: ARG002
+    ) -> "contextlib.AbstractContextManager[Any]":
+        return contextlib.nullcontext(files_context)
+
+    def handle_file_output(
+        self,
+        files_item_context: "Any",
+        key: "yaml.Node",  # noqa: ARG002
+        value: "yaml.Node",  # noqa: ARG002
+    ) -> "contextlib.AbstractContextManager[Any]":
+        return contextlib.nullcontext(files_item_context)
+
+    def handle_file_output_item(
+        self,
+        file_output_context: "Any",  # noqa: ARG002
+        item: "yaml.Node",  # noqa: ARG002
+    ) -> None:
+        pass
+
+    def handle_extras(
+        self,
+        files_item_context: "Any",
+        key: "yaml.Node",  # noqa: ARG002
+        value: "yaml.Node",  # noqa: ARG002
+    ) -> "contextlib.AbstractContextManager[Any]":
+        return contextlib.nullcontext(files_item_context)
+
+    def handle_extras_table(
+        self,
+        extras_context: "Any",  # noqa: ARG002
+        key: "yaml.Node",  # noqa: ARG002
+        value: "yaml.Node",  # noqa: ARG002
+    ) -> None:
+        pass
+
+    def handle_extras_key(
+        self,
+        extras_context: "Any",  # noqa: ARG002
+        key: "yaml.Node",  # noqa: ARG002
+        value: "yaml.Node",  # noqa: ARG002
+    ) -> None:
+        pass
+
+    def handle_pyproject_dir(
+        self,
+        files_item_context: "Any",  # noqa: ARG002
+        key: "yaml.Node",  # noqa: ARG002
+        value: "yaml.Node",  # noqa: ARG002
+    ) -> None:
+        pass
+
     def handle_dependencies(
         self,
         root_context: "Any",
@@ -189,6 +252,62 @@ class ChainedHandler(Handler):
     ) -> "contextlib.AbstractContextManager[tuple[Any, ...]]":
         return self._handle_context("handle_root", None, *args, **kwargs)
 
+    def handle_files(
+        self, root_context: "tuple[Any, ...]", *args, **kwargs
+    ) -> "contextlib.AbstractContextManager[tuple[Any, ...]]":
+        return self._handle_context(
+            "handle_files", root_context, *args, **kwargs
+        )
+
+    def handle_files_item(
+        self, files_context: "tuple[Any, ...]", *args, **kwargs
+    ) -> "contextlib.AbstractContextManager[tuple[Any, ...]]":
+        return self._handle_context(
+            "handle_files_item", files_context, *args, **kwargs
+        )
+
+    def handle_file_output(
+        self, files_item_context: "tuple[Any, ...]", *args, **kwargs
+    ) -> "contextlib.AbstractContextManager[tuple[Any, ...]]":
+        return self._handle_context(
+            "handle_file_output", files_item_context, *args, **kwargs
+        )
+
+    def handle_file_output_item(
+        self, file_output_context: "tuple[Any, ...]", *args, **kwargs
+    ) -> None:
+        return self._handle_no_context(
+            "handle_file_output_item", file_output_context, *args, **kwargs
+        )
+
+    def handle_extras(
+        self, files_item_context: "tuple[Any, ...]", *args, **kwargs
+    ) -> "contextlib.AbstractContextManager[tuple[Any, ...]]":
+        return self._handle_context(
+            "handle_extras", files_item_context, *args, **kwargs
+        )
+
+    def handle_extras_table(
+        self, extras_context: "tuple[Any, ...]", *args, **kwargs
+    ) -> None:
+        return self._handle_no_context(
+            "handle_extras_table", extras_context, *args, **kwargs
+        )
+
+    def handle_extras_key(
+        self, extras_context: "tuple[Any, ...]", *args, **kwargs
+    ) -> None:
+        return self._handle_no_context(
+            "handle_extras_key", extras_context, *args, **kwargs
+        )
+
+    def handle_pyproject_dir(
+        self, files_item_context: "tuple[Any, ...]", *args, **kwargs
+    ) -> None:
+        return self._handle_no_context(
+            "handle_pyproject_dir", files_item_context, *args, **kwargs
+        )
+
     def handle_dependencies(
         self, root_context: "tuple[Any, ...]", *args, **kwargs
     ) -> "contextlib.AbstractContextManager[tuple[Any, ...]]":
@@ -295,6 +414,146 @@ class ChainedHandler(Handler):
         return self._handle_no_context(
             "handle_package", packages_context, *args, **kwargs
         )
+
+
+def traverse_file_output_item(
+    handler: Handler,
+    file_output_context: "Any",
+    node: "yaml.Node",
+) -> None:
+    if node_has_type(node, "str"):
+        handler.handle_file_output_item(file_output_context, node)
+
+
+def traverse_file_output(
+    handler: Handler,
+    files_item_context: "Any",
+    key_node: "yaml.Node",
+    node: "yaml.Node",
+) -> None:
+    if node_has_type(node, "seq"):
+        with handler.handle_file_output(
+            files_item_context, key_node, node
+        ) as file_output_context:
+            for item in node.value:
+                traverse_file_output_item(handler, file_output_context, item)
+    elif node_has_type(node, "str"):
+        with handler.handle_file_output(
+            files_item_context, key_node, node
+        ) as file_output_context:
+            traverse_file_output_item(handler, file_output_context, node)
+
+
+def traverse_extras_table(
+    handler: Handler,
+    extras_context: "Any",
+    key_node: "yaml.Node",
+    node: "yaml.Node",
+) -> None:
+    if node_has_type(node, "str"):
+        handler.handle_extras_table(extras_context, key_node, node)
+
+
+def traverse_extras_key(
+    handler: Handler,
+    extras_context: "Any",
+    key_node: "yaml.Node",
+    node: "yaml.Node",
+) -> None:
+    if node_has_type(node, "str"):
+        handler.handle_extras_key(extras_context, key_node, node)
+
+
+def traverse_extras(
+    handler: Handler,
+    files_item_context: "Any",
+    key_node: "yaml.Node",
+    node: "yaml.Node",
+) -> None:
+    if node_has_type(node, "map"):
+        with handler.handle_extras(
+            files_item_context, key_node, node
+        ) as extras_context:
+            for extras_key, extras_value in node.value:
+                if node_has_type(extras_key, "str"):
+                    if extras_key.value == "table":
+                        traverse_extras_table(
+                            handler,
+                            extras_context,
+                            extras_key,
+                            extras_value,
+                        )
+                    elif extras_key.value == "key":
+                        traverse_extras_key(
+                            handler,
+                            extras_context,
+                            extras_key,
+                            extras_value,
+                        )
+
+
+def traverse_pyproject_dir(
+    handler: Handler,
+    files_item_context: "Any",
+    key_node: "yaml.Node",
+    node: "yaml.Node",
+) -> None:
+    if node_has_type(node, "str"):
+        handler.handle_pyproject_dir(files_item_context, key_node, node)
+
+
+def traverse_files_item(
+    handler: Handler,
+    files_context: "Any",
+    key_node: "yaml.Node",
+    node: "yaml.Node",
+) -> None:
+    if node_has_type(node, "map"):
+        with handler.handle_files_item(
+            files_context, key_node, node
+        ) as files_item_context:
+            for files_item_key, files_item_value in node.value:
+                if node_has_type(files_item_key, "str"):
+                    if files_item_key.value == "output":
+                        traverse_file_output(
+                            handler,
+                            files_item_context,
+                            files_item_key,
+                            files_item_value,
+                        )
+                    elif files_item_key.value == "extras":
+                        traverse_extras(
+                            handler,
+                            files_item_context,
+                            files_item_key,
+                            files_item_value,
+                        )
+                    elif files_item_key.value == "pyproject_dir":
+                        traverse_pyproject_dir(
+                            handler,
+                            files_item_context,
+                            files_item_key,
+                            files_item_value,
+                        )
+
+
+def traverse_files(
+    handler: Handler,
+    root_context: "Any",
+    key_node: "yaml.Node",
+    node: "yaml.Node",
+) -> None:
+    if node_has_type(node, "map"):
+        with handler.handle_files(
+            root_context, key_node, node
+        ) as files_context:
+            for files_item_key, files_item_value in node.value:
+                traverse_files_item(
+                    handler,
+                    files_context,
+                    files_item_key,
+                    files_item_value,
+                )
 
 
 def traverse_package(
@@ -635,18 +894,23 @@ def traverse_root(
     if node_has_type(node, "map"):
         with handler.handle_root(node) as root_context:
             for root_key, root_value in node.value:
-                if (
-                    node_has_type(root_key, "str")
-                    and root_key.value == "dependencies"
-                ):
-                    traverse_dependencies(
-                        handler,
-                        root_context,
-                        anchors,
-                        used_anchors,
-                        root_key,
-                        root_value,
-                    )
+                if node_has_type(root_key, "str"):
+                    if root_key.value == "files":
+                        traverse_files(
+                            handler,
+                            root_context,
+                            root_key,
+                            root_value,
+                        )
+                    elif root_key.value == "dependencies":
+                        traverse_dependencies(
+                            handler,
+                            root_context,
+                            anchors,
+                            used_anchors,
+                            root_key,
+                            root_value,
+                        )
 
 
 def traverse_dependencies_yaml(handler: Handler, content: str) -> None:
