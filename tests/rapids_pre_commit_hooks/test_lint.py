@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import contextlib
@@ -552,21 +552,51 @@ class TestLinter:
 
 
 class TestLintMain:
-    @pytest.fixture
-    def hello_world_file(self, tmp_path):
-        with open(os.path.join(tmp_path, "hello_world.txt"), "w+") as f:
-            f.write("Hello world!")
-            f.flush()
-            f.seek(0)
-            yield f
+    def span_to_line_col(self, content, span):
+        lines = Lines(content)
+        pos, _ = span
+        line = lines.line_for_pos(pos)
+        line_span = lines.spans[line]
+        return f"{line + 1}:{span[0] - line_span[0] + 1}"
 
     @pytest.fixture
-    def hello_file(self, tmp_path):
-        with open(os.path.join(tmp_path, "hello.txt"), "w+") as f:
-            f.write("Hello!")
-            f.flush()
-            f.seek(0)
-            yield f
+    def file_with_spans(self, tmp_path):
+        with contextlib.ExitStack() as stack:
+
+            def factory(filename, contents):
+                contents, spans = parse_named_spans(contents)
+                f = stack.enter_context(
+                    open(os.path.join(tmp_path, filename), "w+")
+                )
+                f.write(contents)
+                f.flush()
+                f.seek(0)
+                return f, contents, spans
+
+            yield factory
+
+    @pytest.fixture
+    def hello_world_file(self, file_with_spans):
+        return file_with_spans(
+            "hello_world.txt",
+            """\
+            > Hello world!
+            : ~~~~~greeting
+            :      ^punctuation
+            :       ~~~~~world
+            """,
+        )
+
+    @pytest.fixture
+    def hello_file(self, file_with_spans):
+        return file_with_spans(
+            "hello.txt",
+            """\
+            > Hello!
+            : ~~~~~greeting
+            :      ^punctuation
+            """,
+        )
 
     @pytest.fixture
     def binary_file(self, tmp_path):
@@ -577,39 +607,39 @@ class TestLintMain:
             yield f
 
     @pytest.fixture
-    def long_file(self, tmp_path):
-        with open(os.path.join(tmp_path, "long.txt"), "w+") as f:
-            f.write("This is a long file\nIt has multiple lines\n")
-            f.flush()
-            f.seek(0)
-            yield f
+    def long_file(self, file_with_spans):
+        return file_with_spans(
+            "long.txt",
+            """\
+            + This is a long file
+            : ~~~~~~~~~~~~~~~~~~~first_line
+            : ~~~~~~~~~~~~~~~~~~~~whole_file
+            + It has multiple lines
+            : ~~~~~~~~~~~~~~~~~~~~~~whole_file
+            """,
+        )
 
     @pytest.fixture
-    def bracket_file(self, tmp_path):
-        with open(os.path.join(tmp_path, "file[with]brackets.txt"), "w+") as f:
-            f.write("This [file] [has] [brackets]\n")
-            f.flush()
-            f.seek(0)
-            yield f
+    def bracket_file(self, file_with_spans):
+        return file_with_spans(
+            "file[with]brackets.txt",
+            """\
+            + This [file] [has] [brackets]
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~warning
+            :             ~~~~~replacement
+            """,
+        )
 
     @pytest.fixture
-    def disabled_file_contents(self):
-        yield parse_named_spans(
+    def disabled_file(self, file_with_spans):
+        return file_with_spans(
+            "disabled.txt",
             """\
             + # rapids-pre-commit-hooks: disable
             + Hello!
             :      ~shout
-            """
+            """,
         )
-
-    @pytest.fixture
-    def disabled_file(self, disabled_file_contents, tmp_path):
-        contents, _ = disabled_file_contents
-        with open(os.path.join(tmp_path, "disabled.txt"), "w+") as f:
-            f.write(contents)
-            f.flush()
-            f.seek(0)
-            yield f
 
     @contextlib.contextmanager
     def mock_console(self):
@@ -620,40 +650,96 @@ class TestLintMain:
         ):
             yield m
 
-    def the_check(self, linter, args):
-        assert args.check_test
-        w = linter.add_warning((0, 5), "say good bye instead")
-        w.add_replacement((0, 5), "Good bye")
-        if args.check_test_note:
-            w.add_note((6, 11), "it's a small world after all")
-        if linter.content[5] != "!":
-            linter.add_warning((5, 5), "use punctuation").add_replacement(
-                (5, 5), ","
+    @pytest.fixture
+    def hello_check(self, hello_file, hello_world_file):
+        _, hello_file_content, hello_file_spans = hello_file
+        _, hello_world_file_content, hello_world_file_spans = hello_world_file
+
+        def check(linter, args):
+            assert args.check_test
+            if linter.content == hello_file_content:
+                w = linter.add_warning(
+                    hello_file_spans["greeting"], "say good bye instead"
+                )
+                w.add_replacement(hello_file_spans["greeting"], "Good bye")
+            elif linter.content == hello_world_file_content:
+                w = linter.add_warning(
+                    hello_world_file_spans["greeting"], "say good bye instead"
+                )
+                w.add_replacement(
+                    hello_world_file_spans["greeting"], "Good bye"
+                )
+                if args.check_test_note:
+                    w.add_note(
+                        hello_world_file_spans["world"],
+                        "it's a small world after all",
+                    )
+                linter.add_warning(
+                    hello_world_file_spans["punctuation"], "use punctuation"
+                ).add_replacement(hello_world_file_spans["punctuation"], ",")
+
+        return check
+
+    @pytest.fixture
+    def long_file_check(self, long_file):
+        _, _, spans = long_file
+
+        def check(linter, _args):
+            linter.add_warning(spans["whole_file"], "this is a long file")
+
+        return check
+
+    @pytest.fixture
+    def long_fix_check(self, long_file):
+        _, _, spans = long_file
+
+        def check(linter, _args):
+            linter.add_warning(
+                spans["first_line"], "this is a long line"
+            ).add_replacement(
+                spans["first_line"],
+                "This is a long file\nIt's even longer now",
             )
 
-    def long_file_check(self, linter, _args):
-        linter.add_warning((0, len(linter.content)), "this is a long file")
+        return check
 
-    def long_fix_check(self, linter, _args):
-        linter.add_warning((0, 19), "this is a long line").add_replacement(
-            (0, 19), "This is a long file\nIt's even longer now"
-        )
+    @pytest.fixture
+    def long_delete_fix_check(self, long_file):
+        _, _, spans = long_file
 
-    def long_delete_fix_check(self, linter, _args):
-        linter.add_warning(
-            (0, len(linter.content)), "this is a long file"
-        ).add_replacement((0, len(linter.content)), "This is a short file now")
+        def check(linter, _args):
+            linter.add_warning(
+                spans["whole_file"], "this is a long file"
+            ).add_replacement(spans["whole_file"], "This is a short file now")
 
-    def bracket_check(self, linter, _args):
-        linter.add_warning(
-            (0, 28), "this [file] has brackets"
-        ).add_replacement((12, 17), "[has more]")
+        return check
+
+    @pytest.fixture
+    def bracket_check(self, bracket_file):
+        _, _, spans = bracket_file
+
+        def check(linter, _args):
+            linter.add_warning(
+                spans["warning"], "this [file] has brackets"
+            ).add_replacement(spans["replacement"], "[has more]")
+
+        return check
+
+    @pytest.fixture
+    def disabled_check(self, disabled_file):
+        _, _, spans = disabled_file
+
+        def check(linter, _args):
+            linter.add_warning(spans["shout"], "don't shout")
+
+        return check
 
     def test_no_warnings_no_fix(self, hello_world_file):
+        file, _, _ = hello_world_file
         with (
             patch(
                 "sys.argv",
-                ["check-test", "--check-test", hello_world_file.name],
+                ["check-test", "--check-test", file.name],
             ),
             self.mock_console() as console,
         ):
@@ -662,16 +748,17 @@ class TestLintMain:
             m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute():
                 pass
-        assert hello_world_file.read() == "Hello world!"
+        assert file.read() == "Hello world!"
         assert console.mock_calls == [
             call(highlight=False),
         ]
 
     def test_no_warnings_fix(self, hello_world_file):
+        file, _, _ = hello_world_file
         with (
             patch(
                 "sys.argv",
-                ["check-test", "--check-test", "--fix", hello_world_file.name],
+                ["check-test", "--check-test", "--fix", file.name],
             ),
             self.mock_console() as console,
         ):
@@ -680,16 +767,17 @@ class TestLintMain:
             m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute():
                 pass
-        assert hello_world_file.read() == "Hello world!"
+        assert file.read() == "Hello world!"
         assert console.mock_calls == [
             call(highlight=False),
         ]
 
-    def test_warnings_no_fix(self, hello_world_file):
+    def test_warnings_no_fix(self, hello_world_file, hello_check):
+        file, content, spans = hello_world_file
         with (
             patch(
                 "sys.argv",
-                ["check-test", "--check-test", hello_world_file.name],
+                ["check-test", "--check-test", file.name],
             ),
             self.mock_console() as console,
             pytest.raises(SystemExit, match=r"^1$"),
@@ -698,35 +786,52 @@ class TestLintMain:
             m.argparser.add_argument("--check-test", action="store_true")
             m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute() as ctx:
-                ctx.add_check(self.the_check)
-        assert hello_world_file.read() == "Hello world!"
+                ctx.add_check(hello_check)
+        assert file.read() == "Hello world!"
         assert console.mock_calls == [
             call(highlight=False),
-            call().print(f"In file [bold]{hello_world_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['greeting'])}"
+                "[/bold]:"
+            ),
             call().print(" [bold]Hello[/bold] world!"),
             call().print("[bold]warning:[/bold] say good bye instead"),
             call().print(),
-            call().print(f"In file [bold]{hello_world_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['greeting'])}"
+                "[/bold]:"
+            ),
             call().print("[red]-[bold]Hello[/bold] world![/red]"),
             call().print("[green]+[bold]Good bye[/bold] world![/green]"),
             call().print("[bold]note:[/bold] suggested fix"),
             call().print(),
-            call().print(f"In file [bold]{hello_world_file.name}:1:6[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['punctuation'])}"
+                "[/bold]:"
+            ),
             call().print(" Hello[bold][/bold] world!"),
             call().print("[bold]warning:[/bold] use punctuation"),
             call().print(),
-            call().print(f"In file [bold]{hello_world_file.name}:1:6[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['punctuation'])}"
+                "[/bold]:"
+            ),
             call().print("[red]-Hello[bold][/bold] world![/red]"),
             call().print("[green]+Hello[bold],[/bold] world![/green]"),
             call().print("[bold]note:[/bold] suggested fix"),
             call().print(),
         ]
 
-    def test_warnings_fix(self, hello_world_file):
+    def test_warnings_fix(self, hello_world_file, hello_check):
+        file, content, spans = hello_world_file
         with (
             patch(
                 "sys.argv",
-                ["check-test", "--check-test", "--fix", hello_world_file.name],
+                ["check-test", "--check-test", "--fix", file.name],
             ),
             self.mock_console() as console,
             pytest.raises(SystemExit, match=r"^1$"),
@@ -735,31 +840,48 @@ class TestLintMain:
             m.argparser.add_argument("--check-test", action="store_true")
             m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute() as ctx:
-                ctx.add_check(self.the_check)
-        assert hello_world_file.read() == "Good bye, world!"
+                ctx.add_check(hello_check)
+        assert file.read() == "Good bye, world!"
         assert console.mock_calls == [
             call(highlight=False),
-            call().print(f"In file [bold]{hello_world_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['greeting'])}"
+                "[/bold]:"
+            ),
             call().print(" [bold]Hello[/bold] world!"),
             call().print("[bold]warning:[/bold] say good bye instead"),
             call().print(),
-            call().print(f"In file [bold]{hello_world_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['greeting'])}"
+                "[/bold]:"
+            ),
             call().print("[red]-[bold]Hello[/bold] world![/red]"),
             call().print("[green]+[bold]Good bye[/bold] world![/green]"),
             call().print("[bold]note:[/bold] suggested fix applied"),
             call().print(),
-            call().print(f"In file [bold]{hello_world_file.name}:1:6[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['punctuation'])}"
+                "[/bold]:"
+            ),
             call().print(" Hello[bold][/bold] world!"),
             call().print("[bold]warning:[/bold] use punctuation"),
             call().print(),
-            call().print(f"In file [bold]{hello_world_file.name}:1:6[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['punctuation'])}"
+                "[/bold]:"
+            ),
             call().print("[red]-Hello[bold][/bold] world![/red]"),
             call().print("[green]+Hello[bold],[/bold] world![/green]"),
             call().print("[bold]note:[/bold] suggested fix applied"),
             call().print(),
         ]
 
-    def test_warnings_note(self, hello_world_file):
+    def test_warnings_note(self, hello_world_file, hello_check):
+        file, content, spans = hello_world_file
         with (
             patch(
                 "sys.argv",
@@ -767,7 +889,7 @@ class TestLintMain:
                     "check-test",
                     "--check-test",
                     "--check-test-note",
-                    hello_world_file.name,
+                    file.name,
                 ],
             ),
             self.mock_console() as console,
@@ -777,35 +899,57 @@ class TestLintMain:
             m.argparser.add_argument("--check-test", action="store_true")
             m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute() as ctx:
-                ctx.add_check(self.the_check)
-        assert hello_world_file.read() == "Hello world!"
+                ctx.add_check(hello_check)
+        assert file.read() == "Hello world!"
         assert console.mock_calls == [
             call(highlight=False),
-            call().print(f"In file [bold]{hello_world_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['greeting'])}"
+                "[/bold]:"
+            ),
             call().print(" [bold]Hello[/bold] world!"),
             call().print("[bold]warning:[/bold] say good bye instead"),
             call().print(),
-            call().print(f"In file [bold]{hello_world_file.name}:1:7[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['world'])}"
+                "[/bold]:"
+            ),
             call().print(" Hello [bold]world[/bold]!"),
             call().print("[bold]note:[/bold] it's a small world after all"),
             call().print(),
-            call().print(f"In file [bold]{hello_world_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['greeting'])}"
+                "[/bold]:"
+            ),
             call().print("[red]-[bold]Hello[/bold] world![/red]"),
             call().print("[green]+[bold]Good bye[/bold] world![/green]"),
             call().print("[bold]note:[/bold] suggested fix"),
             call().print(),
-            call().print(f"In file [bold]{hello_world_file.name}:1:6[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['punctuation'])}"
+                "[/bold]:"
+            ),
             call().print(" Hello[bold][/bold] world!"),
             call().print("[bold]warning:[/bold] use punctuation"),
             call().print(),
-            call().print(f"In file [bold]{hello_world_file.name}:1:6[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['punctuation'])}"
+                "[/bold]:"
+            ),
             call().print("[red]-Hello[bold][/bold] world![/red]"),
             call().print("[green]+Hello[bold],[/bold] world![/green]"),
             call().print("[bold]note:[/bold] suggested fix"),
             call().print(),
         ]
 
-    def test_multiple_files(self, hello_world_file, hello_file):
+    def test_multiple_files(self, hello_world_file, hello_file, hello_check):
+        hello_file, hello_content, hello_spans = hello_file
+        hello_world_file, world_content, world_spans = hello_world_file
         with (
             patch(
                 "sys.argv",
@@ -824,35 +968,59 @@ class TestLintMain:
             m.argparser.add_argument("--check-test", action="store_true")
             m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute() as ctx:
-                ctx.add_check(self.the_check)
+                ctx.add_check(hello_check)
         assert hello_world_file.read() == "Good bye, world!"
         assert hello_file.read() == "Good bye!"
         assert console.mock_calls == [
             call(highlight=False),
-            call().print(f"In file [bold]{hello_world_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{hello_world_file.name}:"
+                f"{self.span_to_line_col(world_content, world_spans['greeting'])}"  # noqa: E501
+                "[/bold]:"
+            ),
             call().print(" [bold]Hello[/bold] world!"),
             call().print("[bold]warning:[/bold] say good bye instead"),
             call().print(),
-            call().print(f"In file [bold]{hello_world_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{hello_world_file.name}:"
+                f"{self.span_to_line_col(world_content, world_spans['greeting'])}"  # noqa: E501
+                "[/bold]:"
+            ),
             call().print("[red]-[bold]Hello[/bold] world![/red]"),
             call().print("[green]+[bold]Good bye[/bold] world![/green]"),
             call().print("[bold]note:[/bold] suggested fix applied"),
             call().print(),
-            call().print(f"In file [bold]{hello_world_file.name}:1:6[/bold]:"),
+            call().print(
+                f"In file [bold]{hello_world_file.name}:"
+                f"{self.span_to_line_col(world_content, world_spans['punctuation'])}"  # noqa: E501
+                "[/bold]:"
+            ),
             call().print(" Hello[bold][/bold] world!"),
             call().print("[bold]warning:[/bold] use punctuation"),
             call().print(),
-            call().print(f"In file [bold]{hello_world_file.name}:1:6[/bold]:"),
+            call().print(
+                f"In file [bold]{hello_world_file.name}:"
+                f"{self.span_to_line_col(world_content, world_spans['punctuation'])}"  # noqa: E501
+                "[/bold]:"
+            ),
             call().print("[red]-Hello[bold][/bold] world![/red]"),
             call().print("[green]+Hello[bold],[/bold] world![/green]"),
             call().print("[bold]note:[/bold] suggested fix applied"),
             call().print(),
             call(highlight=False),
-            call().print(f"In file [bold]{hello_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{hello_file.name}:"
+                f"{self.span_to_line_col(hello_content, hello_spans['greeting'])}"  # noqa: E501
+                "[/bold]:"
+            ),
             call().print(" [bold]Hello[/bold]!"),
             call().print("[bold]warning:[/bold] say good bye instead"),
             call().print(),
-            call().print(f"In file [bold]{hello_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{hello_file.name}:"
+                f"{self.span_to_line_col(hello_content, hello_spans['greeting'])}"  # noqa: E501
+                "[/bold]:"
+            ),
             call().print("[red]-[bold]Hello[/bold]![/red]"),
             call().print("[green]+[bold]Good bye[/bold]![/green]"),
             call().print("[bold]note:[/bold] suggested fix applied"),
@@ -889,7 +1057,8 @@ class TestLintMain:
         assert the_check.call_args[0][0].content == content
         assert the_check.call_args[0][0].lines.newline_style == content
 
-    def test_binary_file(self, binary_file):
+    def test_binary_file(self, binary_file, hello_check):
+        file = binary_file
         mock_linter = Mock(wraps=Linter)
         with (
             patch(
@@ -898,7 +1067,7 @@ class TestLintMain:
                     "check-test",
                     "--check-test",
                     "--fix",
-                    binary_file.name,
+                    file.name,
                 ],
             ),
             patch("rapids_pre_commit_hooks.lint.Linter", mock_linter),
@@ -911,16 +1080,17 @@ class TestLintMain:
             m.argparser.add_argument("--check-test", action="store_true")
             m.argparser.add_argument("--check-test-note", action="store_true")
             with m.execute() as ctx:
-                ctx.add_check(self.the_check)
+                ctx.add_check(hello_check)
         mock_linter.assert_not_called()
 
-    def test_long_file(self, long_file):
+    def test_long_file(self, long_file, long_file_check, long_fix_check):
+        file, content, spans = long_file
         with (
             patch(
                 "sys.argv",
                 [
                     "check-test",
-                    long_file.name,
+                    file.name,
                 ],
             ),
             self.mock_console() as console,
@@ -928,9 +1098,9 @@ class TestLintMain:
         ):
             m = LintMain("test")
             with m.execute() as ctx:
-                ctx.add_check(self.long_file_check)
-                ctx.add_check(self.long_fix_check)
-        assert long_file.read() == dedent(
+                ctx.add_check(long_file_check)
+                ctx.add_check(long_fix_check)
+        assert file.read() == dedent(
             """\
             This is a long file
             It has multiple lines
@@ -938,11 +1108,19 @@ class TestLintMain:
         )
         assert console.mock_calls == [
             call(highlight=False),
-            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['first_line'])}"
+                "[/bold]:"
+            ),
             call().print(" [bold]This is a long file[/bold]"),
             call().print("[bold]warning:[/bold] this is a long line"),
             call().print(),
-            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['first_line'])}"
+                "[/bold]:"
+            ),
             call().print("[red]-[bold]This is a long file[/bold][/red]"),
             call().print("[green]+[bold]This is a long file[/bold][/green]"),
             call().print(
@@ -950,19 +1128,24 @@ class TestLintMain:
                 "--fix to apply it"
             ),
             call().print(),
-            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['whole_file'])}"
+                "[/bold]:"
+            ),
             call().print(" [bold]This is a long file[/bold]"),
             call().print("[bold]warning:[/bold] this is a long file"),
             call().print(),
         ]
 
-    def test_long_file_delete(self, long_file):
+    def test_long_file_delete(self, long_file, long_delete_fix_check):
+        file, content, spans = long_file
         with (
             patch(
                 "sys.argv",
                 [
                     "check-test",
-                    long_file.name,
+                    file.name,
                 ],
             ),
             self.mock_console() as console,
@@ -970,8 +1153,8 @@ class TestLintMain:
         ):
             m = LintMain("test")
             with m.execute() as ctx:
-                ctx.add_check(self.long_delete_fix_check)
-        assert long_file.read() == dedent(
+                ctx.add_check(long_delete_fix_check)
+        assert file.read() == dedent(
             """\
             This is a long file
             It has multiple lines
@@ -979,11 +1162,19 @@ class TestLintMain:
         )
         assert console.mock_calls == [
             call(highlight=False),
-            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['whole_file'])}"
+                "[/bold]:"
+            ),
             call().print(" [bold]This is a long file[/bold]"),
             call().print("[bold]warning:[/bold] this is a long file"),
             call().print(),
-            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['whole_file'])}"
+                "[/bold]:"
+            ),
             call().print("[red]-[bold]This is a long file[/bold][/red]"),
             call().print(
                 "[green]+[bold]This is a short file now[/bold][/green]"
@@ -995,14 +1186,15 @@ class TestLintMain:
             call().print(),
         ]
 
-    def test_long_file_fix(self, long_file):
+    def test_long_file_fix(self, long_file, long_file_check, long_fix_check):
+        file, content, spans = long_file
         with (
             patch(
                 "sys.argv",
                 [
                     "check-test",
                     "--fix",
-                    long_file.name,
+                    file.name,
                 ],
             ),
             self.mock_console() as console,
@@ -1010,9 +1202,9 @@ class TestLintMain:
         ):
             m = LintMain("test")
             with m.execute() as ctx:
-                ctx.add_check(self.long_file_check)
-                ctx.add_check(self.long_fix_check)
-        assert long_file.read() == dedent(
+                ctx.add_check(long_file_check)
+                ctx.add_check(long_fix_check)
+        assert file.read() == dedent(
             """\
             This is a long file
             It's even longer now
@@ -1021,11 +1213,19 @@ class TestLintMain:
         )
         assert console.mock_calls == [
             call(highlight=False),
-            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['first_line'])}"
+                "[/bold]:"
+            ),
             call().print(" [bold]This is a long file[/bold]"),
             call().print("[bold]warning:[/bold] this is a long line"),
             call().print(),
-            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['first_line'])}"
+                "[/bold]:"
+            ),
             call().print("[red]-[bold]This is a long file[/bold][/red]"),
             call().print("[green]+[bold]This is a long file[/bold][/green]"),
             call().print(
@@ -1033,20 +1233,25 @@ class TestLintMain:
                 "display"
             ),
             call().print(),
-            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['whole_file'])}"
+                "[/bold]:"
+            ),
             call().print(" [bold]This is a long file[/bold]"),
             call().print("[bold]warning:[/bold] this is a long file"),
             call().print(),
         ]
 
-    def test_long_file_delete_fix(self, long_file):
+    def test_long_file_delete_fix(self, long_file, long_delete_fix_check):
+        file, content, spans = long_file
         with (
             patch(
                 "sys.argv",
                 [
                     "check-test",
                     "--fix",
-                    long_file.name,
+                    file.name,
                 ],
             ),
             self.mock_console() as console,
@@ -1054,15 +1259,23 @@ class TestLintMain:
         ):
             m = LintMain("test")
             with m.execute() as ctx:
-                ctx.add_check(self.long_delete_fix_check)
-        assert long_file.read() == "This is a short file now"
+                ctx.add_check(long_delete_fix_check)
+        assert file.read() == "This is a short file now"
         assert console.mock_calls == [
             call(highlight=False),
-            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['whole_file'])}"
+                "[/bold]:"
+            ),
             call().print(" [bold]This is a long file[/bold]"),
             call().print("[bold]warning:[/bold] this is a long file"),
             call().print(),
-            call().print(f"In file [bold]{long_file.name}:1:1[/bold]:"),
+            call().print(
+                f"In file [bold]{file.name}:"
+                f"{self.span_to_line_col(content, spans['whole_file'])}"
+                "[/bold]:"
+            ),
             call().print("[red]-[bold]This is a long file[/bold][/red]"),
             call().print(
                 "[green]+[bold]This is a short file now[/bold][/green]"
@@ -1074,14 +1287,15 @@ class TestLintMain:
             call().print(),
         ]
 
-    def test_bracket_file(self, bracket_file):
+    def test_bracket_file(self, bracket_file, bracket_check):
+        file, content, spans = bracket_file
         with (
             patch(
                 "sys.argv",
                 [
                     "check-test",
                     "--fix",
-                    bracket_file.name,
+                    file.name,
                 ],
             ),
             self.mock_console() as console,
@@ -1089,20 +1303,24 @@ class TestLintMain:
         ):
             m = LintMain("test")
             with m.execute() as ctx:
-                ctx.add_check(self.bracket_check)
-        assert bracket_file.read() == "This [file] [has more] [brackets]\n"
+                ctx.add_check(bracket_check)
+        assert file.read() == "This [file] [has more] [brackets]\n"
         assert console.mock_calls == [
             call(highlight=False),
             call().print(
-                rf"In file [bold]{os.path.dirname(bracket_file.name)}"
-                r"/file\[with]brackets.txt:1:1[/bold]:"
+                rf"In file [bold]{os.path.dirname(file.name)}"
+                r"/file\[with]brackets.txt:"
+                f"{self.span_to_line_col(content, spans['warning'])}"
+                "[/bold]:"
             ),
             call().print(r" [bold]This \[file] \[has] \[brackets][/bold]"),
             call().print(r"[bold]warning:[/bold] this \[file] has brackets"),
             call().print(),
             call().print(
-                rf"In file [bold]{os.path.dirname(bracket_file.name)}"
-                r"/file\[with]brackets.txt:1:13[/bold]:"
+                rf"In file [bold]{os.path.dirname(file.name)}"
+                r"/file\[with]brackets.txt:"
+                f"{self.span_to_line_col(content, spans['replacement'])}"
+                "[/bold]:"
             ),
             call().print(
                 r"[red]-This \[file] [bold]\[has][/bold] \[brackets][/red]"
@@ -1115,11 +1333,8 @@ class TestLintMain:
             call().print(),
         ]
 
-    def test_disabled_file(self, disabled_file_contents, disabled_file):
-        contents, r = disabled_file_contents
-
-        def the_check(linter, _args):
-            linter.add_warning(r["shout"], "don't shout")
+    def test_disabled_file(self, disabled_file, disabled_check):
+        file, content, _ = disabled_file
 
         with (
             patch(
@@ -1127,15 +1342,15 @@ class TestLintMain:
                 [
                     "check-test",
                     "--fix",
-                    disabled_file.name,
+                    file.name,
                 ],
             ),
             self.mock_console() as console,
         ):
             m = LintMain("test")
             with m.execute() as ctx:
-                ctx.add_check(the_check)
-        assert disabled_file.read() == contents
+                ctx.add_check(disabled_check)
+        assert file.read() == content
         assert console.mock_calls == [
             call(highlight=False),
         ]
