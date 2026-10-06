@@ -68,3 +68,13 @@ def check_and_mark_anchor(
 
 def is_reference_anchor(anchor: "Optional[Anchor]") -> bool:
     return anchor is not None and anchor.anchor_type == AnchorType.REFERENCE
+
+
+def load_with_anchors(stream) -> "tuple[yaml.Node, dict[str, yaml.Node]]":
+    loader = AnchorPreservingLoader(stream)
+    try:
+        root = loader.get_single_node()
+        assert root is not None
+        return root, dict(loader.document_anchors[0])
+    finally:
+        loader.dispose()

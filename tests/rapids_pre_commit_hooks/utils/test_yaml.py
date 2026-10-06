@@ -7,20 +7,16 @@ import pytest
 
 from rapids_pre_commit_hooks.utils.yaml import (
     Anchor,
-    AnchorPreservingLoader,
     AnchorType,
     check_and_mark_anchor,
     is_reference_anchor,
+    load_with_anchors,
 )
 
 
-def test_anchor_preserving_loader():
-    loader = AnchorPreservingLoader("- &a A\n- *a")
-    try:
-        root = loader.get_single_node()
-    finally:
-        loader.dispose()
-    assert loader.document_anchors == [{"a": root.value[0]}]
+def test_load_with_anchors():
+    root, anchors = load_with_anchors("- &a A\n- *a")
+    assert anchors == {"a": root.value[0]}
 
 
 @pytest.mark.parametrize(

@@ -6,7 +6,7 @@ import contextlib
 import pytest
 
 from rapids_pre_commit_hooks.lint import LintWarning, Note, Replacement
-from rapids_pre_commit_hooks.utils.yaml import AnchorPreservingLoader
+from rapids_pre_commit_hooks.utils.yaml import load_with_anchors
 from rapids_pre_commit_hooks_test_utils import (
     ParseError,
     find_yaml_node_for_span,
@@ -853,10 +853,6 @@ def test_zip_expected_warnings(content, warnings, expected_warnings):
 )
 def test_find_yaml_node_for_span(content, node_lambda):
     content, spans = parse_named_spans(content)
-    loader = AnchorPreservingLoader(content)
-    try:
-        root = loader.get_single_node()
-    finally:
-        loader.dispose()
+    root, _ = load_with_anchors(content)
 
     assert find_yaml_node_for_span(root, spans["node"]) == node_lambda(root)
