@@ -192,33 +192,47 @@ class TestLines:
 
 class TestLinter:
     def test_fix(self):
-        linter = Linter("test.txt", "Hello world!", "test")
+        content, spans = parse_named_spans(
+            """\
+            > Hello world!
+            : ^no_fix
+            :      ^punctuation
+            : ~~~~~hello
+            :            ~shout
+            :       ~~~~~world
+            :            ^noop
+            """
+        )
+        linter = Linter("test.txt", content, "test")
         assert linter.fix() == "Hello world!"
 
-        linter.add_warning((0, 0), "no fix")
+        linter.add_warning(spans["no_fix"], "no fix")
         assert linter.fix() == "Hello world!"
 
-        linter.add_warning((5, 5), "use punctuation").add_replacement(
-            (5, 5), ","
+        linter.add_warning(
+            spans["punctuation"], "use punctuation"
+        ).add_replacement(spans["punctuation"], ",")
+        linter.add_warning(
+            spans["hello"], "say good bye instead"
+        ).add_replacement(spans["hello"], "Good bye")
+        linter.add_warning(spans["shout"], "don't shout").add_replacement(
+            spans["shout"], ""
         )
-        linter.add_warning((0, 5), "say good bye instead").add_replacement(
-            (0, 5), "Good bye"
-        )
-        linter.add_warning((11, 12), "don't shout").add_replacement(
-            (11, 12), ""
-        )
-        linter.add_warning((6, 11), "no-op replacement").add_replacement(
-            (11, 11), ""
-        )
+        linter.add_warning(
+            spans["world"], "no-op replacement"
+        ).add_replacement(spans["noop"], "")
         assert linter.fix() == "Good bye, world"
 
-        linter.add_warning((11, 12), "don't shout").add_replacement(
-            (11, 12), "."
+        linter.add_warning(spans["shout"], "don't shout").add_replacement(
+            spans["shout"], "."
         )
         with pytest.raises(
             OverlappingReplacementsError,
-            match=r"^Replacement\(span=\(11, 12\), newtext=''\) overlaps with "
-            + r"Replacement\(span=\(11, 12\), newtext='\.'\)$",
+            match=r"^Replacement\(span="
+            rf"\({spans['shout'][0]}, {spans['shout'][1]}\),"
+            r" newtext=''\) overlaps with "
+            rf"Replacement\(span=\({spans['shout'][0]}, {spans['shout'][1]}\),"
+            r" newtext='\.'\)$",
         ):
             linter.fix()
 
