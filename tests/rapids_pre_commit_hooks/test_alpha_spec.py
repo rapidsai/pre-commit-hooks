@@ -17,8 +17,8 @@ from rapids_metadata.metadata import (
 from rapids_pre_commit_hooks import alpha_spec, lint
 from rapids_pre_commit_hooks.utils.yaml import (
     Anchor,
-    AnchorPreservingLoader,
     AnchorType,
+    load_with_anchors,
 )
 from rapids_pre_commit_hooks_test_utils import (
     parse_named_spans,
@@ -421,11 +421,7 @@ class TestAlphaSpecHandler:
     ):
         args = Mock(mode=mode)
         linter = lint.Linter("dependencies.yaml", content, "verify-alpha-spec")
-        loader = AnchorPreservingLoader(content)
-        try:
-            composed = loader.get_single_node()
-        finally:
-            loader.dispose()
+        composed, _ = load_with_anchors(content)
         handler = alpha_spec.AlphaSpecHandler(linter, args)
         item_context = alpha_spec.AlphaSpecHandler.ItemContext(
             has_python_output_type=True

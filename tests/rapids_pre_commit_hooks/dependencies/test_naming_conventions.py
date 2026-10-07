@@ -10,18 +10,11 @@ from rapids_pre_commit_hooks.dependencies.naming_conventions import (
     NamingConventionsHandler,
 )
 from rapids_pre_commit_hooks.utils import dependencies_yaml
+from rapids_pre_commit_hooks.utils.yaml import load_with_anchors
 from rapids_pre_commit_hooks_test_utils import (
     parse_named_spans,
     zip_expected_warnings,
 )
-
-
-def _compose(content):
-    loader = dependencies_yaml.AnchorPreservingLoader(content)
-    try:
-        return loader.get_single_node()
-    finally:
-        loader.dispose()
 
 
 class TestNamingConventionsHandler:
@@ -186,7 +179,7 @@ class TestNamingConventionsHandler:
     )
     def test_handle_files_item(self, content, expected_warnings):
         content, spans = parse_named_spans(content, dict)
-        root = _compose(content)
+        root, _ = load_with_anchors(content)
         files = root.value[0][1]
         file_key, file_value = files.value[0]
         file_fields = {key.value: value for key, value in file_value.value}
@@ -348,19 +341,13 @@ class TestNamingConventionsHandler:
 def test_check_naming_conventions_integration(content, warnings):
     content, spans = parse_named_spans(content, dict)
 
-    loader = dependencies_yaml.AnchorPreservingLoader(content)
-    try:
-        composed = loader.get_single_node()
-    finally:
-        loader.dispose()
+    composed, anchors = load_with_anchors(content)
 
     args = Mock()
     linter = lint.Linter("dependencies.yaml", content, "verify-dependencies")
     handler = NamingConventionsHandler(linter, args)
 
-    dependencies_yaml.traverse_root(
-        handler, loader.document_anchors[0], set(), composed
-    )
+    dependencies_yaml.traverse_root(handler, anchors, set(), composed)
 
     assert linter.warnings == zip_expected_warnings(
         spans.get("warnings", []), warnings

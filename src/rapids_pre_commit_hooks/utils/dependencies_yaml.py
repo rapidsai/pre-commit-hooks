@@ -8,8 +8,8 @@ import yaml
 
 from .yaml import (
     Anchor,
-    AnchorPreservingLoader,
     check_and_mark_anchor,
+    load_with_anchors,
     node_has_type,
 )
 
@@ -914,13 +914,8 @@ def traverse_root(
 
 
 def traverse_dependencies_yaml(handler: Handler, content: str) -> None:
-    loader = AnchorPreservingLoader(content)
-    try:
-        root = loader.get_single_node()
-        assert root is not None
-    finally:
-        loader.dispose()
-    traverse_root(handler, loader.document_anchors[0], set(), root)
+    root, anchors = load_with_anchors(content)
+    traverse_root(handler, anchors, set(), root)
 
 
 def is_python_output_type(output_type: str) -> bool:

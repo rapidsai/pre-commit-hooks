@@ -4,10 +4,13 @@
 from unittest.mock import MagicMock, Mock, call, patch
 
 import pytest
-import yaml
 
-from rapids_pre_commit_hooks.utils.yaml import Anchor, AnchorType
 from rapids_pre_commit_hooks.utils import dependencies_yaml
+from rapids_pre_commit_hooks.utils.yaml import (
+    Anchor,
+    AnchorType,
+    load_with_anchors,
+)
 from rapids_pre_commit_hooks_test_utils import (
     find_yaml_node_for_span,
     parse_named_spans,
@@ -223,7 +226,7 @@ class TestChainedHandler:
 
 
 def test_traverse_file_output_item():
-    file_output = yaml.SafeLoader("[pyproject]").get_single_node()
+    file_output, _ = load_with_anchors("[pyproject]")
     file_output_item = file_output.value[0]
     file_output_context = Mock()
     manager = MagicMock()
@@ -276,7 +279,7 @@ def test_traverse_file_output_item():
 )
 def test_traverse_file_output(content):
     content, spans = parse_named_spans(content)
-    files_item = yaml.SafeLoader(content).get_single_node()
+    files_item, _ = load_with_anchors(content)
     output_key = find_yaml_node_for_span(files_item, spans["key_node"])
     output = find_yaml_node_for_span(files_item, spans["node"])
     files_item_context = Mock()
@@ -335,7 +338,7 @@ def test_traverse_file_output(content):
     ],
 )
 def test_traverse_string_value(function_name, handler_name, content):
-    parent = yaml.SafeLoader(content).get_single_node()
+    parent, _ = load_with_anchors(content)
     key, value = parent.value[0]
     parent_context = Mock()
     manager = MagicMock()
@@ -353,11 +356,13 @@ def test_traverse_string_value(function_name, handler_name, content):
 
 
 def test_traverse_extras():
-    files_item = yaml.SafeLoader("""\
+    files_item, _ = load_with_anchors(
+        """\
     extras:
         table: project.optional-dependencies
         key: test
-    """).get_single_node()
+    """
+    )
     extras_key, extras = files_item.value[0]
     files_item_context = Mock()
     manager = MagicMock()
@@ -401,13 +406,15 @@ def test_traverse_extras():
 
 
 def test_traverse_files_item():
-    files = yaml.SafeLoader("""\
+    files, _ = load_with_anchors(
+        """\
     test:
         output: pyproject
         extras: {}
         pyproject_dir: python
         includes: []
-    """).get_single_node()
+    """
+    )
     files_item_key, files_item = files.value[0]
     files_context = Mock()
     manager = MagicMock()
@@ -463,11 +470,13 @@ def test_traverse_files_item():
 
 
 def test_traverse_files():
-    root = yaml.SafeLoader("""\
+    root, _ = load_with_anchors(
+        """\
     files:
         test: {}
         all: {}
-    """).get_single_node()
+    """
+    )
     files_key, files = root.value[0]
     root_context = Mock()
     manager = MagicMock()
@@ -540,7 +549,7 @@ def test_traverse_files():
 )
 def test_traverse_package(content, used_anchors, anchor):
     content, spans = parse_named_spans(content)
-    composed = yaml.SafeLoader(content).get_single_node()
+    composed, _ = load_with_anchors(content)
     package = find_yaml_node_for_span(composed, spans["node"])
     packages_context = Mock()
     manager = MagicMock()
@@ -616,7 +625,7 @@ def test_traverse_package(content, used_anchors, anchor):
 )
 def test_traverse_packages(content, used_anchors, used_anchors_after, anchor):
     content, spans = parse_named_spans(content)
-    composed = yaml.SafeLoader(content).get_single_node()
+    composed, _ = load_with_anchors(content)
     packages_key = find_yaml_node_for_span(composed, spans["packages_key"])
     packages = find_yaml_node_for_span(composed, spans["packages"])
     item_context = Mock()
@@ -668,9 +677,11 @@ def test_traverse_packages(content, used_anchors, used_anchors_after, anchor):
 
 
 def test_traverse_output_type():
-    output_types = yaml.SafeLoader("""\
+    output_types, _ = load_with_anchors(
+        """\
     [requirements]
-    """).get_single_node()
+    """
+    )
     output_type = output_types.value[0]
     output_types_context = Mock()
     manager = MagicMock()
@@ -721,7 +732,7 @@ def test_traverse_output_type():
 )
 def test_traverse_output_types(content):
     content, spans = parse_named_spans(content)
-    item = yaml.SafeLoader(content).get_single_node()
+    item, _ = load_with_anchors(content)
     output_types_key = find_yaml_node_for_span(item, spans["key_node"])
     output_types = find_yaml_node_for_span(item, spans["node"])
     item_context = Mock()
@@ -758,10 +769,12 @@ def test_traverse_output_types(content):
 
 
 def test_traverse_common_item():
-    common = yaml.SafeLoader("""\
+    common, _ = load_with_anchors(
+        """\
     - output_types: pyproject
       packages: []
-    """).get_single_node()
+    """
+    )
     common_item = common.value[0]
     common_context = Mock()
     manager = MagicMock()
@@ -805,11 +818,13 @@ def test_traverse_common_item():
 
 
 def test_traverse_common():
-    dependency_set = yaml.SafeLoader("""\
+    dependency_set, _ = load_with_anchors(
+        """\
     common:
         - {}
         - {}
-    """).get_single_node()
+    """
+    )
     common_key, common = dependency_set.value[0]
     dependency_set_context = Mock()
     manager = MagicMock()
@@ -854,9 +869,11 @@ def test_traverse_common():
 
 
 def test_traverse_matrix_item():
-    matrix = yaml.SafeLoader("""\
+    matrix, _ = load_with_anchors(
+        """\
     value_1: "true"
-    """).get_single_node()
+    """
+    )
     matrix_item_key, matrix_item = matrix.value[0]
     matrix_context = Mock()
     manager = MagicMock()
@@ -879,11 +896,13 @@ def test_traverse_matrix_item():
 
 
 def test_traverse_matrix():
-    matrices_item = yaml.SafeLoader("""\
+    matrices_item, _ = load_with_anchors(
+        """\
     matrix:
         value_1: "true"
         value_2: "true"
-    """).get_single_node()
+    """
+    )
     matrix_key, matrix = matrices_item.value[0]
     matrices_item_context = Mock()
     manager = MagicMock()
@@ -924,10 +943,12 @@ def test_traverse_matrix():
 
 
 def test_traverse_matrices_item():
-    matrices = yaml.SafeLoader("""\
+    matrices, _ = load_with_anchors(
+        """\
     - matrix: {}
       packages: []
-    """).get_single_node()
+    """
+    )
     matrices_item = matrices.value[0]
     matrices_context = Mock()
     manager = MagicMock()
@@ -971,12 +992,14 @@ def test_traverse_matrices_item():
 
 
 def test_traverse_matrices():
-    specific_item = yaml.SafeLoader("""\
+    specific_item, _ = load_with_anchors(
+        """\
     matrices:
         - {}
         - {}
         - {}
-    """).get_single_node()
+    """
+    )
     matrices_key, matrices = specific_item.value[0]
     specific_item_context = Mock()
     manager = MagicMock()
@@ -1030,10 +1053,12 @@ def test_traverse_matrices():
 
 
 def test_traverse_specific_item():
-    specific = yaml.SafeLoader("""\
+    specific, _ = load_with_anchors(
+        """\
     - output_types: pyproject
       matrices: []
-    """).get_single_node()
+    """
+    )
     specific_item = specific.value[0]
     specific_context = Mock()
     manager = MagicMock()
@@ -1077,12 +1102,14 @@ def test_traverse_specific_item():
 
 
 def test_traverse_specific():
-    dependency_set = yaml.SafeLoader("""\
+    dependency_set, _ = load_with_anchors(
+        """\
     specific:
         - {}
         - {}
         - {}
-    """).get_single_node()
+    """
+    )
     specific_key, specific = dependency_set.value[0]
     dependency_set_context = Mock()
     manager = MagicMock()
@@ -1136,11 +1163,13 @@ def test_traverse_specific():
 
 
 def test_traverse_dependency_set():
-    dependencies = yaml.SafeLoader("""\
+    dependencies, _ = load_with_anchors(
+        """\
     dependency_set_1:
         common: {}
         specific: {}
-    """).get_single_node()
+    """
+    )
     dependency_set_key, dependency_set = dependencies.value[0]
     dependencies_context = Mock()
     manager = MagicMock()
@@ -1193,11 +1222,13 @@ def test_traverse_dependency_set():
 
 
 def test_traverse_dependencies():
-    root = yaml.SafeLoader("""\
+    root, _ = load_with_anchors(
+        """\
     dependencies:
         dependency_set_1: {}
         dependency_set_2: {}
-    """).get_single_node()
+    """
+    )
     dependencies_key, dependencies = root.value[0]
     root_context = Mock()
     manager = MagicMock()
@@ -1244,11 +1275,13 @@ def test_traverse_dependencies():
 
 
 def test_traverse_root():
-    root = yaml.SafeLoader("""\
+    root, _ = load_with_anchors(
+        """\
     files: {}
     channels: []
     dependencies: {}
-    """).get_single_node()
+    """
+    )
     manager = MagicMock()
 
     expected_calls = [

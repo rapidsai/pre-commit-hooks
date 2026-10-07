@@ -13,7 +13,11 @@ from rapids_pre_commit_hooks.dependencies.use_cuda_wheels import (
     is_nvidia_library_package,
 )
 from rapids_pre_commit_hooks.utils import dependencies_yaml
-from rapids_pre_commit_hooks.utils.yaml import Anchor, AnchorType
+from rapids_pre_commit_hooks.utils.yaml import (
+    Anchor,
+    AnchorType,
+    load_with_anchors,
+)
 from rapids_pre_commit_hooks_test_utils import (
     find_yaml_node_for_span,
     parse_named_spans,
@@ -142,11 +146,7 @@ class TestUseCUDAWheelsHandler:
         linter = lint.Linter(
             "dependencies.yaml", content, "verify-dependencies"
         )
-        loader = dependencies_yaml.AnchorPreservingLoader(content)
-        try:
-            composed = loader.get_single_node()
-        finally:
-            loader.dispose()
+        composed, _ = load_with_anchors(content)
         common_key, common = composed.value[0]
 
         handler = UseCUDAWheelsHandler(linter, args)
@@ -303,11 +303,7 @@ class TestUseCUDAWheelsHandler:
         linter = lint.Linter(
             "dependencies.yaml", content, "verify-dependencies"
         )
-        loader = dependencies_yaml.AnchorPreservingLoader(content)
-        try:
-            composed = loader.get_single_node()
-        finally:
-            loader.dispose()
+        composed, _ = load_with_anchors(content)
 
         handler = UseCUDAWheelsHandler(linter, args)
         with handler.handle_specific_item(Mock(), composed) as item_context:
@@ -355,11 +351,7 @@ class TestUseCUDAWheelsHandler:
         linter = lint.Linter(
             "dependencies.yaml", content, "verify-dependencies"
         )
-        loader = dependencies_yaml.AnchorPreservingLoader(content)
-        try:
-            composed = loader.get_single_node()
-        finally:
-            loader.dispose()
+        composed, _ = load_with_anchors(content)
         matrix_key = find_yaml_node_for_span(composed, spans["matrix_key"])
         matrix = find_yaml_node_for_span(composed, spans["matrix"])
 
@@ -408,11 +400,7 @@ class TestUseCUDAWheelsHandler:
         linter = lint.Linter(
             "dependencies.yaml", content, "verify-dependencies"
         )
-        loader = dependencies_yaml.AnchorPreservingLoader(content)
-        try:
-            composed = loader.get_single_node()
-        finally:
-            loader.dispose()
+        composed, _ = load_with_anchors(content)
         matrix_item_key, matrix_item = composed.value[0]
 
         handler = UseCUDAWheelsHandler(linter, args)
@@ -498,11 +486,7 @@ class TestUseCUDAWheelsHandler:
         linter = lint.Linter(
             "dependencies.yaml", content, "verify-dependencies"
         )
-        loader = dependencies_yaml.AnchorPreservingLoader(content)
-        try:
-            composed = loader.get_single_node()
-        finally:
-            loader.dispose()
+        composed, _ = load_with_anchors(content)
         packages_key = find_yaml_node_for_span(composed, spans["packages_key"])
         packages = find_yaml_node_for_span(composed, spans["packages"])
 
@@ -621,11 +605,7 @@ class TestUseCUDAWheelsHandler:
         linter = lint.Linter(
             "dependencies.yaml", content, "verify-dependencies"
         )
-        loader = dependencies_yaml.AnchorPreservingLoader(content)
-        try:
-            package_node = loader.get_single_node()
-        finally:
-            loader.dispose()
+        package_node, _ = load_with_anchors(content)
 
         handler = UseCUDAWheelsHandler(linter, args)
         packages_context = Mock(
@@ -991,19 +971,13 @@ class TestUseCUDAWheelsHandler:
 def test_check_use_cuda_wheels_integration(content, warnings):
     content, spans = parse_named_spans(content, dict)
 
-    loader = dependencies_yaml.AnchorPreservingLoader(content)
-    try:
-        composed = loader.get_single_node()
-    finally:
-        loader.dispose()
+    composed, anchors = load_with_anchors(content)
 
     args = Mock()
     linter = lint.Linter("dependencies.yaml", content, "verify-dependencies")
     handler = UseCUDAWheelsHandler(linter, args)
 
-    dependencies_yaml.traverse_root(
-        handler, loader.document_anchors[0], set(), composed
-    )
+    dependencies_yaml.traverse_root(handler, anchors, set(), composed)
     assert linter.warnings == zip_expected_warnings(
         spans.get("warnings", []), warnings
     )

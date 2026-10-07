@@ -11,20 +11,16 @@ from rapids_pre_commit_hooks.dependencies.cuda_suffixed import (
     CUDASuffixedHandler,
 )
 from rapids_pre_commit_hooks.utils import dependencies_yaml
-from rapids_pre_commit_hooks.utils.yaml import Anchor, AnchorType
+from rapids_pre_commit_hooks.utils.yaml import (
+    Anchor,
+    AnchorType,
+    load_with_anchors,
+)
 from rapids_pre_commit_hooks_test_utils import (
     find_yaml_node_for_span,
     parse_named_spans,
     zip_expected_warnings,
 )
-
-
-def _compose(content):
-    loader = dependencies_yaml.AnchorPreservingLoader(content)
-    try:
-        return loader.get_single_node()
-    finally:
-        loader.dispose()
 
 
 class TestCUDASuffixedHandler:
@@ -49,7 +45,7 @@ class TestCUDASuffixedHandler:
         assert context.has_python_output_type is True
 
     def test_handle_common(self):
-        composed = _compose(
+        composed, _ = load_with_anchors(
             """\
             common:
               packages: []
@@ -143,7 +139,7 @@ class TestCUDASuffixedHandler:
         warnings,
     ):
         content, spans = parse_named_spans(content, dict)
-        composed = _compose(content)
+        composed, _ = load_with_anchors(content)
         common_key, common = composed.value[0]
         linter = lint.Linter(
             "dependencies.yaml", content, "verify-dependencies"
@@ -616,7 +612,7 @@ class TestCUDASuffixedHandler:
         warnings,
     ):
         content, spans = parse_named_spans(content, dict)
-        composed = _compose(content)
+        composed, _ = load_with_anchors(content)
         linter = lint.Linter(
             "dependencies.yaml", content, "verify-dependencies"
         )
@@ -682,7 +678,7 @@ class TestCUDASuffixedHandler:
             +   cuda_suffixed: "true"
             """
         )
-        composed = _compose(content)
+        composed, _ = load_with_anchors(content)
         matrix_key, matrix = composed.value[0]
         context = CUDASuffixedHandler.MatricesItemContext()
         handler = CUDASuffixedHandler(Mock(), Mock())
@@ -770,7 +766,7 @@ class TestCUDASuffixedHandler:
         expected_cuda_major,
         has_cuda_node,
     ):
-        composed = _compose(content)
+        composed, _ = load_with_anchors(content)
         key, value = composed.value[0]
         context = CUDASuffixedHandler.MatricesItemContext()
         handler = CUDASuffixedHandler(Mock(), Mock())
@@ -907,7 +903,7 @@ class TestCUDASuffixedHandler:
         suffixed_names,
         unsuffixed_names,
     ):
-        package_node = _compose(requirement)
+        package_node, _ = load_with_anchors(requirement)
         rapids_version = SimpleNamespace(cuda_suffixed_packages={"package"})
         context = CUDASuffixedHandler.PackagesContext(
             CUDASuffixedHandler.MatricesItemContext(),
@@ -1191,11 +1187,7 @@ class TestCUDASuffixedHandler:
 def test_check_cuda_suffixed_integration(content, warnings):
     content, spans = parse_named_spans(content, dict)
 
-    loader = dependencies_yaml.AnchorPreservingLoader(content)
-    try:
-        composed = loader.get_single_node()
-    finally:
-        loader.dispose()
+    composed, anchors = load_with_anchors(content)
 
     args = Mock()
     linter = lint.Linter("dependencies.yaml", content, "verify-dependencies")
@@ -1208,9 +1200,7 @@ def test_check_cuda_suffixed_integration(content, warnings):
         "get_rapids_version",
         return_value=rapids_version,
     ):
-        dependencies_yaml.traverse_root(
-            handler, loader.document_anchors[0], set(), composed
-        )
+        dependencies_yaml.traverse_root(handler, anchors, set(), composed)
 
     assert linter.warnings == zip_expected_warnings(
         spans.get("warnings", []), warnings
