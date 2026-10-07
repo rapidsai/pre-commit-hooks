@@ -75,3 +75,6 @@ testpaths = [
 pythonpath = [
     "tests/utils",
 ]
+filterwarnings = [
+    "error",
+]
