@@ -21,28 +21,12 @@ if TYPE_CHECKING:
     _NamedSpans = dict[str | int, "Span | _NamedSpans"]
 
 
-_SPAN_LINE_RE: re.Pattern = re.compile(
-    r"(?P<span>\^|>|!|~+)"
-    r"(?P<path>"
-    r"(?:[0-9]+|[a-zA-Z_][a-zA-Z0-9_]*)"
-    r"(?:\.(?:[0-9]+|[a-zA-Z_][a-zA-Z0-9_]*))*"
-    r")"
-)
-
-
 class ParseError(RuntimeError):
     pass
 
 
 class ParseWarning(RuntimeWarning):
     pass
-
-
-def _parse_path_item(item: str) -> str | int:
-    try:
-        return int(item)
-    except ValueError:
-        return item
 
 
 def parse_named_spans(
@@ -95,6 +79,15 @@ def parse_named_spans(
         if len(path) == 0:
             return "<root>"
         return ".".join(map(str, path))
+
+    def path_str_to_tuple(path: str) -> tuple[int | str, ...]:
+        def _parse_path_item(item: str) -> str | int:
+            try:
+                return int(item)
+            except ValueError:
+                return item
+
+        return tuple(map(_parse_path_item, path.split(".")))
 
     def get_last_collection(path: tuple[int | str, ...]) -> "_NamedSpans":
         nonlocal named_spans
@@ -153,7 +146,14 @@ def parse_named_spans(
             if (pound := directive_line.find("#")) >= 0:
                 directive_line = directive_line[:pound]
             end = 0
-            for match in _SPAN_LINE_RE.finditer(directive_line):
+            for match in re.finditer(
+                r"(?P<span>\^|>|!|~+)"
+                r"(?P<path>"
+                r"(?:[0-9]+|[a-zA-Z_][a-zA-Z0-9_]*)"
+                r"(?:\.(?:[0-9]+|[a-zA-Z_][a-zA-Z0-9_]*))*"
+                r")",
+                directive_line,
+            ):
                 non_space = list(
                     filter(
                         lambda c: c != " ", directive_line[end : match.start()]
@@ -165,9 +165,7 @@ def parse_named_spans(
                     )
                 end = match.end()
 
-                path = tuple(
-                    map(_parse_path_item, match.group("path").split("."))
-                )
+                path = path_str_to_tuple(match.group("path"))
 
                 if match.group("span") == ">":
                     if path in in_progress_large_spans:
