@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 # rapids-pre-commit-hooks: disable[verify-copyright]
@@ -15,14 +15,11 @@ import pytest
 from freezegun import freeze_time
 
 from rapids_pre_commit_hooks import copyright
-from rapids_pre_commit_hooks.lint import (
-    Lines,
-    Linter,
-    LintWarning,
-    Note,
-    Replacement,
+from rapids_pre_commit_hooks.lint import Lines, Linter
+from rapids_pre_commit_hooks_test_utils import (
+    parse_named_spans,
+    zip_expected_warnings,
 )
-from rapids_pre_commit_hooks_test_utils import parse_named_spans
 
 
 @pytest.mark.parametrize(
@@ -995,7 +992,7 @@ def test_get_canonical_copyright_notice(
         "new_content",
         "spdx",
         "force_spdx",
-        "warning_messages_replacements_and_notes",
+        "expected_warnings",
     ],
     [
         pytest.param(
@@ -1005,20 +1002,20 @@ def test_get_canonical_copyright_notice(
             "file.txt",
             """\
             > No copyright notice
-            : ^0.span
+            : ^0.warning
             : ^0.replacements.0
             """,
             False,
             False,
             [
-                (
-                    "no copyright notice found",
-                    [
+                {
+                    "warning": "no copyright notice found",
+                    "replacements": [
                         "# Copyright (c) 2024, NVIDIA CORPORATION & "
                         "AFFILIATES. All rights reserved.\n\n",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="added-with-no-copyright-notice-plain-text",
         ),
@@ -1040,20 +1037,20 @@ def test_get_canonical_copyright_notice(
             "file_with_history.txt",
             """\
             > No copyright notice and changed
-            : ^0.span
+            : ^0.warning
             : ^0.replacements.0
             """,
             False,
             False,
             [
-                (
-                    "no copyright notice found",
-                    [
+                {
+                    "warning": "no copyright notice found",
+                    "replacements": [
                         "# Copyright (c) 2023-2024, NVIDIA CORPORATION & "
                         "AFFILIATES. All rights reserved.\n\n",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="changed-with-history-and-no-copyright-notice",
         ),
@@ -1109,21 +1106,21 @@ def test_get_canonical_copyright_notice(
             +
             + Copyright (c) 2021-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
             + Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-            :               ~~~~0.span
+            :               ~~~~0.warning
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.replacements.0
             + This file has been changed
             """,  # noqa: E501
             False,
             False,
             [
-                (
-                    "copyright is out of date",
-                    [
+                {
+                    "warning": "copyright is out of date",
+                    "replacements": [
                         "Copyright (c) 2023-2024, NVIDIA CORPORATION & "
                         "AFFILIATES. All rights reserved.",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="changed-with-no-copyright-update",
         ),
@@ -1160,21 +1157,21 @@ def test_get_canonical_copyright_notice(
             +
             + Copyright (c) 2021-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
             + Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-            :               ~~~~0.span
+            :               ~~~~0.warning
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.replacements.0
             + This file has been changed
             """,  # noqa: E501
             False,
             False,
             [
-                (
-                    "copyright is out of date",
-                    [
+                {
+                    "warning": "copyright is out of date",
+                    "replacements": [
                         "Copyright (c) 2023-2024, NVIDIA CORPORATION & "
                         "AFFILIATES. All rights reserved.",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="added-with-out-of-date-copyright",
         ),
@@ -1194,34 +1191,39 @@ def test_get_canonical_copyright_notice(
             """\
             +
             + Copyright (c) 2021-2024 NVIDIA CORPORATION
-            :               ~~~~~~~~~0.span
+            :               ~~~~~~~~~0.warning
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.replacements.0
             + Copyright (c) 2023 NVIDIA CORPORATION
             + Copyright (c) 2024 NVIDIA CORPORATION
             + Copyright (c) 2025 NVIDIA Corporation
-            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.warning
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.replacements.0
             + This file has not been changed
             """,
             False,
             False,
             [
-                (
-                    "copyright is not out of date and should not be updated",
-                    [
+                {
+                    "warning": (
+                        "copyright is not out of date and should "
+                        "not be updated"
+                    ),
+                    "replacements": [
                         "Copyright (c) 2021-2023, NVIDIA CORPORATION & "
                         "AFFILIATES. All rights reserved.",
                     ],
-                    [],
-                ),
-                (
-                    "copyright notice does not match canonical notice",
-                    [
+                    "notes": [],
+                },
+                {
+                    "warning": (
+                        "copyright notice does not match canonical notice"
+                    ),
+                    "replacements": [
                         "Copyright (c) 2025, NVIDIA CORPORATION & AFFILIATES. "
                         "All rights reserved.",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="unchanged-with-copyright-update",
         ),
@@ -1260,21 +1262,21 @@ def test_get_canonical_copyright_notice(
             +
             + Copyright (c) 2021-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
             + Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-            :               ~~~~0.span
+            :               ~~~~0.warning
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.replacements.0
             + This file has been changed
             """,  # noqa: E501
             False,
             False,
             [
-                (
-                    "copyright is out of date",
-                    [
+                {
+                    "warning": "copyright is out of date",
+                    "replacements": [
                         "Copyright (c) 2023-2024, NVIDIA CORPORATION & "
                         "AFFILIATES. All rights reserved.",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="renamed-and-changed-with-no-copyright-update",
         ),
@@ -1293,21 +1295,21 @@ def test_get_canonical_copyright_notice(
             +
             + Copyright (c) 2021-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
             + Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-            :               ~~~~0.span
+            :               ~~~~0.warning
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.replacements.0
             + This file has been changed
             """,  # noqa: E501
             False,
             False,
             [
-                (
-                    "copyright is out of date",
-                    [
+                {
+                    "warning": "copyright is out of date",
+                    "replacements": [
                         "Copyright (c) 2023-2024, NVIDIA CORPORATION & "
                         "AFFILIATES. All rights reserved.",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="copied-and-changed-with-no-copyright-update",
         ),
@@ -1381,12 +1383,12 @@ def test_get_canonical_copyright_notice(
             : >0.notes.0
             : >0.notes.1
             + Copyright (c) 2021-2024 NVIDIA CORPORATION
-            :               ~~~~~~~~~0.span
+            :               ~~~~~~~~~0.warning
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.replacements.0
             + Copyright (c) 2023 NVIDIA CORPORATION
             + Copyright (c) 2024 NVIDIA CORPORATION
             + Copyright (c) 2025 NVIDIA Corporation
-            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.warning
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.replacements.0
             + This file has not been changed
             :                                !0.notes.0
@@ -1395,28 +1397,33 @@ def test_get_canonical_copyright_notice(
             False,
             False,
             [
-                (
-                    "copyright is not out of date and should not be updated",
-                    [
+                {
+                    "warning": (
+                        "copyright is not out of date and should "
+                        "not be updated"
+                    ),
+                    "replacements": [
                         "Copyright (c) 2021-2023, NVIDIA CORPORATION & "
                         "AFFILIATES. All rights reserved.",
                     ],
-                    [
+                    "notes": [
                         "file was renamed from 'file1.txt' and is assumed "
                         "to share history with it",
                         "change file contents if you want its copyright "
                         "dates to only be determined by its own edit "
                         "history",
                     ],
-                ),
-                (
-                    "copyright notice does not match canonical notice",
-                    [
+                },
+                {
+                    "warning": (
+                        "copyright notice does not match canonical notice"
+                    ),
+                    "replacements": [
                         "Copyright (c) 2025, NVIDIA CORPORATION & AFFILIATES. "
                         "All rights reserved.",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="renamed-and-unchanged-with-copyright-update",
         ),
@@ -1438,12 +1445,12 @@ def test_get_canonical_copyright_notice(
             : >0.notes.0
             : >0.notes.1
             + Copyright (c) 2021-2024 NVIDIA CORPORATION
-            :               ~~~~~~~~~0.span
+            :               ~~~~~~~~~0.warning
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.replacements.0
             + Copyright (c) 2023 NVIDIA CORPORATION
             + Copyright (c) 2024 NVIDIA CORPORATION
             + Copyright (c) 2025 NVIDIA Corporation
-            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.warning
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.replacements.0
             + This file has not been changed
             :                                !0.notes.0
@@ -1452,28 +1459,33 @@ def test_get_canonical_copyright_notice(
             False,
             False,
             [
-                (
-                    "copyright is not out of date and should not be updated",
-                    [
+                {
+                    "warning": (
+                        "copyright is not out of date and should "
+                        "not be updated"
+                    ),
+                    "replacements": [
                         "Copyright (c) 2021-2023, NVIDIA CORPORATION & "
                         "AFFILIATES. All rights reserved.",
                     ],
-                    [
+                    "notes": [
                         "file was copied from 'file1.txt' and is assumed "
                         "to share history with it",
                         "change file contents if you want its copyright "
                         "dates to only be determined by its own edit "
                         "history",
                     ],
-                ),
-                (
-                    "copyright notice does not match canonical notice",
-                    [
+                },
+                {
+                    "warning": (
+                        "copyright notice does not match canonical notice"
+                    ),
+                    "replacements": [
                         "Copyright (c) 2025, NVIDIA CORPORATION & AFFILIATES. "
                         "All rights reserved.",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="copied-and-unchanged-with-copyright-update",
         ),
@@ -1513,9 +1525,9 @@ def test_get_canonical_copyright_notice(
             """\
             +
             + Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.warning
             : ^0.replacements.0
-            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.warning
             :                                                                          ^1.replacements.0
             + Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
             + This file has been changed
@@ -1523,20 +1535,20 @@ def test_get_canonical_copyright_notice(
             True,
             False,
             [
-                (
-                    "include SPDX-FileCopyrightText header",
-                    [
+                {
+                    "warning": "include SPDX-FileCopyrightText header",
+                    "replacements": [
                         "SPDX-FileCopyrightText: ",
                     ],
-                    [],
-                ),
-                (
-                    "no SPDX-License-Identifier header found",
-                    [
+                    "notes": [],
+                },
+                {
+                    "warning": "no SPDX-License-Identifier header found",
+                    "replacements": [
                         "\nSPDX-License-Identifier: Apache-2.0",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="spdx-changed-with-no-headers",
         ),
@@ -1553,39 +1565,39 @@ def test_get_canonical_copyright_notice(
             """\
             +
             + Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-            :               ~~~~0.span
+            :               ~~~~0.warning
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.replacements.0
-            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.warning
             : ^1.replacements.0
-            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~2.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~2.warning
             :                                                                          ^2.replacements.0
             + This file has been changed
             """,  # noqa: E501
             True,
             False,
             [
-                (
-                    "copyright is out of date",
-                    [
+                {
+                    "warning": "copyright is out of date",
+                    "replacements": [
                         "Copyright (c) 2023-2024, NVIDIA CORPORATION & "
                         "AFFILIATES. All rights reserved.",
                     ],
-                    [],
-                ),
-                (
-                    "include SPDX-FileCopyrightText header",
-                    [
+                    "notes": [],
+                },
+                {
+                    "warning": "include SPDX-FileCopyrightText header",
+                    "replacements": [
                         "SPDX-FileCopyrightText: ",
                     ],
-                    [],
-                ),
-                (
-                    "no SPDX-License-Identifier header found",
-                    [
+                    "notes": [],
+                },
+                {
+                    "warning": "no SPDX-License-Identifier header found",
+                    "replacements": [
                         "\nSPDX-License-Identifier: Apache-2.0",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="spdx-changed-with-no-headers-and-out-of-date-copyright",
         ),
@@ -1604,20 +1616,20 @@ def test_get_canonical_copyright_notice(
             +
             + SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
             + SPDX-License-Identifier: BSD-3-Clause
-            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.warning
             :                          ~~~~~~~~~~~~0.replacements.0
             + This file has been changed
             """,  # noqa: E501
             True,
             False,
             [
-                (
-                    "SPDX-License-Identifier is incorrect",
-                    [
+                {
+                    "warning": "SPDX-License-Identifier is incorrect",
+                    "replacements": [
                         "Apache-2.0",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="spdx-changed-with-headers-and-incorrect-license-identifier",
         ),
@@ -1655,9 +1667,9 @@ def test_get_canonical_copyright_notice(
             """\
             +
             + // Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-            :    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            :    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.warning
             :    ^0.replacements.0
-            :    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            :    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.warning
             :                                                                             ^1.replacements.0
             + // Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
             + // This file has not been changed
@@ -1665,20 +1677,20 @@ def test_get_canonical_copyright_notice(
             False,
             True,
             [
-                (
-                    "include SPDX-FileCopyrightText header",
-                    [
+                {
+                    "warning": "include SPDX-FileCopyrightText header",
+                    "replacements": [
                         "SPDX-FileCopyrightText: ",
                     ],
-                    [],
-                ),
-                (
-                    "no SPDX-License-Identifier header found",
-                    [
+                    "notes": [],
+                },
+                {
+                    "warning": "no SPDX-License-Identifier header found",
+                    "replacements": [
                         "\n// SPDX-License-Identifier: Apache-2.0",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="force-spdx-unchanged-with-comments-and-no-headers",
         ),
@@ -1715,16 +1727,16 @@ def test_get_canonical_copyright_notice(
             "file1.txt",
             """\
             +
-            : ^0.span
+            : ^0.warning
             : ^0.replacements.0
             + This file has not been changed
             """,
             False,
             True,
             [
-                (
-                    "no copyright notice found",
-                    [
+                {
+                    "warning": "no copyright notice found",
+                    "replacements": [
                         dedent(
                             """\
                             # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
@@ -1732,8 +1744,8 @@ def test_get_canonical_copyright_notice(
                             """  # noqa: E501
                         ),
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="force-spdx-unchanged-with-no-copyright",
         ),
@@ -1751,7 +1763,7 @@ def test_get_canonical_copyright_notice(
             """\
             +
             + /* SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-            :    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            :    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.warning
             :                                                                                                     ^0.replacements.0
             +  */
             + This file has been changed
@@ -1759,13 +1771,13 @@ def test_get_canonical_copyright_notice(
             True,
             False,
             [
-                (
-                    "no SPDX-License-Identifier header found",
-                    [
+                {
+                    "warning": "no SPDX-License-Identifier header found",
+                    "replacements": [
                         "\n * SPDX-License-Identifier: Apache-2.0",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="spdx-changed-with-c-style-comments-and-no-license-header",
         ),
@@ -1819,7 +1831,7 @@ def test_get_canonical_copyright_notice(
             + # SPDX-License-Identifier: Apache-2.0
             :                                      >0.replacements.0
             + #
-            :  >0.span
+            :  >0.warning
             + # Licensed under the Apache License, Version 2.0 (the "License");
             + # you may not use this file except in compliance with the License.
             + # You may obtain a copy of the License at
@@ -1832,19 +1844,19 @@ def test_get_canonical_copyright_notice(
             + # See the License for the specific language governing permissions and
             + # limitations under the License.
             :                                 !0.replacements.0
-            :                                 !0.span
+            :                                 !0.warning
             + This file has not been changed
             """,  # noqa: E501
             False,
             True,
             [
-                (
-                    "remove long-form copyright text",
-                    [
+                {
+                    "warning": "remove long-form copyright text",
+                    "replacements": [
                         "",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="force-spdx-with-headers-and-long-form-text",
         ),
@@ -1873,11 +1885,11 @@ def test_get_canonical_copyright_notice(
             """\
             +
             + # SPDX-FileCopyrightText: Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-            :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.warning
             :                                                                                                    ^0.replacements.0
             :                                                                                                    >1.replacements.0
             + #
-            :  >1.span
+            :  >1.warning
             + # Licensed under the Apache License, Version 2.0 (the "License");
             + # you may not use this file except in compliance with the License.
             + # You may obtain a copy of the License at
@@ -1889,27 +1901,27 @@ def test_get_canonical_copyright_notice(
             + # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
             + # See the License for the specific language governing permissions and
             + # limitations under the License.
-            :                                 !1.span
+            :                                 !1.warning
             :                                 !1.replacements.0
             + This file has not been changed
             """,  # noqa: E501
             False,
             True,
             [
-                (
-                    "no SPDX-License-Identifier header found",
-                    [
+                {
+                    "warning": "no SPDX-License-Identifier header found",
+                    "replacements": [
                         "\n# SPDX-License-Identifier: Apache-2.0",
                     ],
-                    [],
-                ),
-                (
-                    "remove long-form copyright text",
-                    [
+                    "notes": [],
+                },
+                {
+                    "warning": "remove long-form copyright text",
+                    "replacements": [
                         "",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="force-spdx-unchanged-with-no-headers-and-long-form-text",
         ),
@@ -1938,11 +1950,11 @@ def test_get_canonical_copyright_notice(
             """\
             +
             + # SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-            :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.warning
             :                                                                                                         ^0.replacements.0
             :                                                                                                         >1.replacements.0
             + #
-            :  >1.span
+            :  >1.warning
             + # Licensed under the Apache License, Version 2.0 (the "License");
             + # you may not use this file except in compliance with the License.
             + # You may obtain a copy of the License at
@@ -1954,27 +1966,27 @@ def test_get_canonical_copyright_notice(
             + # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
             + # See the License for the specific language governing permissions and
             + # limitations under the License.
-            :                                 !1.span
+            :                                 !1.warning
             :                                 !1.replacements.0
             + This file has been changed
             """,  # noqa: E501
             False,
             True,
             [
-                (
-                    "no SPDX-License-Identifier header found",
-                    [
+                {
+                    "warning": "no SPDX-License-Identifier header found",
+                    "replacements": [
                         "\n# SPDX-License-Identifier: Apache-2.0",
                     ],
-                    [],
-                ),
-                (
-                    "remove long-form copyright text",
-                    [
+                    "notes": [],
+                },
+                {
+                    "warning": "remove long-form copyright text",
+                    "replacements": [
                         "",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="force-spdx-changed-with-no-identifier-and-long-form-text",
         ),
@@ -2007,15 +2019,15 @@ def test_get_canonical_copyright_notice(
             "file_with_history.txt",
             """\
             > No copyright notice
-            : ^0.span
+            : ^0.warning
             : ^0.replacements.0
             """,
             False,
             True,
             [
-                (
-                    "no copyright notice found",
-                    [
+                {
+                    "warning": "no copyright notice found",
+                    "replacements": [
                         dedent(
                             """\
                             # SPDX-FileCopyrightText: Copyright (c) 2023-2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
@@ -2024,8 +2036,8 @@ def test_get_canonical_copyright_notice(
                             """  # noqa: E501
                         ),
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="force-spdx-unchanged-with-history-and-no-copyright-notice",
         ),
@@ -2036,16 +2048,16 @@ def test_get_canonical_copyright_notice(
             "file.sh",
             """\
             + #!/bin/sh
-            : ^0.span
+            : ^0.warning
             > No copyright notice
             : ^0.replacements.0
             """,
             True,
             False,
             [
-                (
-                    "no copyright notice found",
-                    [
+                {
+                    "warning": "no copyright notice found",
+                    "replacements": [
                         dedent(
                             """\
                             # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
@@ -2054,8 +2066,8 @@ def test_get_canonical_copyright_notice(
                             """  # noqa: E501
                         ),
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="spdx-added-with-no-copyright-notice-shebang",
         ),
@@ -2066,7 +2078,7 @@ def test_get_canonical_copyright_notice(
             "file.sh",
             """\
             + #!/bin/sh
-            : ^0.span
+            : ^0.warning
             +
             : ^0.replacements.0
             > No copyright notice
@@ -2074,9 +2086,9 @@ def test_get_canonical_copyright_notice(
             True,
             False,
             [
-                (
-                    "no copyright notice found",
-                    [
+                {
+                    "warning": "no copyright notice found",
+                    "replacements": [
                         dedent(
                             """\
                             # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
@@ -2084,8 +2096,8 @@ def test_get_canonical_copyright_notice(
                             """  # noqa: E501
                         ),
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="spdx-added-with-no-copyright-notice-shebang-second-line-blank",
         ),
@@ -2096,15 +2108,15 @@ def test_get_canonical_copyright_notice(
             "file.sh",
             """\
             + #!/bin/sh
-            : ^0.span
+            : ^0.warning
             :           ^0.replacements.0
             """,
             True,
             False,
             [
-                (
-                    "no copyright notice found",
-                    [
+                {
+                    "warning": "no copyright notice found",
+                    "replacements": [
                         dedent(
                             """\
                             # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
@@ -2112,8 +2124,8 @@ def test_get_canonical_copyright_notice(
                             """  # noqa: E501
                         ),
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="spdx-added-with-no-copyright-notice-shebang-no-contents",
         ),
@@ -2124,15 +2136,15 @@ def test_get_canonical_copyright_notice(
             "file.bat",
             """\
             > No copyright notice
-            : ^0.span
+            : ^0.warning
             : ^0.replacements.0
             """,
             True,
             False,
             [
-                (
-                    "no copyright notice found",
-                    [
+                {
+                    "warning": "no copyright notice found",
+                    "replacements": [
                         dedent(
                             """\
                             REM SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
@@ -2141,8 +2153,8 @@ def test_get_canonical_copyright_notice(
                             """  # noqa: E501
                         ),
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="spdx-added-with-no-copyright-notice-batch-file",
         ),
@@ -2153,15 +2165,15 @@ def test_get_canonical_copyright_notice(
             "file.xml",
             """\
             > No copyright notice
-            : ^0.span
+            : ^0.warning
             : ^0.replacements.0
             """,
             True,
             False,
             [
-                (
-                    "no copyright notice found",
-                    [
+                {
+                    "warning": "no copyright notice found",
+                    "replacements": [
                         dedent(
                             """\
                             <!--
@@ -2172,8 +2184,8 @@ def test_get_canonical_copyright_notice(
                             """  # noqa: E501
                         ),
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="spdx-added-with-no-copyright-notice-xml-file",
         ),
@@ -2184,15 +2196,15 @@ def test_get_canonical_copyright_notice(
             "file.cpp",
             """\
             > No copyright notice
-            : ^0.span
+            : ^0.warning
             : ^0.replacements.0
             """,
             True,
             False,
             [
-                (
-                    "no copyright notice found",
-                    [
+                {
+                    "warning": "no copyright notice found",
+                    "replacements": [
                         dedent(
                             """\
                             /*
@@ -2203,8 +2215,8 @@ def test_get_canonical_copyright_notice(
                             """  # noqa: E501
                         ),
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="spdx-added-with-no-copyright-notice-c-style-comments",
         ),
@@ -2215,15 +2227,15 @@ def test_get_canonical_copyright_notice(
             "file.cmake",
             """\
             > # No copyright notice
-            : ^0.span
+            : ^0.warning
             : ^0.replacements.0
             """,
             True,
             False,
             [
-                (
-                    "no copyright notice found",
-                    [
+                {
+                    "warning": "no copyright notice found",
+                    "replacements": [
                         dedent(
                             """\
                             # cmake-format: off
@@ -2234,8 +2246,8 @@ def test_get_canonical_copyright_notice(
                             """  # noqa: E501
                         ),
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="spdx-added-with-no-copyright-notice-cmake",
         ),
@@ -2245,15 +2257,15 @@ def test_get_canonical_copyright_notice(
             None,
             "file.txt",
             """\
-            : ^0.span
+            : ^0.warning
             : ^0.replacements.0
             """,
             True,
             False,
             [
-                (
-                    "no copyright notice found",
-                    [
+                {
+                    "warning": "no copyright notice found",
+                    "replacements": [
                         dedent(
                             """\
                             # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
@@ -2261,8 +2273,8 @@ def test_get_canonical_copyright_notice(
                             """  # noqa: E501
                         ),
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="spdx-added-with-no-copyright-notice-empty-file",
         ),
@@ -2273,16 +2285,16 @@ def test_get_canonical_copyright_notice(
             "file.txt",
             """\
             +
-            : ^0.span
+            : ^0.warning
             : ^0.replacements.0
             > No copyright notice
             """,
             True,
             False,
             [
-                (
-                    "no copyright notice found",
-                    [
+                {
+                    "warning": "no copyright notice found",
+                    "replacements": [
                         dedent(
                             """\
                             # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
@@ -2290,8 +2302,8 @@ def test_get_canonical_copyright_notice(
                             """  # noqa: E501
                         ),
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="spdx-added-with-no-copyright-notice-first-line-blank",
         ),
@@ -2303,10 +2315,10 @@ def test_get_canonical_copyright_notice(
             """\
             +
             + # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.warning
             : ^0.replacements.0
             + # SPDX-License-Identifier: Apache-2.0
-            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.warning
             :                                      ^1.replacements.0
             +
             + # No cmake-format comments
@@ -2314,20 +2326,24 @@ def test_get_canonical_copyright_notice(
             True,
             False,
             [
-                (
-                    "no cmake-format: off comment before copyright notice",
-                    [
+                {
+                    "warning": (
+                        "no cmake-format: off comment before copyright notice"
+                    ),
+                    "replacements": [
                         "# cmake-format: off\n",
                     ],
-                    [],
-                ),
-                (
-                    "no cmake-format: on comment after copyright notice",
-                    [
+                    "notes": [],
+                },
+                {
+                    "warning": (
+                        "no cmake-format: on comment after copyright notice"
+                    ),
+                    "replacements": [
                         "\n# cmake-format: on",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="spdx-cmake-with-no-cmake-format-comments",
         ),
@@ -2339,12 +2355,12 @@ def test_get_canonical_copyright_notice(
             """\
             +
             + # SPDX-FileCopyrightText: Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.warning
             : ^0.replacements.0
             + # SPDX-License-Identifier: Apache-2.0
             :                                      >1.replacements.0
             + #
-            :  >1.span
+            :  >1.warning
             :  >1.notes.0
             + # Licensed under the Apache License, Version 2.0 (the "License");
             + # you may not use this file except in compliance with the License.
@@ -2358,7 +2374,7 @@ def test_get_canonical_copyright_notice(
             + # See the License for the specific language governing permissions and
             + # limitations under the License.
             :                                 !1.notes.0
-            :                                 !1.span
+            :                                 !1.warning
             :                                 !1.replacements.0
             +
             + # No cmake-format comments
@@ -2366,22 +2382,24 @@ def test_get_canonical_copyright_notice(
             True,
             False,
             [
-                (
-                    "no cmake-format: off comment before copyright notice",
-                    [
+                {
+                    "warning": (
+                        "no cmake-format: off comment before copyright notice"
+                    ),
+                    "replacements": [
                         "# cmake-format: off\n",
                     ],
-                    [],
-                ),
-                (
-                    "remove long-form copyright text",
-                    [
+                    "notes": [],
+                },
+                {
+                    "warning": "remove long-form copyright text",
+                    "replacements": [
                         "\n# cmake-format: on",
                     ],
-                    [
+                    "notes": [
                         "no cmake-format: on comment after copyright notice",
                     ],
-                ),
+                },
             ],
             id="spdx-cmake-with-no-cmake-format-comments-long-form-text",
         ),
@@ -2393,14 +2411,14 @@ def test_get_canonical_copyright_notice(
             """\
             +
             + # Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-            :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.warning
             :   ^0.replacements.0
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.notes.0
-            :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.warning
             :                                                                            ^1.replacements.0
             :                                                                            >2.replacements.0
             + #
-            :  >2.span
+            :  >2.warning
             :  >2.notes.0
             + # Licensed under the Apache License, Version 2.0 (the "License");
             + # you may not use this file except in compliance with the License.
@@ -2414,7 +2432,7 @@ def test_get_canonical_copyright_notice(
             + # See the License for the specific language governing permissions and
             + # limitations under the License.
             :                                 !2.notes.0
-            :                                 !2.span
+            :                                 !2.warning
             :                                 !2.replacements.0
             +
             + # No cmake-format comments
@@ -2422,31 +2440,31 @@ def test_get_canonical_copyright_notice(
             True,
             False,
             [
-                (
-                    "include SPDX-FileCopyrightText header",
-                    [
+                {
+                    "warning": "include SPDX-FileCopyrightText header",
+                    "replacements": [
                         "cmake-format: off\n# SPDX-FileCopyrightText: ",
                     ],
-                    [
+                    "notes": [
                         "no cmake-format: off comment before copyright notice",
                     ],
-                ),
-                (
-                    "no SPDX-License-Identifier header found",
-                    [
+                },
+                {
+                    "warning": "no SPDX-License-Identifier header found",
+                    "replacements": [
                         "\n# SPDX-License-Identifier: Apache-2.0",
                     ],
-                    [],
-                ),
-                (
-                    "remove long-form copyright text",
-                    [
+                    "notes": [],
+                },
+                {
+                    "warning": "remove long-form copyright text",
+                    "replacements": [
                         "\n# cmake-format: on",
                     ],
-                    [
+                    "notes": [
                         "no cmake-format: on comment after copyright notice",
                     ],
-                ),
+                },
             ],
             id="spdx-cmake-with-no-cmake-format-comments-long-form-text-no-headers",
         ),
@@ -2458,10 +2476,10 @@ def test_get_canonical_copyright_notice(
             """\
             +
             + # Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-            :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.warning
             :   ^0.replacements.0
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.notes.0
-            :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.warning
             :                                                                            ^1.replacements.0
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.notes.0
             +
@@ -2470,28 +2488,28 @@ def test_get_canonical_copyright_notice(
             True,
             False,
             [
-                (
-                    "include SPDX-FileCopyrightText header",
-                    [
+                {
+                    "warning": "include SPDX-FileCopyrightText header",
+                    "replacements": [
                         "cmake-format: off\n# SPDX-FileCopyrightText: ",
                     ],
-                    [
+                    "notes": [
                         "no cmake-format: off comment before copyright notice",
                     ],
-                ),
-                (
-                    "no SPDX-License-Identifier header found",
-                    [
+                },
+                {
+                    "warning": "no SPDX-License-Identifier header found",
+                    "replacements": [
                         dedent(
                             """
                             # SPDX-License-Identifier: Apache-2.0
                             # cmake-format: on"""
                         ),
                     ],
-                    [
+                    "notes": [
                         "no cmake-format: on comment after copyright notice",
                     ],
-                ),
+                },
             ],
             id="spdx-cmake-with-no-cmake-format-comments-no-headers",
         ),
@@ -2523,13 +2541,13 @@ def test_get_canonical_copyright_notice(
             +
             + # cmake-format: off
             + # Copyright (c) 2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-            :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.warning
             :   ^0.replacements.0
-            :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
+            :   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.warning
             :                                                                            ^1.replacements.0
             :                                                                            >2.replacements.0
             + #
-            :  >2.span
+            :  >2.warning
             + # Licensed under the Apache License, Version 2.0 (the "License");
             + # you may not use this file except in compliance with the License.
             + # You may obtain a copy of the License at
@@ -2541,7 +2559,7 @@ def test_get_canonical_copyright_notice(
             + # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
             + # See the License for the specific language governing permissions and
             + # limitations under the License.
-            :                                 !2.span
+            :                                 !2.warning
             :                                 !2.replacements.0
             + # cmake-format: on
             +
@@ -2550,27 +2568,27 @@ def test_get_canonical_copyright_notice(
             True,
             False,
             [
-                (
-                    "include SPDX-FileCopyrightText header",
-                    [
+                {
+                    "warning": "include SPDX-FileCopyrightText header",
+                    "replacements": [
                         "SPDX-FileCopyrightText: ",
                     ],
-                    [],
-                ),
-                (
-                    "no SPDX-License-Identifier header found",
-                    [
+                    "notes": [],
+                },
+                {
+                    "warning": "no SPDX-License-Identifier header found",
+                    "replacements": [
                         "\n# SPDX-License-Identifier: Apache-2.0",
                     ],
-                    [],
-                ),
-                (
-                    "remove long-form copyright text",
-                    [
+                    "notes": [],
+                },
+                {
+                    "warning": "remove long-form copyright text",
+                    "replacements": [
                         "",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="spdx-cmake-with-cmake-format-comments-and-no-headers-long-form-text",
         ),
@@ -2605,21 +2623,24 @@ def test_get_canonical_copyright_notice(
             "file.txt",
             """\
             + Copyright (c) 2023-2024 NVIDIA CORPORATION
-            :               ~~~~~~~~~0.span
+            :               ~~~~~~~~~0.warning
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.replacements.0
             + This file has not been changed
             """,
             False,
             False,
             [
-                (
-                    "copyright is not out of date and should not be updated",
-                    [
+                {
+                    "warning": (
+                        "copyright is not out of date and should "
+                        "not be updated"
+                    ),
+                    "replacements": [
                         "Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. "
                         "All rights reserved.",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="non-canonical-not-changed-and-updated-non-canonical",
         ),
@@ -2635,21 +2656,24 @@ def test_get_canonical_copyright_notice(
             "file.txt",
             """\
             + Copyright (c) 2023-2024, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-            :               ~~~~~~~~~0.span
+            :               ~~~~~~~~~0.warning
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.replacements.0
             + This file has not been changed
             """,  # noqa: E501
             False,
             False,
             [
-                (
-                    "copyright is not out of date and should not be updated",
-                    [
+                {
+                    "warning": (
+                        "copyright is not out of date and should "
+                        "not be updated"
+                    ),
+                    "replacements": [
                         "Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. "
                         "All rights reserved.",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="non-canonical-not-changed-and-updated-canonical",
         ),
@@ -2665,21 +2689,23 @@ def test_get_canonical_copyright_notice(
             "file.txt",
             """\
             + Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.warning
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.replacements.0
             + This file has not been changed
             """,  # noqa: E501
             False,
             False,
             [
-                (
-                    "copyright notice does not match canonical notice",
-                    [
+                {
+                    "warning": (
+                        "copyright notice does not match canonical notice"
+                    ),
+                    "replacements": [
                         "Copyright (c) 2023, NVIDIA CORPORATION & AFFILIATES. "
                         "All rights reserved.",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="non-canonical-not-changed-and-reworded-non-canonical",
         ),
@@ -2714,21 +2740,21 @@ def test_get_canonical_copyright_notice(
             "file.txt",
             """\
             + Copyright (c) 2023 NVIDIA CORPORATION
-            :               ~~~~0.span
+            :               ~~~~0.warning
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.replacements.0
             + This file has been changed
             """,
             False,
             False,
             [
-                (
-                    "copyright is out of date",
-                    [
+                {
+                    "warning": "copyright is out of date",
+                    "replacements": [
                         "Copyright (c) 2023-2024, NVIDIA CORPORATION & "
                         "AFFILIATES. All rights reserved.",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="non-canonical-changed-and-not-updated",
         ),
@@ -2744,21 +2770,23 @@ def test_get_canonical_copyright_notice(
             "file.txt",
             """\
             + Copyright (c) 2023-2024 NVIDIA CORPORATION
-            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.warning
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.replacements.0
             + This file has been changed
             """,
             False,
             False,
             [
-                (
-                    "copyright notice does not match canonical notice",
-                    [
+                {
+                    "warning": (
+                        "copyright notice does not match canonical notice"
+                    ),
+                    "replacements": [
                         "Copyright (c) 2023-2024, NVIDIA CORPORATION & "
                         "AFFILIATES. All rights reserved.",
                     ],
-                    [],
-                ),
+                    "notes": [],
+                },
             ],
             id="non-canonical-changed-and-updated-non-canonical",
         ),
@@ -2793,7 +2821,7 @@ def test_apply_copyright_check(
     new_content,
     spdx,
     force_spdx,
-    warning_messages_replacements_and_notes,
+    expected_warnings,
 ):
     new_content, spans = parse_named_spans(new_content, root_type=list)
     with open(
@@ -2811,30 +2839,6 @@ def test_apply_copyright_check(
         ),
     )
 
-    warnings = [
-        LintWarning(
-            warning_spans["span"],
-            msg,
-            replacements=[
-                Replacement(replacement_span, replacement_text)
-                for replacement_span, replacement_text in zip(
-                    warning_spans.get("replacements", []),
-                    replacements,
-                    strict=True,
-                )
-            ],
-            notes=[
-                Note(note_span, note_msg)
-                for note_span, note_msg in zip(
-                    warning_spans.get("notes", []), notes, strict=True
-                )
-            ],
-        )
-        for warning_spans, (msg, replacements, notes) in zip(
-            spans, warning_messages_replacements_and_notes, strict=True
-        )
-    ]
-
     linter = Linter(new_filename, new_content, "verify-copyright")
     mock_args = Mock(
         spdx=spdx, force_spdx=force_spdx, spdx_license_identifier="Apache-2.0"
@@ -2842,7 +2846,7 @@ def test_apply_copyright_check(
     copyright.apply_copyright_check(
         git_repo, linter, mock_args, change_type, old_filename, old_content
     )
-    assert linter.warnings == warnings
+    assert linter.warnings == zip_expected_warnings(spans, expected_warnings)
 
 
 @pytest.fixture
