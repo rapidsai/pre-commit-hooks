@@ -12,11 +12,24 @@ from rapids_pre_commit_hooks.utils.yaml import (
     is_reference_anchor,
     load_with_anchors,
 )
+from rapids_pre_commit_hooks_test_utils import (
+    find_yaml_node_for_span,
+    parse_named_spans,
+)
 
 
 def test_load_with_anchors():
-    root, anchors = load_with_anchors("- &a A\n- *a")
-    assert anchors == {"a": root.value[0]}
+    content, spans = parse_named_spans(
+        """\
+        + - &a A
+        :   ~~~~anchor
+        + - *a
+        """
+    )
+    root, anchors = load_with_anchors(content)
+    assert anchors == {
+        "a": find_yaml_node_for_span(root, spans["anchor"]),
+    }
 
 
 @pytest.mark.parametrize(
