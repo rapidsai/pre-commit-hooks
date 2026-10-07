@@ -17,6 +17,7 @@ from rapids_pre_commit_hooks.utils.yaml import Anchor, AnchorType
 from rapids_pre_commit_hooks_test_utils import (
     find_yaml_node_for_span,
     parse_named_spans,
+    zip_expected_warnings,
 )
 
 
@@ -167,23 +168,9 @@ class TestUseCUDAWheelsHandler:
                     )
                 )
 
-        assert linter.warnings == [
-            lint.LintWarning(
-                warning_span["warning"],
-                warning["warning"],
-                notes=[
-                    lint.Note(note_span, note)
-                    for note_span, note in zip(
-                        warning_span.get("notes", []),
-                        warning["notes"],
-                        strict=True,
-                    )
-                ],
-            )
-            for warning_span, warning in zip(
-                spans.get("warnings", []), expected_warnings, strict=True
-            )
-        ]
+        assert linter.warnings == zip_expected_warnings(
+            spans.get("warnings", []), expected_warnings
+        )
 
     @pytest.mark.parametrize(
         [
@@ -345,23 +332,9 @@ class TestUseCUDAWheelsHandler:
                     )
                 )
 
-        assert linter.warnings == [
-            lint.LintWarning(
-                warning_span["warning"],
-                warning["warning"],
-                notes=[
-                    lint.Note(note_span, note)
-                    for note_span, note in zip(
-                        warning_span.get("notes", []),
-                        warning["notes"],
-                        strict=True,
-                    )
-                ],
-            )
-            for warning_span, warning in zip(
-                spans.get("warnings", []), expected_warnings, strict=True
-            )
-        ]
+        assert linter.warnings == zip_expected_warnings(
+            spans.get("warnings", []), expected_warnings
+        )
 
     def test_handle_matrix(self):
         content, spans = parse_named_spans(
@@ -1028,25 +1001,9 @@ def test_check_use_cuda_wheels_integration(content, warnings):
     linter = lint.Linter("dependencies.yaml", content, "verify-dependencies")
     handler = UseCUDAWheelsHandler(linter, args)
 
-    expected_warnings = [
-        lint.LintWarning(
-            warning_span["warning"],
-            warning["warning"],
-            notes=[
-                lint.Note(note_span, note)
-                for note_span, note in zip(
-                    warning_span.get("notes", []),
-                    warning["notes"],
-                    strict=True,
-                )
-            ],
-        )
-        for warning_span, warning in zip(
-            spans.get("warnings", []), warnings, strict=True
-        )
-    ]
-
     dependencies_yaml.traverse_root(
         handler, loader.document_anchors[0], set(), composed
     )
-    assert linter.warnings == expected_warnings
+    assert linter.warnings == zip_expected_warnings(
+        spans.get("warnings", []), warnings
+    )
