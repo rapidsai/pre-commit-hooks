@@ -291,7 +291,7 @@ def parse_named_spans(
 
     if any(in_progress_large_spans):
         spans = '", "'.join(
-            map(path_tuple_to_str, sorted(in_progress_large_spans.keys()))
+            sorted(map(path_tuple_to_str, in_progress_large_spans.keys()))
         )
         raise ParseError(f'Unfinished large spans: "{spans}"')
 
