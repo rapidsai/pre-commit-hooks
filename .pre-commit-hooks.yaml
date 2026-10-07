@@ -19,13 +19,6 @@
     (?x)
       ^[.]github/CODEOWNERS$
   args: [--fix]
-- id: verify-conda-yes
-  name: pass -y/--yes to conda
-  description: make sure that all calls to conda pass -y/--yes
-  entry: verify-conda-yes
-  language: python
-  types: [shell]
-  args: [--fix]
 - id: verify-copyright
   name: verify-copyright
   description: make sure copyright headers are up to date
