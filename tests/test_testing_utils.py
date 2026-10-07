@@ -9,6 +9,7 @@ from rapids_pre_commit_hooks.lint import LintWarning, Note, Replacement
 from rapids_pre_commit_hooks.utils.yaml import load_with_anchors
 from rapids_pre_commit_hooks_test_utils import (
     ParseError,
+    ParseWarning,
     find_yaml_node_for_span,
     parse_named_spans,
     zip_expected_warnings,
@@ -315,6 +316,42 @@ from rapids_pre_commit_hooks_test_utils import (
         pytest.param(
             """\
             + Hello
+            :   ~~~~span1
+            + world
+            : ~~span1
+            """,
+            dict,
+            "Hello\nworld\n",
+            {
+                "span1": (2, 8),
+            },
+            contextlib.nullcontext(),
+            id="joined-span-2-lines",
+        ),
+        pytest.param(
+            """\
+            + Hello
+            :   ~~~~span1
+            + world
+            : ~~~~~~span1
+            + !
+            : ~span1
+            """,
+            dict,
+            "Hello\nworld\n!\n",
+            {
+                "span1": (2, 13),
+            },
+            pytest.warns(
+                ParseWarning,
+                match=r'^Span "span1" spans 3 lines, consider using '
+                r">/! notation instead$",
+            ),
+            id="joined-span-3-lines",
+        ),
+        pytest.param(
+            """\
+            + Hello
             : ~0 ~1
             """,
             list,
@@ -445,6 +482,24 @@ from rapids_pre_commit_hooks_test_utils import (
         pytest.param(
             """\
             + Hello
+            : >hello
+            :      !hello
+            """,
+            dict,
+            "Hello\n",
+            {"hello": (0, 5)},
+            pytest.warns(
+                ParseWarning,
+                match=(
+                    r'^Large span "hello" is on a single line, '
+                    r"consider using ~ notation instead$"
+                ),
+            ),
+            id="single-line-large-span",
+        ),
+        pytest.param(
+            """\
+            + Hello
             :  ~~~~span1
             + world!
             : ~span1
@@ -452,7 +507,10 @@ from rapids_pre_commit_hooks_test_utils import (
             dict,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=r'^Attempted to create non-contiguous span "span1"$',
+            ),
             id="broken-multiline-span-first",
         ),
         pytest.param(
@@ -465,7 +523,10 @@ from rapids_pre_commit_hooks_test_utils import (
             dict,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=r'^Attempted to create non-contiguous span "span1"$',
+            ),
             id="broken-multiline-span-second",
         ),
         pytest.param(
@@ -477,7 +538,10 @@ from rapids_pre_commit_hooks_test_utils import (
             dict,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=r'^Attempted to create non-contiguous span "s"$',
+            ),
             id="overlapping-span",
         ),
         pytest.param(
@@ -488,7 +552,10 @@ from rapids_pre_commit_hooks_test_utils import (
             dict,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=r'^End of span "span1" overruns previous line$',
+            ),
             id="past-line-end",
         ),
         pytest.param(
@@ -499,7 +566,10 @@ from rapids_pre_commit_hooks_test_utils import (
             dict,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=r'^Invalid directive line character: "a"$',
+            ),
             id="invalid-before",
         ),
         pytest.param(
@@ -510,7 +580,10 @@ from rapids_pre_commit_hooks_test_utils import (
             dict,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=r'^Invalid directive line character: "a"$',
+            ),
             id="invalid-after",
         ),
         pytest.param(
@@ -521,7 +594,10 @@ from rapids_pre_commit_hooks_test_utils import (
             dict,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=r'^Invalid line start: "@ "$',
+            ),
             id="invalid-first-character",
         ),
         pytest.param(
@@ -531,7 +607,10 @@ from rapids_pre_commit_hooks_test_utils import (
             dict,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=r'^Invalid line start: "\+H"$',
+            ),
             id="content-missing-space",
         ),
         pytest.param(
@@ -541,7 +620,10 @@ from rapids_pre_commit_hooks_test_utils import (
             dict,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=r'^Invalid line start: ":\^"$',
+            ),
             id="directive-missing-space",
         ),
         pytest.param(
@@ -553,7 +635,10 @@ from rapids_pre_commit_hooks_test_utils import (
             list,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=r'^Path "0" is a span, but attempted to access "0\.a"$',
+            ),
             id="overwrite-span-with-dict",
         ),
         pytest.param(
@@ -565,7 +650,10 @@ from rapids_pre_commit_hooks_test_utils import (
             list,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=r'^Path "0" is not a span$',
+            ),
             id="overwrite-dict-with-span",
         ),
         pytest.param(
@@ -577,7 +665,10 @@ from rapids_pre_commit_hooks_test_utils import (
             list,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=r'^Path "0" is not a list, but got an integer key 0$',
+            ),
             id="overwrite-dict-with-list",
         ),
         pytest.param(
@@ -589,7 +680,10 @@ from rapids_pre_commit_hooks_test_utils import (
             list,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=r'^Path "0" is not a dict, but got a string key "a"$',
+            ),
             id="overwrite-list-with-dict",
         ),
         pytest.param(
@@ -600,7 +694,13 @@ from rapids_pre_commit_hooks_test_utils import (
             list,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=(
+                    r'^List "<root>" is missing items at the following '
+                    r"indices: 0$"
+                ),
+            ),
             id="incomplete-list",
         ),
         pytest.param(
@@ -611,7 +711,10 @@ from rapids_pre_commit_hooks_test_utils import (
             dict,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=r"^Expected root type to be dict, got list$",
+            ),
             id="wrong-root-type",
         ),
         pytest.param(
@@ -621,7 +724,10 @@ from rapids_pre_commit_hooks_test_utils import (
             dict,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=r'^End of span "invalid" overruns previous line$',
+            ),
             id="span-on-no-content",
         ),
         pytest.param(
@@ -632,7 +738,10 @@ from rapids_pre_commit_hooks_test_utils import (
             dict,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=r'^End of span "invalid" overruns previous line$',
+            ),
             id="newline-on-no-newline",
         ),
         pytest.param(
@@ -645,20 +754,27 @@ from rapids_pre_commit_hooks_test_utils import (
             dict,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=r'^Large span "s" already in progress$',
+            ),
             id="duplicate-large-span",
         ),
         pytest.param(
             """\
             + Hello
             : >s
+            + world
             :  !s
             :   !s
             """,
             dict,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=r'^Large span "s" not started yet$',
+            ),
             id="double-terminate-large-span",
         ),
         pytest.param(
@@ -669,7 +785,10 @@ from rapids_pre_commit_hooks_test_utils import (
             dict,
             None,
             None,
-            pytest.raises(ParseError),
+            pytest.raises(
+                ParseError,
+                match=r'^Unfinished large spans: "s"$',
+            ),
             id="unterminated-large-span",
         ),
     ],
