@@ -48,7 +48,6 @@ dependencies = [
 [project.scripts]
 verify-alpha-spec = "rapids_pre_commit_hooks.alpha_spec:main"
 verify-codeowners = "rapids_pre_commit_hooks.codeowners:main"
-verify-conda-yes = "rapids_pre_commit_hooks.shell.verify_conda_yes:main"
 verify-copyright = "rapids_pre_commit_hooks.copyright:main"
 verify-dependencies = "rapids_pre_commit_hooks.dependencies:main"
 verify-hardcoded-version = "rapids_pre_commit_hooks.hardcoded_version:main"
