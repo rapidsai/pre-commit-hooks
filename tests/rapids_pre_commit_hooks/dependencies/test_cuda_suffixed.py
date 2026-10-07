@@ -45,13 +45,17 @@ class TestCUDASuffixedHandler:
         assert context.has_python_output_type is True
 
     def test_handle_common(self):
-        composed, _ = load_with_anchors(
+        content, spans = parse_named_spans(
             """\
-            common:
-              packages: []
+            + common:
+            : ~~~~~~common_key
+            +   packages: []
+            :   ~~~~~~~~~~~~~common
             """
         )
-        common_key, common = composed.value[0]
+        composed, _ = load_with_anchors(content)
+        common_key = find_yaml_node_for_span(composed, spans["common_key"])
+        common = find_yaml_node_for_span(composed, spans["common"])
 
         handler = CUDASuffixedHandler(Mock(), Mock())
         with handler.handle_common(Mock(), common_key, common) as context:
@@ -71,13 +75,16 @@ class TestCUDASuffixedHandler:
                 + common:
                 : ~~~~~~warnings.0.notes.0
                 : ~~~~~~warnings.1.notes.0
+                : ~~~~~~common_key
                 +   packages:
+                :   >common
                 +     - package-cu12
-                :       ~~~~~~~~~~~~suffixed.0
                 :       ~~~~~~~~~~~~warnings.0.warning
+                :       ~~~~~~~~~~~~suffixed.0
                 +     - package
-                :       ~~~~~~~unsuffixed.0
                 :       ~~~~~~~warnings.1.warning
+                :       ~~~~~~~unsuffixed.0
+                :               !common
                 """,
                 True,
                 ["package"],
@@ -105,11 +112,14 @@ class TestCUDASuffixedHandler:
             pytest.param(
                 """\
                 + common:
+                : ~~~~~~common_key
                 +   packages:
+                :   >common
                 +     - package-cu12
                 :       ~~~~~~~~~~~~suffixed.0
                 +     - package
                 :       ~~~~~~~unsuffixed.0
+                :               !common
                 """,
                 False,
                 ["package"],
@@ -120,7 +130,9 @@ class TestCUDASuffixedHandler:
             pytest.param(
                 """\
                 + common:
+                : ~~~~~~common_key
                 +   packages: []
+                :   ~~~~~~~~~~~~~common
                 """,
                 True,
                 [],
@@ -140,7 +152,8 @@ class TestCUDASuffixedHandler:
     ):
         content, spans = parse_named_spans(content, dict)
         composed, _ = load_with_anchors(content)
-        common_key, common = composed.value[0]
+        common_key = find_yaml_node_for_span(composed, spans["common_key"])
+        common = find_yaml_node_for_span(composed, spans["common"])
         linter = lint.Linter(
             "dependencies.yaml", content, "verify-dependencies"
         )
@@ -676,10 +689,12 @@ class TestCUDASuffixedHandler:
             + matrix:
             : ~~~~~~matrix_key
             +   cuda_suffixed: "true"
+            :   ~~~~~~~~~~~~~~~~~~~~~~matrix
             """
         )
         composed, _ = load_with_anchors(content)
-        matrix_key, matrix = composed.value[0]
+        matrix_key = find_yaml_node_for_span(composed, spans["matrix_key"])
+        matrix = find_yaml_node_for_span(composed, spans["matrix"])
         context = CUDASuffixedHandler.MatricesItemContext()
         handler = CUDASuffixedHandler(Mock(), Mock())
 
@@ -701,7 +716,11 @@ class TestCUDASuffixedHandler:
         ],
         [
             pytest.param(
-                'cuda_suffixed: "true"',
+                """\
+                + cuda_suffixed: "true"
+                : ~~~~~~~~~~~~~key
+                :                ~~~~~~value
+                """,
                 True,
                 True,
                 None,
@@ -709,7 +728,11 @@ class TestCUDASuffixedHandler:
                 id="cuda-suffixed-true",
             ),
             pytest.param(
-                'cuda_suffixed: "false"',
+                """\
+                + cuda_suffixed: "false"
+                : ~~~~~~~~~~~~~key
+                :                ~~~~~~~value
+                """,
                 False,
                 True,
                 None,
@@ -717,7 +740,11 @@ class TestCUDASuffixedHandler:
                 id="cuda-suffixed-false",
             ),
             pytest.param(
-                'cuda_suffixed: "other"',
+                """\
+                + cuda_suffixed: "other"
+                : ~~~~~~~~~~~~~key
+                :                ~~~~~~~value
+                """,
                 None,
                 True,
                 None,
@@ -725,7 +752,11 @@ class TestCUDASuffixedHandler:
                 id="cuda-suffixed-other",
             ),
             pytest.param(
-                'cuda: "12.8"',
+                """\
+                + cuda: "12.8"
+                : ~~~~key
+                :       ~~~~~~value
+                """,
                 None,
                 False,
                 12,
@@ -733,7 +764,11 @@ class TestCUDASuffixedHandler:
                 id="cuda-version",
             ),
             pytest.param(
-                'cuda: "12.*"',
+                """\
+                + cuda: "12.*"
+                : ~~~~key
+                :       ~~~~~~value
+                """,
                 None,
                 False,
                 12,
@@ -741,7 +776,11 @@ class TestCUDASuffixedHandler:
                 id="cuda-version-wildcard",
             ),
             pytest.param(
-                'cuda: "invalid"',
+                """\
+                + cuda: "invalid"
+                : ~~~~key
+                :       ~~~~~~~~~value
+                """,
                 None,
                 False,
                 None,
@@ -749,7 +788,11 @@ class TestCUDASuffixedHandler:
                 id="cuda-version-invalid",
             ),
             pytest.param(
-                'other: "value"',
+                """\
+                + other: "value"
+                : ~~~~~key
+                :        ~~~~~~~value
+                """,
                 None,
                 False,
                 None,
@@ -766,8 +809,10 @@ class TestCUDASuffixedHandler:
         expected_cuda_major,
         has_cuda_node,
     ):
+        content, spans = parse_named_spans(content)
         composed, _ = load_with_anchors(content)
-        key, value = composed.value[0]
+        key = find_yaml_node_for_span(composed, spans["key"])
+        value = find_yaml_node_for_span(composed, spans["value"])
         context = CUDASuffixedHandler.MatricesItemContext()
         handler = CUDASuffixedHandler(Mock(), Mock())
 

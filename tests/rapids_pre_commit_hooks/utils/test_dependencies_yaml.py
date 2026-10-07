@@ -226,8 +226,16 @@ class TestChainedHandler:
 
 
 def test_traverse_file_output_item():
-    file_output, _ = load_with_anchors("[pyproject]")
-    file_output_item = file_output.value[0]
+    content, spans = parse_named_spans(
+        """\
+        + [pyproject]
+        :  ~~~~~~~~~file_output_item
+        """
+    )
+    file_output, _ = load_with_anchors(content)
+    file_output_item = find_yaml_node_for_span(
+        file_output, spans["file_output_item"]
+    )
     file_output_context = Mock()
     manager = MagicMock()
 
@@ -320,26 +328,40 @@ def test_traverse_file_output(content):
         pytest.param(
             "traverse_extras_table",
             "handle_extras_table",
-            "table: project.optional-dependencies",
+            """\
+            + table: project.optional-dependencies
+            : ~~~~~key
+            :        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~value
+            """,
             id="extras-table",
         ),
         pytest.param(
             "traverse_extras_key",
             "handle_extras_key",
-            "key: test",
+            """\
+            + key: test
+            : ~~~key
+            :      ~~~~value
+            """,
             id="extras-key",
         ),
         pytest.param(
             "traverse_pyproject_dir",
             "handle_pyproject_dir",
-            "pyproject_dir: python",
+            """\
+            + pyproject_dir: python
+            : ~~~~~~~~~~~~~key
+            :                ~~~~~~value
+            """,
             id="pyproject-dir",
         ),
     ],
 )
 def test_traverse_string_value(function_name, handler_name, content):
+    content, spans = parse_named_spans(content)
     parent, _ = load_with_anchors(content)
-    key, value = parent.value[0]
+    key = find_yaml_node_for_span(parent, spans["key"])
+    value = find_yaml_node_for_span(parent, spans["value"])
     parent_context = Mock()
     manager = MagicMock()
 
@@ -356,14 +378,23 @@ def test_traverse_string_value(function_name, handler_name, content):
 
 
 def test_traverse_extras():
-    files_item, _ = load_with_anchors(
+    content, spans = parse_named_spans(
         """\
-    extras:
-        table: project.optional-dependencies
-        key: test
-    """
+        + extras:
+        : ~~~~~~extras_key
+        +     table: project.optional-dependencies
+        :     >extras
+        :     ~~~~~table_key
+        :            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~table
+        +     key: test
+        :               !extras
+        :     ~~~key_key
+        :          ~~~~key
+        """
     )
-    extras_key, extras = files_item.value[0]
+    files_item, _ = load_with_anchors(content)
+    extras_key = find_yaml_node_for_span(files_item, spans["extras_key"])
+    extras = find_yaml_node_for_span(files_item, spans["extras"])
     files_item_context = Mock()
     manager = MagicMock()
 
@@ -373,14 +404,14 @@ def test_traverse_extras():
         call.traverse_extras_table(
             manager.handler,
             manager.handler.handle_extras().__enter__(),
-            extras.value[0][0],
-            extras.value[0][1],
+            find_yaml_node_for_span(files_item, spans["table_key"]),
+            find_yaml_node_for_span(files_item, spans["table"]),
         ),
         call.traverse_extras_key(
             manager.handler,
             manager.handler.handle_extras().__enter__(),
-            extras.value[1][0],
-            extras.value[1][1],
+            find_yaml_node_for_span(files_item, spans["key_key"]),
+            find_yaml_node_for_span(files_item, spans["key"]),
         ),
         call.handler.handle_extras().__exit__(None, None, None),
     ]
@@ -406,16 +437,27 @@ def test_traverse_extras():
 
 
 def test_traverse_files_item():
-    files, _ = load_with_anchors(
+    content, spans = parse_named_spans(
         """\
-    test:
-        output: pyproject
-        extras: {}
-        pyproject_dir: python
-        includes: []
-    """
+        + test:
+        : ~~~~files_item_key
+        +     output: pyproject
+        :     >files_item
+        :     ~~~~~~output_key
+        :             ~~~~~~~~~output
+        +     extras: {}
+        :     ~~~~~~extras_key
+        :             ~~extras
+        +     pyproject_dir: python
+        :     ~~~~~~~~~~~~~pyproject_dir_key
+        :                    ~~~~~~pyproject_dir
+        +     includes: []
+        :                  !files_item
+        """
     )
-    files_item_key, files_item = files.value[0]
+    files, _ = load_with_anchors(content)
+    files_item_key = find_yaml_node_for_span(files, spans["files_item_key"])
+    files_item = find_yaml_node_for_span(files, spans["files_item"])
     files_context = Mock()
     manager = MagicMock()
 
@@ -427,20 +469,20 @@ def test_traverse_files_item():
         call.traverse_file_output(
             manager.handler,
             manager.handler.handle_files_item().__enter__(),
-            files_item.value[0][0],
-            files_item.value[0][1],
+            find_yaml_node_for_span(files, spans["output_key"]),
+            find_yaml_node_for_span(files, spans["output"]),
         ),
         call.traverse_extras(
             manager.handler,
             manager.handler.handle_files_item().__enter__(),
-            files_item.value[1][0],
-            files_item.value[1][1],
+            find_yaml_node_for_span(files, spans["extras_key"]),
+            find_yaml_node_for_span(files, spans["extras"]),
         ),
         call.traverse_pyproject_dir(
             manager.handler,
             manager.handler.handle_files_item().__enter__(),
-            files_item.value[2][0],
-            files_item.value[2][1],
+            find_yaml_node_for_span(files, spans["pyproject_dir_key"]),
+            find_yaml_node_for_span(files, spans["pyproject_dir"]),
         ),
         call.handler.handle_files_item().__exit__(None, None, None),
     ]
@@ -470,14 +512,23 @@ def test_traverse_files_item():
 
 
 def test_traverse_files():
-    root, _ = load_with_anchors(
+    content, spans = parse_named_spans(
         """\
-    files:
-        test: {}
-        all: {}
-    """
+        + files:
+        : ~~~~~files_key
+        +     test: {}
+        :     >files
+        :     ~~~~test_key
+        :           ~~test
+        +     all: {}
+        :             !files
+        :     ~~~all_key
+        :          ~~all
+        """
     )
-    files_key, files = root.value[0]
+    root, _ = load_with_anchors(content)
+    files_key = find_yaml_node_for_span(root, spans["files_key"])
+    files = find_yaml_node_for_span(root, spans["files"])
     root_context = Mock()
     manager = MagicMock()
 
@@ -487,14 +538,14 @@ def test_traverse_files():
         call.traverse_files_item(
             manager.handler,
             manager.handler.handle_files().__enter__(),
-            files.value[0][0],
-            files.value[0][1],
+            find_yaml_node_for_span(root, spans["test_key"]),
+            find_yaml_node_for_span(root, spans["test"]),
         ),
         call.traverse_files_item(
             manager.handler,
             manager.handler.handle_files().__enter__(),
-            files.value[1][0],
-            files.value[1][1],
+            find_yaml_node_for_span(root, spans["all_key"]),
+            find_yaml_node_for_span(root, spans["all"]),
         ),
         call.handler.handle_files().__exit__(None, None, None),
     ]
@@ -578,8 +629,10 @@ def test_traverse_package(content, used_anchors, anchor):
             + packages:
             : ~~~~~~~~packages_key
             +     - lib1
+            :       ~~~~items.0
             :     >packages
             +     - lib2
+            :       ~~~~items.1
             :            !packages
             """,
             set(),
@@ -594,7 +647,9 @@ def test_traverse_package(content, used_anchors, anchor):
             :             >packages
             :             >anchors.packages
             +     - lib1
+            :       ~~~~items.0
             +     - lib2
+            :       ~~~~items.1
             :            !packages
             :            !anchors.packages
             + - packages: *packages
@@ -610,7 +665,9 @@ def test_traverse_package(content, used_anchors, anchor):
             :             >packages
             :             >anchors.packages
             +     - lib1
+            :       ~~~~items.0
             +     - lib2
+            :       ~~~~items.1
             :            !packages
             :            !anchors.packages
             + - packages: *packages
@@ -645,14 +702,14 @@ def test_traverse_packages(content, used_anchors, used_anchors_after, anchor):
             manager.handler.handle_packages().__enter__(),
             anchors,
             used_anchors_after,
-            packages.value[0],
+            find_yaml_node_for_span(composed, spans["items"][0]),
         ),
         call.traverse_package(
             manager.handler,
             manager.handler.handle_packages().__enter__(),
             anchors,
             used_anchors_after,
-            packages.value[1],
+            find_yaml_node_for_span(composed, spans["items"][1]),
         ),
         call.handler.handle_packages().__exit__(None, None, None),
     ]
@@ -677,12 +734,14 @@ def test_traverse_packages(content, used_anchors, used_anchors_after, anchor):
 
 
 def test_traverse_output_type():
-    output_types, _ = load_with_anchors(
+    content, spans = parse_named_spans(
         """\
-    [requirements]
-    """
+        + [requirements]
+        :  ~~~~~~~~~~~~output_type
+        """
     )
-    output_type = output_types.value[0]
+    output_types, _ = load_with_anchors(content)
+    output_type = find_yaml_node_for_span(output_types, spans["output_type"])
     output_types_context = Mock()
     manager = MagicMock()
 
@@ -769,13 +828,20 @@ def test_traverse_output_types(content):
 
 
 def test_traverse_common_item():
-    common, _ = load_with_anchors(
+    content, spans = parse_named_spans(
         """\
-    - output_types: pyproject
-      packages: []
-    """
+        + - output_types: pyproject
+        :   >common_item
+        :   ~~~~~~~~~~~~output_types_key
+        :                 ~~~~~~~~~output_types
+        +   packages: []
+        :                !common_item
+        :   ~~~~~~~~packages_key
+        :             ~~packages
+        """
     )
-    common_item = common.value[0]
+    common, _ = load_with_anchors(content)
+    common_item = find_yaml_node_for_span(common, spans["common_item"])
     common_context = Mock()
     manager = MagicMock()
 
@@ -785,16 +851,16 @@ def test_traverse_common_item():
         call.traverse_output_types(
             manager.handler,
             manager.handler.handle_common_item().__enter__(),
-            common_item.value[0][0],
-            common_item.value[0][1],
+            find_yaml_node_for_span(common, spans["output_types_key"]),
+            find_yaml_node_for_span(common, spans["output_types"]),
         ),
         call.traverse_packages(
             manager.handler,
             manager.handler.handle_common_item().__enter__(),
             {},
             set(),
-            common_item.value[1][0],
-            common_item.value[1][1],
+            find_yaml_node_for_span(common, spans["packages_key"]),
+            find_yaml_node_for_span(common, spans["packages"]),
         ),
         call.handler.handle_common_item().__exit__(None, None, None),
     ]
@@ -818,14 +884,21 @@ def test_traverse_common_item():
 
 
 def test_traverse_common():
-    dependency_set, _ = load_with_anchors(
+    content, spans = parse_named_spans(
         """\
-    common:
-        - {}
-        - {}
-    """
+        + common:
+        : ~~~~~~common_key
+        +     - {}
+        :     >common
+        :       ~~common_item_0
+        +     - {}
+        :          !common
+        :       ~~common_item_1
+        """
     )
-    common_key, common = dependency_set.value[0]
+    dependency_set, _ = load_with_anchors(content)
+    common_key = find_yaml_node_for_span(dependency_set, spans["common_key"])
+    common = find_yaml_node_for_span(dependency_set, spans["common"])
     dependency_set_context = Mock()
     manager = MagicMock()
 
@@ -837,14 +910,14 @@ def test_traverse_common():
             manager.handler.handle_common().__enter__(),
             {},
             set(),
-            common.value[0],
+            find_yaml_node_for_span(dependency_set, spans["common_item_0"]),
         ),
         call.traverse_common_item(
             manager.handler,
             manager.handler.handle_common().__enter__(),
             {},
             set(),
-            common.value[1],
+            find_yaml_node_for_span(dependency_set, spans["common_item_1"]),
         ),
         call.handler.handle_common().__exit__(None, None, None),
     ]
@@ -869,12 +942,16 @@ def test_traverse_common():
 
 
 def test_traverse_matrix_item():
-    matrix, _ = load_with_anchors(
+    content, spans = parse_named_spans(
         """\
-    value_1: "true"
-    """
+        + value_1: "true"
+        : ~~~~~~~matrix_item_key
+        :          ~~~~~~matrix_item
+        """
     )
-    matrix_item_key, matrix_item = matrix.value[0]
+    matrix, _ = load_with_anchors(content)
+    matrix_item_key = find_yaml_node_for_span(matrix, spans["matrix_item_key"])
+    matrix_item = find_yaml_node_for_span(matrix, spans["matrix_item"])
     matrix_context = Mock()
     manager = MagicMock()
 
@@ -896,14 +973,23 @@ def test_traverse_matrix_item():
 
 
 def test_traverse_matrix():
-    matrices_item, _ = load_with_anchors(
+    content, spans = parse_named_spans(
         """\
-    matrix:
-        value_1: "true"
-        value_2: "true"
-    """
+        + matrix:
+        : ~~~~~~matrix_key
+        +     value_1: "true"
+        :     >matrix
+        :     ~~~~~~~value_1_key
+        :              ~~~~~~value_1
+        +     value_2: "true"
+        :                     !matrix
+        :     ~~~~~~~value_2_key
+        :              ~~~~~~value_2
+        """
     )
-    matrix_key, matrix = matrices_item.value[0]
+    matrices_item, _ = load_with_anchors(content)
+    matrix_key = find_yaml_node_for_span(matrices_item, spans["matrix_key"])
+    matrix = find_yaml_node_for_span(matrices_item, spans["matrix"])
     matrices_item_context = Mock()
     manager = MagicMock()
 
@@ -913,14 +999,14 @@ def test_traverse_matrix():
         call.traverse_matrix_item(
             manager.handler,
             manager.handler.handle_matrix().__enter__(),
-            matrix.value[0][0],
-            matrix.value[0][1],
+            find_yaml_node_for_span(matrices_item, spans["value_1_key"]),
+            find_yaml_node_for_span(matrices_item, spans["value_1"]),
         ),
         call.traverse_matrix_item(
             manager.handler,
             manager.handler.handle_matrix().__enter__(),
-            matrix.value[1][0],
-            matrix.value[1][1],
+            find_yaml_node_for_span(matrices_item, spans["value_2_key"]),
+            find_yaml_node_for_span(matrices_item, spans["value_2"]),
         ),
         call.handler.handle_matrix().__exit__(None, None, None),
     ]
@@ -943,13 +1029,20 @@ def test_traverse_matrix():
 
 
 def test_traverse_matrices_item():
-    matrices, _ = load_with_anchors(
+    content, spans = parse_named_spans(
         """\
-    - matrix: {}
-      packages: []
-    """
+        + - matrix: {}
+        :   >matrices_item
+        :   ~~~~~~matrix_key
+        :           ~~matrix
+        +   packages: []
+        :                !matrices_item
+        :   ~~~~~~~~packages_key
+        :             ~~packages
+        """
     )
-    matrices_item = matrices.value[0]
+    matrices, _ = load_with_anchors(content)
+    matrices_item = find_yaml_node_for_span(matrices, spans["matrices_item"])
     matrices_context = Mock()
     manager = MagicMock()
 
@@ -959,16 +1052,16 @@ def test_traverse_matrices_item():
         call.traverse_matrix(
             manager.handler,
             manager.handler.handle_matrices_item().__enter__(),
-            matrices_item.value[0][0],
-            matrices_item.value[0][1],
+            find_yaml_node_for_span(matrices, spans["matrix_key"]),
+            find_yaml_node_for_span(matrices, spans["matrix"]),
         ),
         call.traverse_packages(
             manager.handler,
             manager.handler.handle_matrices_item().__enter__(),
             {},
             set(),
-            matrices_item.value[1][0],
-            matrices_item.value[1][1],
+            find_yaml_node_for_span(matrices, spans["packages_key"]),
+            find_yaml_node_for_span(matrices, spans["packages"]),
         ),
         call.handler.handle_matrices_item().__exit__(None, None, None),
     ]
@@ -992,15 +1085,25 @@ def test_traverse_matrices_item():
 
 
 def test_traverse_matrices():
-    specific_item, _ = load_with_anchors(
+    content, spans = parse_named_spans(
         """\
-    matrices:
-        - {}
-        - {}
-        - {}
-    """
+        + matrices:
+        : ~~~~~~~~matrices_key
+        +     - {}
+        :     >matrices
+        :       ~~matrices_items.0
+        +     - {}
+        :       ~~matrices_items.1
+        +     - {}
+        :          !matrices
+        :       ~~matrices_items.2
+        """
     )
-    matrices_key, matrices = specific_item.value[0]
+    specific_item, _ = load_with_anchors(content)
+    matrices_key = find_yaml_node_for_span(
+        specific_item, spans["matrices_key"]
+    )
+    matrices = find_yaml_node_for_span(specific_item, spans["matrices"])
     specific_item_context = Mock()
     manager = MagicMock()
 
@@ -1014,21 +1117,21 @@ def test_traverse_matrices():
             manager.handler.handle_matrices().__enter__(),
             {},
             set(),
-            matrices.value[0],
+            find_yaml_node_for_span(specific_item, spans["matrices_items"][0]),
         ),
         call.traverse_matrices_item(
             manager.handler,
             manager.handler.handle_matrices().__enter__(),
             {},
             set(),
-            matrices.value[1],
+            find_yaml_node_for_span(specific_item, spans["matrices_items"][1]),
         ),
         call.traverse_matrices_item(
             manager.handler,
             manager.handler.handle_matrices().__enter__(),
             {},
             set(),
-            matrices.value[2],
+            find_yaml_node_for_span(specific_item, spans["matrices_items"][2]),
         ),
         call.handler.handle_matrices().__exit__(None, None, None),
     ]
@@ -1053,13 +1156,20 @@ def test_traverse_matrices():
 
 
 def test_traverse_specific_item():
-    specific, _ = load_with_anchors(
+    content, spans = parse_named_spans(
         """\
-    - output_types: pyproject
-      matrices: []
-    """
+        + - output_types: pyproject
+        :   >specific_item
+        :   ~~~~~~~~~~~~output_types_key
+        :                 ~~~~~~~~~output_types
+        +   matrices: []
+        :                !specific_item
+        :   ~~~~~~~~matrices_key
+        :             ~~matrices
+        """
     )
-    specific_item = specific.value[0]
+    specific, _ = load_with_anchors(content)
+    specific_item = find_yaml_node_for_span(specific, spans["specific_item"])
     specific_context = Mock()
     manager = MagicMock()
 
@@ -1069,16 +1179,16 @@ def test_traverse_specific_item():
         call.traverse_output_types(
             manager.handler,
             manager.handler.handle_specific_item().__enter__(),
-            specific_item.value[0][0],
-            specific_item.value[0][1],
+            find_yaml_node_for_span(specific, spans["output_types_key"]),
+            find_yaml_node_for_span(specific, spans["output_types"]),
         ),
         call.traverse_matrices(
             manager.handler,
             manager.handler.handle_specific_item().__enter__(),
             {},
             set(),
-            specific_item.value[1][0],
-            specific_item.value[1][1],
+            find_yaml_node_for_span(specific, spans["matrices_key"]),
+            find_yaml_node_for_span(specific, spans["matrices"]),
         ),
         call.handler.handle_specific_item().__exit__(None, None, None),
     ]
@@ -1102,15 +1212,25 @@ def test_traverse_specific_item():
 
 
 def test_traverse_specific():
-    dependency_set, _ = load_with_anchors(
+    content, spans = parse_named_spans(
         """\
-    specific:
-        - {}
-        - {}
-        - {}
-    """
+        + specific:
+        : ~~~~~~~~specific_key
+        +     - {}
+        :     >specific
+        :       ~~specific_items.0
+        +     - {}
+        :       ~~specific_items.1
+        +     - {}
+        :          !specific
+        :       ~~specific_items.2
+        """
     )
-    specific_key, specific = dependency_set.value[0]
+    dependency_set, _ = load_with_anchors(content)
+    specific_key = find_yaml_node_for_span(
+        dependency_set, spans["specific_key"]
+    )
+    specific = find_yaml_node_for_span(dependency_set, spans["specific"])
     dependency_set_context = Mock()
     manager = MagicMock()
 
@@ -1124,21 +1244,27 @@ def test_traverse_specific():
             manager.handler.handle_specific().__enter__(),
             {},
             set(),
-            specific.value[0],
+            find_yaml_node_for_span(
+                dependency_set, spans["specific_items"][0]
+            ),
         ),
         call.traverse_specific_item(
             manager.handler,
             manager.handler.handle_specific().__enter__(),
             {},
             set(),
-            specific.value[1],
+            find_yaml_node_for_span(
+                dependency_set, spans["specific_items"][1]
+            ),
         ),
         call.traverse_specific_item(
             manager.handler,
             manager.handler.handle_specific().__enter__(),
             {},
             set(),
-            specific.value[2],
+            find_yaml_node_for_span(
+                dependency_set, spans["specific_items"][2]
+            ),
         ),
         call.handler.handle_specific().__exit__(None, None, None),
     ]
@@ -1163,14 +1289,27 @@ def test_traverse_specific():
 
 
 def test_traverse_dependency_set():
-    dependencies, _ = load_with_anchors(
+    content, spans = parse_named_spans(
         """\
-    dependency_set_1:
-        common: {}
-        specific: {}
-    """
+        + dependency_set_1:
+        : ~~~~~~~~~~~~~~~~dependency_set_key
+        +     common: {}
+        :     >dependency_set
+        :     ~~~~~~common_key
+        :             ~~common
+        +     specific: {}
+        :                  !dependency_set
+        :     ~~~~~~~~specific_key
+        :               ~~specific
+        """
     )
-    dependency_set_key, dependency_set = dependencies.value[0]
+    dependencies, _ = load_with_anchors(content)
+    dependency_set_key = find_yaml_node_for_span(
+        dependencies, spans["dependency_set_key"]
+    )
+    dependency_set = find_yaml_node_for_span(
+        dependencies, spans["dependency_set"]
+    )
     dependencies_context = Mock()
     manager = MagicMock()
 
@@ -1184,16 +1323,16 @@ def test_traverse_dependency_set():
             manager.handler.handle_dependency_set().__enter__(),
             {},
             set(),
-            dependency_set.value[0][0],
-            dependency_set.value[0][1],
+            find_yaml_node_for_span(dependencies, spans["common_key"]),
+            find_yaml_node_for_span(dependencies, spans["common"]),
         ),
         call.traverse_specific(
             manager.handler,
             manager.handler.handle_dependency_set().__enter__(),
             {},
             set(),
-            dependency_set.value[1][0],
-            dependency_set.value[1][1],
+            find_yaml_node_for_span(dependencies, spans["specific_key"]),
+            find_yaml_node_for_span(dependencies, spans["specific"]),
         ),
         call.handler.handle_dependency_set().__exit__(None, None, None),
     ]
@@ -1222,14 +1361,23 @@ def test_traverse_dependency_set():
 
 
 def test_traverse_dependencies():
-    root, _ = load_with_anchors(
+    content, spans = parse_named_spans(
         """\
-    dependencies:
-        dependency_set_1: {}
-        dependency_set_2: {}
-    """
+        + dependencies:
+        : ~~~~~~~~~~~~dependencies_key
+        +     dependency_set_1: {}
+        :     >dependencies
+        :     ~~~~~~~~~~~~~~~~dependency_set_1_key
+        :                       ~~dependency_set_1
+        +     dependency_set_2: {}
+        :                          !dependencies
+        :     ~~~~~~~~~~~~~~~~dependency_set_2_key
+        :                       ~~dependency_set_2
+        """
     )
-    dependencies_key, dependencies = root.value[0]
+    root, _ = load_with_anchors(content)
+    dependencies_key = find_yaml_node_for_span(root, spans["dependencies_key"])
+    dependencies = find_yaml_node_for_span(root, spans["dependencies"])
     root_context = Mock()
     manager = MagicMock()
 
@@ -1243,16 +1391,16 @@ def test_traverse_dependencies():
             manager.handler.handle_dependencies().__enter__(),
             {},
             set(),
-            dependencies.value[0][0],
-            dependencies.value[0][1],
+            find_yaml_node_for_span(root, spans["dependency_set_1_key"]),
+            find_yaml_node_for_span(root, spans["dependency_set_1"]),
         ),
         call.traverse_dependency_set(
             manager.handler,
             manager.handler.handle_dependencies().__enter__(),
             {},
             set(),
-            dependencies.value[1][0],
-            dependencies.value[1][1],
+            find_yaml_node_for_span(root, spans["dependency_set_2_key"]),
+            find_yaml_node_for_span(root, spans["dependency_set_2"]),
         ),
         call.handler.handle_dependencies().__exit__(None, None, None),
     ]
@@ -1275,13 +1423,18 @@ def test_traverse_dependencies():
 
 
 def test_traverse_root():
-    root, _ = load_with_anchors(
+    content, spans = parse_named_spans(
         """\
-    files: {}
-    channels: []
-    dependencies: {}
-    """
+        + files: {}
+        : ~~~~~files_key
+        :        ~~files
+        + channels: []
+        + dependencies: {}
+        : ~~~~~~~~~~~~dependencies_key
+        :               ~~dependencies
+        """
     )
+    root, _ = load_with_anchors(content)
     manager = MagicMock()
 
     expected_calls = [
@@ -1290,16 +1443,16 @@ def test_traverse_root():
         call.traverse_files(
             manager.handler,
             manager.handler.handle_root().__enter__(),
-            root.value[0][0],
-            root.value[0][1],
+            find_yaml_node_for_span(root, spans["files_key"]),
+            find_yaml_node_for_span(root, spans["files"]),
         ),
         call.traverse_dependencies(
             manager.handler,
             manager.handler.handle_root().__enter__(),
             {},
             set(),
-            root.value[2][0],
-            root.value[2][1],
+            find_yaml_node_for_span(root, spans["dependencies_key"]),
+            find_yaml_node_for_span(root, spans["dependencies"]),
         ),
         call.handler.handle_root().__exit__(None, None, None),
     ]

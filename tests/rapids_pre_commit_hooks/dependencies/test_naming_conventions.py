@@ -12,6 +12,7 @@ from rapids_pre_commit_hooks.dependencies.naming_conventions import (
 from rapids_pre_commit_hooks.utils import dependencies_yaml
 from rapids_pre_commit_hooks.utils.yaml import load_with_anchors
 from rapids_pre_commit_hooks_test_utils import (
+    find_yaml_node_for_span,
     parse_named_spans,
     zip_expected_warnings,
 )
@@ -27,8 +28,10 @@ class TestNamingConventionsHandler:
                 +   wrong_name:
                 :   ~~~~~~~~~~warnings.0.warning
                 :   ~~~~~~~~~~warnings.0.replacements.0
+                :   ~~~~~~~~~~file_key
                 +     output: pyproject
                 :             ~~~~~~~~~warnings.0.notes.0
+                :     >file_value
                 +     pyproject_dir: python/dask-cuda
                 :                    ~~~~~~~~~~~~~~~~warnings.0.notes.1
                 +     extras:
@@ -36,6 +39,7 @@ class TestNamingConventionsHandler:
                 :              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~warnings.0.notes.2
                 +       key: test
                 :            ~~~~warnings.0.notes.3
+                :                 !file_value
                 """,
                 [
                     {
@@ -58,13 +62,16 @@ class TestNamingConventionsHandler:
                 +   wrong_name:
                 :   ~~~~~~~~~~warnings.0.warning
                 :   ~~~~~~~~~~warnings.0.replacements.0
+                :   ~~~~~~~~~~file_key
                 +     output: pyproject
                 :             ~~~~~~~~~warnings.0.notes.0
+                :     >file_value
                 +     pyproject_dir: python/dask-cuda
                 :                    ~~~~~~~~~~~~~~~~warnings.0.notes.1
                 +     extras:
                 +       table: project
                 :              ~~~~~~~warnings.0.notes.2
+                :                      !file_value
                 """,
                 [
                     {
@@ -84,10 +91,13 @@ class TestNamingConventionsHandler:
                 """\
                 + files:
                 +   wrong_name:
+                :   ~~~~~~~~~~file_key
                 +     output: pyproject
+                :     >file_value
                 +     pyproject_dir: python/dask-cuda
                 +     extras:
                 +       table: unknown
+                :                      !file_value
                 """,
                 [],
                 id="mismatched-table",
@@ -96,11 +106,14 @@ class TestNamingConventionsHandler:
                 """\
                 + files:
                 +   wrong_name:
+                :   ~~~~~~~~~~file_key
                 +     output: pyproject
+                :     >file_value
                 +     pyproject_dir: python/dask-cuda
                 +     extras:
                 +       table: project.optional-dependencies
                 +       key: docs
+                :                 !file_value
                 """,
                 [],
                 id="mismatched-key",
@@ -109,10 +122,13 @@ class TestNamingConventionsHandler:
                 """\
                 + files:
                 +   wrong_name:
+                :   ~~~~~~~~~~file_key
                 +     output: requirements
+                :     >file_value
                 +     pyproject_dir: python/dask-cuda
                 +     extras:
                 +       table: project
+                :                      !file_value
                 """,
                 [],
                 id="non-pyproject-output",
@@ -121,10 +137,13 @@ class TestNamingConventionsHandler:
                 """\
                 + files:
                 +   wrong_name:
+                :   ~~~~~~~~~~file_key
                 +     output: pyproject
+                :     >file_value
                 +     pyproject_dir: python/
                 +     extras:
                 +       table: project
+                :                      !file_value
                 """,
                 [],
                 id="empty-python-dir",
@@ -133,9 +152,12 @@ class TestNamingConventionsHandler:
                 """\
                 + files:
                 +   wrong_name:
+                :   ~~~~~~~~~~file_key
                 +     output: pyproject
+                :     >file_value
                 +     extras:
                 +       table: project
+                :                      !file_value
                 """,
                 [],
                 id="no-pyproject-dir",
@@ -144,8 +166,11 @@ class TestNamingConventionsHandler:
                 """\
                 + files:
                 +   wrong_name:
+                :   ~~~~~~~~~~file_key
                 +     output: pyproject
+                :     >file_value
                 +     pyproject_dir: python/dask-cuda
+                :                                     !file_value
                 """,
                 [],
                 id="no-extras-table",
@@ -154,10 +179,13 @@ class TestNamingConventionsHandler:
                 """\
                 + files:
                 +   py_run_dask_cuda:
+                :   ~~~~~~~~~~~~~~~~file_key
                 +     output: pyproject
+                :     >file_value
                 +     pyproject_dir: python/dask-cuda
                 +     extras:
                 +       table: project
+                :                      !file_value
                 """,
                 [],
                 id="correct-naming-convention-without-key",
@@ -166,11 +194,14 @@ class TestNamingConventionsHandler:
                 """\
                 + files:
                 +   py_test_dask_cuda:
+                :   ~~~~~~~~~~~~~~~~~file_key
                 +     output: pyproject
+                :     >file_value
                 +     pyproject_dir: python/dask-cuda
                 +     extras:
                 +       table: project.optional-dependencies
                 +       key: test
+                :                 !file_value
                 """,
                 [],
                 id="correct-naming-convention-with-key",
@@ -180,8 +211,8 @@ class TestNamingConventionsHandler:
     def test_handle_files_item(self, content, expected_warnings):
         content, spans = parse_named_spans(content, dict)
         root, _ = load_with_anchors(content)
-        files = root.value[0][1]
-        file_key, file_value = files.value[0]
+        file_key = find_yaml_node_for_span(root, spans["file_key"])
+        file_value = find_yaml_node_for_span(root, spans["file_value"])
         file_fields = {key.value: value for key, value in file_value.value}
         extras_fields = (
             {key.value: value for key, value in file_fields["extras"].value}

@@ -84,10 +84,13 @@ class TestUseCUDAWheelsHandler:
             pytest.param(
                 """\
                 + common:
+                : ~~~~~~common_key
                 +   packages:
+                :   >common
                 +     - package1
                 +     - package2
                 +     - package3
+                :                !common
                 """,
                 True,
                 [],
@@ -98,12 +101,15 @@ class TestUseCUDAWheelsHandler:
                 """\
                 + common:
                 : ~~~~~~warnings.0.notes.0
+                : ~~~~~~common_key
                 +   packages:
+                :   >common
                 +     - package1
                 +     - package2
-                :       ~~~~~~~~packages.0
                 :       ~~~~~~~~warnings.0.warning
+                :       ~~~~~~~~packages.0
                 +     - package3
+                :                !common
                 """,
                 True,
                 ["package2"],
@@ -122,9 +128,12 @@ class TestUseCUDAWheelsHandler:
             pytest.param(
                 """\
                 + common:
+                : ~~~~~~common_key
                 +   packages:
+                :   >common
                 +     - package2
                 :       ~~~~~~~~packages.0
+                :                !common
                 """,
                 False,
                 ["package2"],
@@ -147,7 +156,8 @@ class TestUseCUDAWheelsHandler:
             "dependencies.yaml", content, "verify-dependencies"
         )
         composed, _ = load_with_anchors(content)
-        common_key, common = composed.value[0]
+        common_key = find_yaml_node_for_span(composed, spans["common_key"])
+        common = find_yaml_node_for_span(composed, spans["common"])
 
         handler = UseCUDAWheelsHandler(linter, args)
         with handler.handle_common(
@@ -372,6 +382,8 @@ class TestUseCUDAWheelsHandler:
                 """\
                 + use_cuda_wheels: "false"
                 :                  ~~~~~~~node
+                : ~~~~~~~~~~~~~~~matrix_item_key
+                :                  ~~~~~~~matrix_item
                 """,
                 False,
                 id="use-cuda-wheels-false",
@@ -380,6 +392,8 @@ class TestUseCUDAWheelsHandler:
                 """\
                 + use_cuda_wheels: "true"
                 :                  ~~~~~~node
+                : ~~~~~~~~~~~~~~~matrix_item_key
+                :                  ~~~~~~matrix_item
                 """,
                 True,
                 id="use-cuda-wheels-true",
@@ -387,6 +401,8 @@ class TestUseCUDAWheelsHandler:
             pytest.param(
                 """\
                 + other_key: "other_value"
+                : ~~~~~~~~~matrix_item_key
+                :            ~~~~~~~~~~~~~matrix_item
                 """,
                 False,
                 id="other",
@@ -401,7 +417,10 @@ class TestUseCUDAWheelsHandler:
             "dependencies.yaml", content, "verify-dependencies"
         )
         composed, _ = load_with_anchors(content)
-        matrix_item_key, matrix_item = composed.value[0]
+        matrix_item_key = find_yaml_node_for_span(
+            composed, spans["matrix_item_key"]
+        )
+        matrix_item = find_yaml_node_for_span(composed, spans["matrix_item"])
 
         handler = UseCUDAWheelsHandler(linter, args)
         matrix_context = Mock(
