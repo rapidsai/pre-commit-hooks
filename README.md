@@ -35,10 +35,3 @@ def deprecated_function():
 ## Included hooks
 
 All hooks are listed in `.pre-commit-hooks.yaml`.
-
-## Acknowledgements
-
-This project uses Bashlex.
-
-- PyPI: https://pypi.org/project/bashlex/
-- GitHub: https://github.com/idank/bashlex

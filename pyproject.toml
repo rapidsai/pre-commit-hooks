@@ -22,7 +22,6 @@ classifiers = [
 requires-python = ">=3.11"
 dependencies = [
     "PyYAML",
-    "bashlex",
     "gitpython",
     "levenshtein",
     "packaging",
@@ -76,7 +75,3 @@ testpaths = [
 pythonpath = [
     "tests/utils",
 ]
-
-[[tool.mypy.overrides]]
-module = "bashlex.*"
-ignore_missing_imports = true
