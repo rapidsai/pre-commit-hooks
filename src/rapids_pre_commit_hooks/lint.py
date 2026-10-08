@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -440,7 +440,11 @@ class LintMain:
         self.warning_name: str = warning_name
         self.argparser: argparse.ArgumentParser = argparse.ArgumentParser()
         self.argparser.add_argument(
-            "--fix", action="store_true", help="automatically fix warnings"
+            "--fix",
+            action=argparse.BooleanOptionalAction,
+            default=True,
+            help="whether or not to automatically fix warnings "
+            "(yes by default)",
         )
         self.argparser.add_argument("files", nargs="+", metavar="file")
 

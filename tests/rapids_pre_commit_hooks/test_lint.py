@@ -751,7 +751,7 @@ class TestLintMain:
         with (
             patch(
                 "sys.argv",
-                ["check-test", "--check-test", file.name],
+                ["check-test", "--check-test", "--no-fix", file.name],
             ),
             self.mock_console() as console,
         ):
@@ -765,12 +765,13 @@ class TestLintMain:
             call(highlight=False),
         ]
 
-    def test_no_warnings_fix(self, hello_world_file):
+    @pytest.mark.parametrize("fix_args", [[], ["--fix"]])
+    def test_no_warnings_fix(self, fix_args, hello_world_file):
         file, _, _ = hello_world_file
         with (
             patch(
                 "sys.argv",
-                ["check-test", "--check-test", "--fix", file.name],
+                ["check-test", "--check-test", *fix_args, file.name],
             ),
             self.mock_console() as console,
         ):
@@ -789,7 +790,7 @@ class TestLintMain:
         with (
             patch(
                 "sys.argv",
-                ["check-test", "--check-test", file.name],
+                ["check-test", "--check-test", "--no-fix", file.name],
             ),
             self.mock_console() as console,
             pytest.raises(SystemExit, match=r"^1$"),
@@ -838,12 +839,13 @@ class TestLintMain:
             call().print(),
         ]
 
-    def test_warnings_fix(self, hello_world_file, hello_check):
+    @pytest.mark.parametrize("fix_args", [[], ["--fix"]])
+    def test_warnings_fix(self, fix_args, hello_world_file, hello_check):
         file, content, spans = hello_world_file
         with (
             patch(
                 "sys.argv",
-                ["check-test", "--check-test", "--fix", file.name],
+                ["check-test", "--check-test", *fix_args, file.name],
             ),
             self.mock_console() as console,
             pytest.raises(SystemExit, match=r"^1$"),
@@ -899,6 +901,7 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
+                    "--no-fix",
                     "--check-test",
                     "--check-test-note",
                     file.name,
@@ -1102,6 +1105,7 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
+                    "--no-fix",
                     file.name,
                 ],
             ),
@@ -1157,6 +1161,7 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
+                    "--no-fix",
                     file.name,
                 ],
             ),
@@ -1198,14 +1203,17 @@ class TestLintMain:
             call().print(),
         ]
 
-    def test_long_file_fix(self, long_file, long_file_check, long_fix_check):
+    @pytest.mark.parametrize("fix_args", [[], ["--fix"]])
+    def test_long_file_fix(
+        self, fix_args, long_file, long_file_check, long_fix_check
+    ):
         file, content, spans = long_file
         with (
             patch(
                 "sys.argv",
                 [
                     "check-test",
-                    "--fix",
+                    *fix_args,
                     file.name,
                 ],
             ),
@@ -1255,14 +1263,17 @@ class TestLintMain:
             call().print(),
         ]
 
-    def test_long_file_delete_fix(self, long_file, long_delete_fix_check):
+    @pytest.mark.parametrize("fix_args", [[], ["--fix"]])
+    def test_long_file_delete_fix(
+        self, fix_args, long_file, long_delete_fix_check
+    ):
         file, content, spans = long_file
         with (
             patch(
                 "sys.argv",
                 [
                     "check-test",
-                    "--fix",
+                    *fix_args,
                     file.name,
                 ],
             ),

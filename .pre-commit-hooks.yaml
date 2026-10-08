@@ -6,7 +6,6 @@
   entry: verify-alpha-spec
   language: python
   files: (^|/)dependencies[.]yaml$
-  args: [--fix]
   additional_dependencies:
     - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
     - .[alpha-spec]
@@ -18,7 +17,6 @@
   files:
     (?x)
       ^[.]github/CODEOWNERS$
-  args: [--fix]
 - id: verify-copyright
   name: verify-copyright
   description: make sure copyright headers are up to date
@@ -32,14 +30,12 @@
       (^|/)meta[.]yaml$|
       (^|/)pyproject[.]toml$|
       (^|/)setup[.]cfg$
-  args: [--fix]
 - id: verify-dependencies
   name: verify-dependencies
   description: make sure dependencies.yaml follows RAPIDS conventions
   entry: verify-dependencies
   language: python
   files: (^|/)dependencies[.]yaml$
-  args: [--fix]
   additional_dependencies:
     - --extra-index-url=https://pypi.anaconda.org/rapidsai-wheels-nightly/simple
     - .[dependencies]
@@ -48,7 +44,6 @@
   description: make sure RAPIDS version is not hard-coded in files
   entry: verify-hardcoded-version
   language: python
-  args: [--fix]
   exclude: |
     (?x)
       (^|/)devcontainer[.]json$|
@@ -68,4 +63,3 @@
   files: |
     (?x)
       (^|/)pyproject[.]toml$
-  args: [--fix]
