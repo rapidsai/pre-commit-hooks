@@ -54,7 +54,7 @@ repos:
       - id: shellcheck
         args: ["--severity=warning"]
   - repo: https://github.com/rapidsai/pre-commit-hooks
-    rev: v1.6.0
+    rev: v1.7.0
     hooks:
       - id: verify-copyright
         args: [--fix, --spdx]
@@ -63,6 +63,7 @@ repos:
             [.]py$|
             [.]pre-commit-config[.]yaml$|
             [.]pre-commit-hooks[.]yaml$|
+            [.]yamllint[.]yaml$|
             pyproject[.]toml$|
             [.]flake8$|
             [.]gitignore$
@@ -74,3 +75,7 @@ repos:
     rev: v1.24.1
     hooks:
       - id: zizmor
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
