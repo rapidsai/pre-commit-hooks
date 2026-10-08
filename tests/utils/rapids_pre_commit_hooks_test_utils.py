@@ -3,6 +3,7 @@
 
 import itertools
 import re
+import warnings
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
@@ -20,24 +21,12 @@ if TYPE_CHECKING:
     _NamedSpans = dict[str | int, "Span | _NamedSpans"]
 
 
-_SPAN_LINE_RE: re.Pattern = re.compile(
-    r"(?P<span>\^|>|!|~+)"
-    r"(?P<path>"
-    r"(?:[0-9]+|[a-zA-Z_][a-zA-Z0-9_]*)"
-    r"(?:\.(?:[0-9]+|[a-zA-Z_][a-zA-Z0-9_]*))*"
-    r")"
-)
-
-
 class ParseError(RuntimeError):
     pass
 
 
-def _parse_path_item(item: str) -> str | int:
-    try:
-        return int(item)
-    except ValueError:
-        return item
+class ParseWarning(RuntimeWarning):
+    pass
 
 
 def parse_named_spans(
@@ -83,20 +72,36 @@ def parse_named_spans(
     lines = Lines(dedent(content))
     content = ""
     named_spans: "_NamedSpans | None" = None
-    in_progress_large_groups: dict[tuple[int | str, ...], int] = {}
+    in_progress_large_spans: dict[tuple[int | str, ...], tuple[int, int]] = {}
+    content_line = 0
+
+    def path_tuple_to_str(path: tuple[int | str, ...]) -> str:
+        if len(path) == 0:
+            return "<root>"
+        return ".".join(map(str, path))
+
+    def path_str_to_tuple(path: str) -> tuple[int | str, ...]:
+        def _parse_path_item(item: str) -> str | int:
+            try:
+                return int(item)
+            except ValueError:
+                return item
+
+        return tuple(map(_parse_path_item, path.split(".")))
 
     def get_last_collection(path: tuple[int | str, ...]) -> "_NamedSpans":
         nonlocal named_spans
         last_collection: "_NamedSpans | None" = named_spans
-        for item in path[:-1]:
+        for i, item in enumerate(path[:-1]):
             if last_collection is None:
                 last_collection = named_spans = {}
-            try:
-                next_collection = last_collection[item]
-            except KeyError:
-                next_collection = last_collection[item] = {}
+            next_collection = last_collection.setdefault(item, {})
             if not isinstance(next_collection, dict):
-                raise ParseError
+                raise ParseError(
+                    f'Path "{path_tuple_to_str(path[: i + 1])}" is a span, '
+                    "but attempted to access "
+                    f'"{path_tuple_to_str(path[: i + 2])}"'
+                )
             last_collection = next_collection
         if named_spans is None:
             named_spans = last_collection = {}
@@ -125,6 +130,7 @@ def parse_named_spans(
             content += lines.content[
                 this_span[0] + len(first_two_chars) : next_span[0]
             ]
+            content_line += 1
         elif first_two_chars in {"> ", ">"}:
             newline = False
             start_of_last_line = len(content)
@@ -140,24 +146,36 @@ def parse_named_spans(
             if (pound := directive_line.find("#")) >= 0:
                 directive_line = directive_line[:pound]
             end = 0
-            for match in _SPAN_LINE_RE.finditer(directive_line):
-                if any(
+            for match in re.finditer(
+                r"(?P<span>\^|>|!|~+)"
+                r"(?P<path>"
+                r"(?:[0-9]+|[a-zA-Z_][a-zA-Z0-9_]*)"
+                r"(?:\.(?:[0-9]+|[a-zA-Z_][a-zA-Z0-9_]*))*"
+                r")",
+                directive_line,
+            ):
+                non_space = list(
                     filter(
                         lambda c: c != " ", directive_line[end : match.start()]
                     )
-                ):
-                    raise ParseError
+                )
+                if any(non_space):
+                    raise ParseError(
+                        f'Invalid directive line character: "{non_space[0]}"'
+                    )
                 end = match.end()
 
-                path = tuple(
-                    map(_parse_path_item, match.group("path").split("."))
-                )
+                path = path_str_to_tuple(match.group("path"))
 
                 if match.group("span") == ">":
-                    if path in in_progress_large_groups:
-                        raise ParseError
-                    in_progress_large_groups[path] = (
-                        start_of_last_line + match.start("span")
+                    if path in in_progress_large_spans:
+                        raise ParseError(
+                            f'Large span "{match.group("path")}" already in '
+                            "progress"
+                        )
+                    in_progress_large_spans[path] = (
+                        start_of_last_line + match.start("span"),
+                        content_line,
                     )
                 else:
                     span_start = start_of_last_line + match.start("span")
@@ -166,15 +184,30 @@ def parse_named_spans(
                     elif match.group("span") == "!":
                         span_end = span_start
                         try:
-                            span_start = in_progress_large_groups.pop(path)
+                            span_start, span_start_line = (
+                                in_progress_large_spans.pop(path)
+                            )
                         except KeyError as e:
-                            raise ParseError from e
+                            raise ParseError(
+                                f'Large span "{match.group("path")}" not '
+                                "started yet"
+                            ) from e
+                        if span_start_line == content_line:
+                            warnings.warn(
+                                f'Large span "{match.group("path")}" '
+                                "is on a single line, consider using ~ "
+                                "notation instead",
+                                ParseWarning,
+                            )
                     elif (
                         match.end("span")
                         == end_of_last_line - start_of_last_line + 1
                     ):
                         if not newline:
-                            raise ParseError
+                            raise ParseError(
+                                f'End of span "{match.group("path")}" '
+                                "overruns previous line"
+                            )
                         span_end = len(content)
                     else:
                         span_end = start_of_last_line + match.end("span")
@@ -182,7 +215,10 @@ def parse_named_spans(
                     span = (span_start, span_end)
 
                     if max(*span) > len(content):
-                        raise ParseError
+                        raise ParseError(
+                            f'End of span "{match.group("path")}" overruns '
+                            "previous line"
+                        )
 
                     last_collection = get_last_collection(path)
 
@@ -192,61 +228,123 @@ def parse_named_spans(
                         last_collection[path[-1]] = span
                     else:
                         if not isinstance(existing_span, tuple):
-                            raise ParseError
+                            raise ParseError(
+                                f'Path "{match.group("path")}" is not a span'
+                            )
                         if span[0] == existing_span[1]:
-                            last_collection[path[-1]] = (
+                            span_start, span_end = last_collection[
+                                path[-1]
+                            ] = (
                                 existing_span[0],
                                 span[1],
                             )
                         elif span[1] == existing_span[0]:
-                            last_collection[path[-1]] = (
+                            span_start, span_end = last_collection[
+                                path[-1]
+                            ] = (
                                 span[0],
                                 existing_span[1],
                             )
                         else:
-                            raise ParseError
+                            raise ParseError(
+                                "Attempted to create non-contiguous span "
+                                f'"{match.group("path")}"'
+                            )
 
-            if any(
+                        if "~" in match.group("span"):
+                            content_lines = Lines(content)
+                            span_line_start = content_lines.line_for_pos(
+                                span_start
+                            )
+                            if (
+                                len(content_lines.spans) > span_line_start + 2
+                                and span_end
+                                > content_lines.spans[span_line_start + 2][0]
+                            ):
+                                span_line_end = content_lines.line_for_pos(
+                                    span_end
+                                )
+                                warnings.warn(
+                                    f'Span "{match.group("path")}" spans '
+                                    f"{span_line_end - span_line_start + 1} "
+                                    "lines, consider using >/! notation "
+                                    "instead",
+                                    ParseWarning,
+                                )
+
+            non_space = list(
                 filter(
                     lambda c: c != " ",
                     directive_line[end : len(directive_line)],
                 )
-            ):
-                raise ParseError
-        elif line != "" or next_span[1] >= 0:
-            raise ParseError
+            )
+            if any(non_space):
+                raise ParseError(
+                    f'Invalid directive line character: "{non_space[0]}"'
+                )
+        elif line != "":
+            raise ParseError(f'Invalid line start: "{first_two_chars}"')
+        elif next_span[1] >= 0:
+            raise ParseError("Only the last line can be blank")
 
-    if any(in_progress_large_groups):
-        raise ParseError
+    if any(in_progress_large_spans):
+        spans = '", "'.join(
+            sorted(map(path_tuple_to_str, in_progress_large_spans.keys()))
+        )
+        raise ParseError(f'Unfinished large spans: "{spans}"')
+
+    def get_unfilled_items(
+        collection: "list[None | Span | NamedSpans]",
+    ) -> list[int]:
+        return [i for i, item in enumerate(collection) if item is None]
 
     def is_list_filled(
-        collection: "list[None | Span | NamedSpans]",
+        _collection: "list[None | Span | NamedSpans]",
+        unfilled: list[int],
     ) -> "TypeGuard[list[Span | NamedSpans]]":
-        return all(map(lambda i: i is not None, collection))
+        return len(unfilled) == 0
 
-    def postprocess(named_spans: "_NamedSpans") -> "NamedSpans":
+    def postprocess(
+        path: tuple[int | str, ...], named_spans: "_NamedSpans"
+    ) -> "NamedSpans":
         collection: """
             dict[str, "Span | NamedSpans"] |
             list[None | "Span | NamedSpans"] | None
         """ = None
         for k, v in named_spans.items():
+            child_path = (*path, k)
             if isinstance(k, str):
                 if collection is None:
                     collection = {}
                 if not isinstance(collection, dict):
-                    raise ParseError
-                collection[k] = postprocess(v) if isinstance(v, dict) else v
+                    raise ParseError(
+                        f'Path "{path_tuple_to_str(path)}" is not a dict, but '
+                        f'got a string key "{k}"'
+                    )
+                collection[k] = (
+                    postprocess(child_path, v) if isinstance(v, dict) else v
+                )
             elif isinstance(k, int):
                 if collection is None:
                     collection = []
                 if not isinstance(collection, list):
-                    raise ParseError
+                    raise ParseError(
+                        f'Path "{path_tuple_to_str(path)}" is not a list, but '
+                        f"got an integer key {k}"
+                    )
                 if len(collection) - 1 < k:
                     collection.extend([None] * (k - len(collection) + 1))
-                collection[k] = postprocess(v) if isinstance(v, dict) else v
+                collection[k] = (
+                    postprocess(child_path, v) if isinstance(v, dict) else v
+                )
 
-        if isinstance(collection, list) and not is_list_filled(collection):
-            raise ParseError
+        if isinstance(collection, list):
+            unfilled = get_unfilled_items(collection)
+            if not is_list_filled(collection, unfilled):
+                raise ParseError(
+                    f'List "{path_tuple_to_str(path)}" is missing items at '
+                    f"the following indices: {', '.join(map(str, unfilled))}"
+                )
 
         assert collection is not None
         return collection
@@ -254,10 +352,13 @@ def parse_named_spans(
     postprocessed = (
         (None if root_type is None else root_type())
         if named_spans is None
-        else postprocess(named_spans)
+        else postprocess((), named_spans)
     )
     if root_type is not None and not isinstance(postprocessed, root_type):
-        raise ParseError
+        raise ParseError(
+            f"Expected root type to be {root_type.__name__}, got "
+            f"{type(postprocessed).__name__}"
+        )
     return content, postprocessed
 
 
