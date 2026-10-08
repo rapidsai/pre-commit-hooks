@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import dataclasses
@@ -12,7 +12,6 @@ from textwrap import dedent
 from typing import TYPE_CHECKING
 
 import Levenshtein
-import git
 
 from .lint import Lines, Linter, LintMain
 
@@ -20,6 +19,8 @@ if TYPE_CHECKING:
     import argparse
     from collections.abc import Callable, Generator, Iterable
     from typing import Optional
+
+    import git
 
     from .lint import LintWarning, Span
 
@@ -838,7 +839,7 @@ def get_target_branch(repo: "git.Repo", args: "argparse.Namespace") -> str:
 
 def get_target_branch_upstream_commit(
     repo: "git.Repo", args: "argparse.Namespace"
-) -> git.Commit | None:
+) -> "Optional[git.Commit]":
     # If no target branch can be determined, use HEAD if it exists
     target_branch_name = get_target_branch(repo, args)
     if target_branch_name is None:
@@ -974,6 +975,8 @@ def find_blob(
 def check_copyright(
     args: "argparse.Namespace",
 ) -> "Callable[[Linter, argparse.Namespace], None]":
+    import git
+
     try:
         repo = git.Repo()
     except git.InvalidGitRepositoryError:
