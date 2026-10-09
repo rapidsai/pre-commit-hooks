@@ -1005,7 +1005,6 @@ class TestLintMain:
             "fix_args",
             "fixed",
             "replacement_msg",
-            "long_replacement_msg",
             "punctuation_msg",
         ],
         [
@@ -1013,8 +1012,6 @@ class TestLintMain:
                 [],
                 "Hello, world!",
                 "suggested fix conflicts with another fix",
-                "suggested fix conflicts with another fix and is too long "
-                "to display",
                 "suggested fix applied",
                 id="no-arg",
             ),
@@ -1022,8 +1019,6 @@ class TestLintMain:
                 ["--fix"],
                 "Hello, world!",
                 "suggested fix conflicts with another fix",
-                "suggested fix conflicts with another fix and is too long "
-                "to display",
                 "suggested fix applied",
                 id="fix-arg",
             ),
@@ -1031,7 +1026,6 @@ class TestLintMain:
                 ["--no-fix"],
                 "Hello world!",
                 "suggested fix",
-                "suggested fix is too long to display, use --fix to apply it",
                 "suggested fix",
                 id="no-fix-arg",
             ),
@@ -1055,7 +1049,6 @@ class TestLintMain:
         fix_args,
         fixed,
         replacement_msg,
-        long_replacement_msg,
         punctuation_msg,
         newtext,
         hello_world_file,
@@ -1107,7 +1100,8 @@ class TestLintMain:
             call().print(
                 "[bold]note:[/bold] "
                 + (
-                    long_replacement_msg
+                    "suggested fix conflicts with another fix and is too long "
+                    "to display"
                     if "\n" in newtext
                     else replacement_msg
                 )
