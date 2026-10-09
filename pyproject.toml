@@ -19,7 +19,7 @@ license-files = ["LICENSE"]
 classifiers = [
     "Programming Language :: Python :: 3",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = [
     "PyYAML",
     "gitpython",
@@ -57,6 +57,7 @@ packages = { "find" = { where = ["src"] } }
 
 [tool.ruff]
 line-length = 79
+target-version = "py312"
 
 [tool.ruff.lint]
 select = [
