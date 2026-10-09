@@ -13,7 +13,7 @@ from rapids_pre_commit_hooks.lint import (
     Lines,
     Linter,
     LintMain,
-    OverlappingReplacementsError,
+    Replacement,
 )
 from rapids_pre_commit_hooks_test_utils import parse_named_spans
 
@@ -204,9 +204,11 @@ class TestLinter:
             """
         )
         linter = Linter("test.txt", content, "test")
+        linter.sort_and_check_replacements_for_conflicts()
         assert linter.fix() == "Hello world!"
 
         linter.add_warning(spans["no_fix"], "no fix")
+        linter.sort_and_check_replacements_for_conflicts()
         assert linter.fix() == "Hello world!"
 
         linter.add_warning(
@@ -221,20 +223,14 @@ class TestLinter:
         linter.add_warning(
             spans["world"], "no-op replacement"
         ).add_replacement(spans["noop"], "")
+        linter.sort_and_check_replacements_for_conflicts()
         assert linter.fix() == "Good bye, world"
 
         linter.add_warning(spans["shout"], "don't shout").add_replacement(
             spans["shout"], "."
         )
-        with pytest.raises(
-            OverlappingReplacementsError,
-            match=r"^Replacement\(span="
-            rf"\({spans['shout'][0]}, {spans['shout'][1]}\),"
-            r" newtext=''\) overlaps with "
-            rf"Replacement\(span=\({spans['shout'][0]}, {spans['shout'][1]}\),"
-            r" newtext='\.'\)$",
-        ):
-            linter.fix()
+        linter.sort_and_check_replacements_for_conflicts()
+        assert linter.fix() == "Good bye, world!"
 
     def test_fix_disabled(self):
         content, spans = parse_named_spans(
@@ -248,7 +244,49 @@ class TestLinter:
         linter.add_warning(spans["shout"], "don't shout").add_replacement(
             spans["shout"], ""
         )
+        linter.sort_and_check_replacements_for_conflicts()
         assert linter.fix() == content
+
+    def test_sort_and_check_replacements_for_conflicts(self):
+        content, spans = parse_named_spans(
+            """\
+            + hello world!
+            : ~~~~~hello
+            :      ^punctuation
+            :            ~shout
+            :        ~o
+            :       ~~~~~~world
+            """
+        )
+        linter = Linter("test.txt", content, "test")
+
+        w = linter.add_warning(spans["shout"], "don't shout")
+        w.add_replacement(spans["shout"], ".")
+
+        w = linter.add_warning(spans["punctuation"], "use punctuation")
+        w.add_replacement(spans["punctuation"], ",")
+        w.add_replacement(spans["punctuation"], ",")
+
+        w = linter.add_warning(spans["hello"], "hello there")
+        w.add_replacement(spans["hello"], "Hello")
+        w.add_replacement(spans["world"], "there.")
+        w.add_replacement(spans["o"], "0")
+
+        linter.sort_and_check_replacements_for_conflicts()
+
+        assert linter.sorted_replacements == [
+            Replacement(spans["hello"], "Hello"),
+            Replacement(spans["punctuation"], ",", conflict=True),
+            Replacement(spans["punctuation"], ",", conflict=True),
+            Replacement(spans["world"], "there.", conflict=True),
+            Replacement(spans["o"], "0", conflict=True),
+            Replacement(spans["shout"], ".", conflict=True),
+        ]
+        assert [
+            [replacement.conflict for replacement in warning.replacements]
+            for warning in linter.warnings
+        ] == [[True], [True, True], [False, True, True]]
+        assert linter.fix() == "Hello world!\n"
 
     @pytest.mark.parametrize(
         ["content", "warning_name", "expected_boundaries"],
@@ -959,6 +997,124 @@ class TestLintMain:
             call().print("[red]-Hello[bold][/bold] world![/red]"),
             call().print("[green]+Hello[bold],[/bold] world![/green]"),
             call().print("[bold]note:[/bold] suggested fix"),
+            call().print(),
+        ]
+
+    @pytest.mark.parametrize(
+        [
+            "fix_args",
+            "fixed",
+            "replacement_msg",
+            "punctuation_msg",
+        ],
+        [
+            pytest.param(
+                [],
+                "Hello, world!",
+                "suggested fix conflicts with another fix",
+                "suggested fix applied",
+                id="no-arg",
+            ),
+            pytest.param(
+                ["--fix"],
+                "Hello, world!",
+                "suggested fix conflicts with another fix",
+                "suggested fix applied",
+                id="fix-arg",
+            ),
+            pytest.param(
+                ["--no-fix"],
+                "Hello world!",
+                "suggested fix",
+                "suggested fix",
+                id="no-fix-arg",
+            ),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ["newtext"],
+        [
+            pytest.param(
+                "Hi",
+                id="short",
+            ),
+            pytest.param(
+                "Hi\nthere",
+                id="long",
+            ),
+        ],
+    )
+    def test_conflicting_fixes(
+        self,
+        fix_args,
+        fixed,
+        replacement_msg,
+        punctuation_msg,
+        newtext,
+        hello_world_file,
+    ):
+        file, content, spans = hello_world_file
+
+        def check(linter, _args):
+            warning = linter.add_warning(
+                spans["greeting"], "conflicting greetings"
+            )
+            warning.add_replacement(spans["greeting"], "Good bye")
+            warning.add_replacement(spans["greeting"], newtext)
+            linter.add_warning(
+                spans["punctuation"], "use punctuation"
+            ).add_replacement(spans["punctuation"], ",")
+
+        with (
+            patch("sys.argv", ["check-test", *fix_args, file.name]),
+            self.mock_console() as console,
+            pytest.raises(SystemExit, match=r"^1$"),
+        ):
+            with LintMain("test").execute() as ctx:
+                ctx.add_check(check)
+
+        assert file.read() == fixed
+
+        greeting_location = (
+            f"In file [bold]{file.name}:"
+            f"{self.span_to_line_col(content, spans['greeting'])}[/bold]:"
+        )
+        punctuation_location = (
+            f"In file [bold]{file.name}:"
+            f"{self.span_to_line_col(content, spans['punctuation'])}[/bold]:"
+        )
+        assert console.mock_calls == [
+            call(highlight=False),
+            call().print(greeting_location),
+            call().print(" [bold]Hello[/bold] world!"),
+            call().print("[bold]warning:[/bold] conflicting greetings"),
+            call().print(),
+            call().print(greeting_location),
+            call().print("[red]-[bold]Hello[/bold] world![/red]"),
+            call().print("[green]+[bold]Good bye[/bold] world![/green]"),
+            call().print(f"[bold]note:[/bold] {replacement_msg}"),
+            call().print(),
+            call().print(greeting_location),
+            call().print("[red]-[bold]Hello[/bold] world![/red]"),
+            call().print("[green]+[bold]Hi[/bold] world![/green]"),
+            call().print(
+                "[bold]note:[/bold] "
+                + (
+                    "suggested fix conflicts with another fix and is too long "
+                    "to display"
+                    if "\n" in newtext
+                    else replacement_msg
+                )
+            ),
+            call().print(),
+            call().print(punctuation_location),
+            call().print(" Hello[bold][/bold] world!"),
+            call().print("[bold]warning:[/bold] use punctuation"),
+            call().print(),
+            call().print(punctuation_location),
+            call().print("[red]-Hello[bold][/bold] world![/red]"),
+            call().print("[green]+Hello[bold],[/bold] world![/green]"),
+            call().print(f"[bold]note:[/bold] {punctuation_msg}"),
             call().print(),
         ]
 

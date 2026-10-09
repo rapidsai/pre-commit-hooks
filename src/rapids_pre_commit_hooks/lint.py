@@ -8,7 +8,6 @@ import dataclasses
 import functools
 import re
 import warnings
-from itertools import pairwise
 from typing import TYPE_CHECKING
 
 from rich.console import Console
@@ -16,12 +15,9 @@ from rich.markup import escape
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterator
+    from typing import Optional
 
 Span = tuple[int, int]
-
-
-class OverlappingReplacementsError(RuntimeError):
-    pass
 
 
 class BinaryFileWarning(Warning):
@@ -32,6 +28,7 @@ class BinaryFileWarning(Warning):
 class Replacement:
     span: Span
     newtext: str
+    conflict: bool = False
 
 
 @dataclasses.dataclass
@@ -154,6 +151,7 @@ class Linter:
         self.disabled_enabled_boundaries = (
             Linter.get_disabled_enabled_boundaries(self.lines, warning_name)
         )
+        self.sorted_replacements: "Optional[list[Replacement]]" = None
 
     def add_warning(self, span: Span, msg: str) -> LintWarning:
         w = LintWarning(span, msg)
@@ -161,25 +159,14 @@ class Linter:
         return w
 
     def fix(self) -> str:
-        sorted_replacements = sorted(
-            (
-                replacement
-                for warning in self.get_enabled_warnings()
-                for replacement in warning.replacements
-            ),
-            key=lambda replacement: replacement.span,
-        )
-
-        for r1, r2 in pairwise(sorted_replacements):
-            if r1.span[1] > r2.span[0]:
-                raise OverlappingReplacementsError(f"{r1} overlaps with {r2}")
-
         cursor = 0
         replaced_content = ""
-        for replacement in sorted_replacements:
-            replaced_content += self.content[cursor : replacement.span[0]]
-            replaced_content += replacement.newtext
-            cursor = replacement.span[1]
+        assert self.sorted_replacements is not None
+        for replacement in self.sorted_replacements:
+            if not replacement.conflict:
+                replaced_content += self.content[cursor : replacement.span[0]]
+                replaced_content += replacement.newtext
+                cursor = replacement.span[1]
 
         replaced_content += self.content[cursor:]
         return replaced_content
@@ -226,18 +213,36 @@ class Linter:
                     long = True
 
                 if fix_applied:
-                    if long:
-                        replacement_msg = (
-                            "suggested fix applied but is too long to display"
-                        )
+                    if replacement.conflict:
+                        if long:
+                            replacement_msg = (
+                                "suggested fix conflicts with another fix "
+                                "and is too long to display"
+                            )
+                        else:
+                            replacement_msg = (
+                                "suggested fix conflicts with another fix"
+                            )
                     else:
-                        replacement_msg = "suggested fix applied"
+                        if long:
+                            replacement_msg = (
+                                "suggested fix applied but is too long to "
+                                "display"
+                            )
+                        else:
+                            replacement_msg = "suggested fix applied"
                 else:
                     if long:
-                        replacement_msg = (
-                            "suggested fix is too long to display, use --fix "
-                            "to apply it"
-                        )
+                        if replacement.conflict:
+                            replacement_msg = (
+                                "suggested fix conflicts with another fix "
+                                "and is too long to display"
+                            )
+                        else:
+                            replacement_msg = (
+                                "suggested fix is too long to display, use "
+                                "--fix to apply it"
+                            )
                     else:
                         replacement_msg = "suggested fix"
                 self._print_note(
@@ -386,6 +391,24 @@ class Linter:
             self.warnings,
         )
 
+    def sort_and_check_replacements_for_conflicts(self) -> None:
+        self.sorted_replacements = sorted(
+            (
+                replacement
+                for warning in self.get_enabled_warnings()
+                for replacement in warning.replacements
+            ),
+            key=lambda replacement: replacement.span,
+        )
+
+        for i, r1 in enumerate(self.sorted_replacements):
+            for r2 in self.sorted_replacements[i + 1 :]:
+                if r1.span[1] > r2.span[0] or r1.span == r2.span:
+                    r1.conflict = True
+                    r2.conflict = True
+                else:
+                    break
+
 
 class ExecutionContext(contextlib.AbstractContextManager):
     def __init__(self, warning_name: str, args: argparse.Namespace) -> None:
@@ -419,6 +442,7 @@ class ExecutionContext(contextlib.AbstractContextManager):
             for check in self.checks:
                 check(linter, self.args)
 
+            linter.sort_and_check_replacements_for_conflicts()
             linter.print_warnings(self.args.fix)
             if self.args.fix:
                 fix = linter.fix()
