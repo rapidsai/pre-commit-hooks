@@ -8,7 +8,6 @@ import dataclasses
 import functools
 import re
 import warnings
-from itertools import pairwise
 from typing import TYPE_CHECKING
 
 from rich.console import Console
@@ -396,10 +395,13 @@ class Linter:
             key=lambda replacement: replacement.span,
         )
 
-        for r1, r2 in pairwise(self.sorted_replacements):
-            if r1.span[1] > r2.span[0] or r1.span == r2.span:
-                r1.conflict = True
-                r2.conflict = True
+        for i, r1 in enumerate(self.sorted_replacements):
+            for r2 in self.sorted_replacements[i + 1 :]:
+                if r1.span[1] > r2.span[0] or r1.span == r2.span:
+                    r1.conflict = True
+                    r2.conflict = True
+                else:
+                    break
 
 
 class ExecutionContext(contextlib.AbstractContextManager):

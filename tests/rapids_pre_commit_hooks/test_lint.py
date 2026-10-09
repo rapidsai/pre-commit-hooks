@@ -254,6 +254,7 @@ class TestLinter:
             : ~~~~~hello
             :      ^punctuation
             :            ~shout
+            :        ~o
             :       ~~~~~~world
             """
         )
@@ -269,6 +270,7 @@ class TestLinter:
         w = linter.add_warning(spans["hello"], "hello there")
         w.add_replacement(spans["hello"], "Hello")
         w.add_replacement(spans["world"], "there.")
+        w.add_replacement(spans["o"], "0")
 
         linter.sort_and_check_replacements_for_conflicts()
 
@@ -277,12 +279,13 @@ class TestLinter:
             Replacement(spans["punctuation"], ",", conflict=True),
             Replacement(spans["punctuation"], ",", conflict=True),
             Replacement(spans["world"], "there.", conflict=True),
+            Replacement(spans["o"], "0", conflict=True),
             Replacement(spans["shout"], ".", conflict=True),
         ]
         assert [
             [replacement.conflict for replacement in warning.replacements]
             for warning in linter.warnings
-        ] == [[True], [True, True], [False, True]]
+        ] == [[True], [True, True], [False, True, True]]
         assert linter.fix() == "Hello world!\n"
 
     @pytest.mark.parametrize(
