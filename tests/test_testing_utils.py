@@ -980,5 +980,5 @@ def test_find_yaml_node_for_span(content, node_lambda):
 
 
 def test_patch_environment():
-    with patch_environment({"ADDED": "1", "DELETED": None}):
-        assert os.environ == {"ADDED": "1"}
+    with patch_environment({"ADDED": "1", "EMPTY": "", "DELETED": None}):
+        assert os.environ == {"ADDED": "1", "EMPTY": ""}
