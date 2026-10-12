@@ -944,7 +944,14 @@ class TestLintMain:
         with (
             patch(
                 "sys.argv",
-                ["check-test", "--check-test", "--no-fix", file.name],
+                [
+                    "check-test",
+                    "--agent",
+                    "no",
+                    "--check-test",
+                    "--no-fix",
+                    file.name,
+                ],
             ),
             self.mock_console() as console,
         ):
@@ -964,7 +971,14 @@ class TestLintMain:
         with (
             patch(
                 "sys.argv",
-                ["check-test", "--check-test", *fix_args, file.name],
+                [
+                    "check-test",
+                    "--agent",
+                    "no",
+                    "--check-test",
+                    *fix_args,
+                    file.name,
+                ],
             ),
             self.mock_console() as console,
         ):
@@ -983,7 +997,14 @@ class TestLintMain:
         with (
             patch(
                 "sys.argv",
-                ["check-test", "--check-test", "--no-fix", file.name],
+                [
+                    "check-test",
+                    "--agent",
+                    "no",
+                    "--check-test",
+                    "--no-fix",
+                    file.name,
+                ],
             ),
             self.mock_console() as console,
             pytest.raises(SystemExit, match=r"^1$"),
@@ -1038,7 +1059,14 @@ class TestLintMain:
         with (
             patch(
                 "sys.argv",
-                ["check-test", "--check-test", *fix_args, file.name],
+                [
+                    "check-test",
+                    "--agent",
+                    "no",
+                    "--check-test",
+                    *fix_args,
+                    file.name,
+                ],
             ),
             self.mock_console() as console,
             pytest.raises(SystemExit, match=r"^1$"),
@@ -1094,6 +1122,8 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
+                    "--agent",
+                    "no",
                     "--no-fix",
                     "--check-test",
                     "--check-test-note",
@@ -1221,7 +1251,16 @@ class TestLintMain:
             ).add_replacement(spans["punctuation"], ",")
 
         with (
-            patch("sys.argv", ["check-test", *fix_args, file.name]),
+            patch(
+                "sys.argv",
+                [
+                    "check-test",
+                    "--agent",
+                    "no",
+                    *fix_args,
+                    file.name,
+                ],
+            ),
             self.mock_console() as console,
             pytest.raises(SystemExit, match=r"^1$"),
         ):
@@ -1285,6 +1324,8 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
+                    "--agent",
+                    "no",
                     "--check-test",
                     "--fix",
                     hello_world_file.name,
@@ -1376,6 +1417,8 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
+                    "--agent",
+                    "no",
                     os.path.join(tmp_path, "file.txt"),
                 ],
             ),
@@ -1395,6 +1438,8 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
+                    "--agent",
+                    "no",
                     "--check-test",
                     "--fix",
                     file.name,
@@ -1420,6 +1465,8 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
+                    "--agent",
+                    "no",
                     "--no-fix",
                     file.name,
                 ],
@@ -1476,6 +1523,8 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
+                    "--agent",
+                    "no",
                     "--no-fix",
                     file.name,
                 ],
@@ -1528,6 +1577,8 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
+                    "--agent",
+                    "no",
                     *fix_args,
                     file.name,
                 ],
@@ -1588,6 +1639,8 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
+                    "--agent",
+                    "no",
                     *fix_args,
                     file.name,
                 ],
@@ -1632,6 +1685,8 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
+                    "--agent",
+                    "no",
                     "--fix",
                     file.name,
                 ],
@@ -1679,6 +1734,8 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
+                    "--agent",
+                    "no",
                     "--fix",
                     file.name,
                 ],

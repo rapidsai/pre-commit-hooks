@@ -410,6 +410,7 @@ class Linter:
             return True
         if args.agent == "no":
             return False
+        assert args.agent == "auto"
         return agents.is_agent_environment()
 
     @classmethod
