@@ -18,6 +18,7 @@ from rapids_pre_commit_hooks import copyright
 from rapids_pre_commit_hooks.lint import Lines, Linter
 from rapids_pre_commit_hooks_test_utils import (
     parse_named_spans,
+    patch_environment,
     zip_expected_warnings,
 )
 
@@ -85,11 +86,7 @@ from rapids_pre_commit_hooks_test_utils import (
 )
 def test_force_spdx(arg, env, raises, expected_value):
     with (
-        patch.dict(
-            "os.environ",
-            {"RAPIDS_COPYRIGHT_FORCE_SPDX": env} if env is not None else {},
-            clear=True,
-        ),
+        patch_environment({"RAPIDS_COPYRIGHT_FORCE_SPDX": env}),
         raises,
     ):
         assert copyright.force_spdx(Mock(force_spdx=arg)) == expected_value
@@ -2952,26 +2949,12 @@ def test_get_target_branch(
 
     args = Mock(main_branch=main_branch_arg, target_branch=target_branch_arg)
 
-    with patch.dict(
-        "os.environ",
+    with patch_environment(
         {
-            **(
-                {"TARGET_BRANCH": target_branch_env}
-                if target_branch_env
-                else {}
-            ),
-            **(
-                {"GITHUB_BASE_REF": github_base_ref_env}
-                if github_base_ref_env
-                else {}
-            ),
-            **(
-                {"RAPIDS_BASE_BRANCH": rapids_base_branch_env}
-                if rapids_base_branch_env
-                else {}
-            ),
-        },
-        clear=True,
+            "TARGET_BRANCH": target_branch_env,
+            "GITHUB_BASE_REF": github_base_ref_env,
+            "RAPIDS_BASE_BRANCH": rapids_base_branch_env,
+        }
     ):
         assert (
             copyright.get_target_branch(git_repo, args)

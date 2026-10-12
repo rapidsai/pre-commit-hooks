@@ -191,6 +191,161 @@ class TestLines:
 
 
 class TestLinter:
+    @pytest.mark.parametrize(
+        ["agent", "agent_environment", "expected"],
+        [
+            pytest.param("yes", False, True, id="yes-no-agent-environment"),
+            pytest.param("yes", True, True, id="yes-agent-environment"),
+            pytest.param("no", False, False, id="no-no-agent-environment"),
+            pytest.param("no", True, False, id="no-agent-environment"),
+            pytest.param("auto", False, False, id="auto-no-agent-environment"),
+            pytest.param("auto", True, True, id="auto-agent-environment"),
+        ],
+    )
+    def test_is_agent(self, agent, agent_environment, expected):
+        args = Mock(agent=agent)
+        with patch(
+            "rapids_pre_commit_hooks.agents.is_agent_environment",
+            return_value=agent_environment,
+        ) as is_agent_environment:
+            assert Linter.is_agent(args) is expected
+            if agent == "auto":
+                is_agent_environment.assert_called_once_with()
+            else:
+                is_agent_environment.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ["verbose", "is_agent", "expected"],
+        [
+            pytest.param(False, False, False, id="quiet-non-agent"),
+            pytest.param(False, True, True, id="quiet-agent"),
+            pytest.param(True, False, True, id="verbose-non-agent"),
+            pytest.param(True, True, True, id="verbose-agent"),
+        ],
+    )
+    def test_verbose_output(self, verbose, is_agent, expected):
+        args = Mock(verbose=verbose)
+        with patch.object(Linter, "is_agent", return_value=is_agent) as check:
+            assert Linter.verbose_output(args) is expected
+            if verbose:
+                check.assert_not_called()
+            else:
+                check.assert_called_once_with(args)
+
+    @pytest.mark.parametrize("newline", ["\n", "\r\n", "\r"])
+    @pytest.mark.parametrize("verbose", [False, True])
+    @pytest.mark.parametrize("replacement", ["", "new", "new\nlines", "new\n"])
+    def test_multiline_diff(self, newline, verbose, replacement):
+        content, spans = parse_named_spans(
+            dedent(
+                """\
+                + prefix [one]
+                :        >replacement
+                + two
+                > [three] suffix
+                :        !replacement
+                """
+            ).replace("\n", newline)
+        )
+        linter = Linter("test.txt", content, "test")
+        linter.console = Mock()
+        linter._print_highlighted_code(
+            spans["replacement"], replacement.replace("\n", newline), verbose
+        )
+
+        expected = [call.print(r"[red]-prefix [bold]\[one][/bold][/red]")]
+        if verbose:
+            expected.extend(
+                [
+                    call.print("[red]-[bold]two[/bold][/red]"),
+                    call.print(r"[red]-[bold]\[three][/bold] suffix[/red]"),
+                ]
+            )
+        if verbose and "\n" in replacement:
+            expected.extend(
+                [
+                    call.print("[green]+prefix [bold]new[/bold][/green]"),
+                    call.print(
+                        f"[green]+[bold]{replacement.split('\n')[1]}[/bold]"
+                        " suffix[/green]"
+                    ),
+                ]
+            )
+        else:
+            first_line = replacement.split("\n")[0]
+            suffix = "" if "\n" in replacement else " suffix"
+            expected.append(
+                call.print(
+                    f"[green]+prefix [bold]{first_line}[/bold]{suffix}[/green]"
+                )
+            )
+        assert linter.console.mock_calls == expected
+
+    @pytest.mark.parametrize("newline", ["\n", "\r\n", "\r"])
+    def test_diff_trailing_newline(self, newline):
+        content, spans = parse_named_spans(
+            dedent(
+                """\
+                + one
+                : ~~~~whole_file
+                + two
+                : ~~~~whole_file
+                """
+            ).replace("\n", newline)
+        )
+        linter = Linter("test.txt", content, "test")
+        linter.console = Mock()
+        linter._print_highlighted_code(
+            spans["whole_file"], f"three{newline}", verbose=True
+        )
+        assert linter.console.mock_calls == [
+            call.print("[red]-[bold]one[/bold][/red]"),
+            call.print("[red]-[bold]two[/bold][/red]"),
+            call.print("[green]+[bold]three[/bold][/green]"),
+        ]
+
+    @pytest.mark.parametrize("verbose", [False, True])
+    @pytest.mark.parametrize("fix", [False, True])
+    @pytest.mark.parametrize("conflict", [False, True])
+    def test_print_warnings_verbose(self, verbose, fix, conflict):
+        content, spans = parse_named_spans(
+            """\
+            + one
+            : ~~~~whole_file
+            > two
+            : ~~~whole_file
+            """
+        )
+        linter = Linter("test.txt", content, "test")
+        warning = linter.add_warning(spans["whole_file"], "change lines")
+        warning.add_replacement(spans["whole_file"], "three\nfour")
+        warning.replacements[0].conflict = conflict
+        linter.console = Mock()
+        with patch.object(Linter, "verbose_output", return_value=verbose):
+            linter.print_warnings(Mock(fix=fix))
+
+        diff = [call.print("[red]-[bold]one[/bold][/red]")]
+        if verbose:
+            diff.append(call.print("[red]-[bold]two[/bold][/red]"))
+        diff.append(call.print("[green]+[bold]three[/bold][/green]"))
+        if verbose:
+            diff.append(call.print("[green]+[bold]four[/bold][/green]"))
+        assert linter.console.mock_calls[5 : 5 + len(diff)] == diff
+        if verbose:
+            if conflict and fix:
+                message = "suggested fix conflicts with another fix"
+            elif fix:
+                message = "suggested fix applied"
+            else:
+                message = "suggested fix"
+            assert linter.console.mock_calls[-2] == call.print(
+                f"[bold]note:[/bold] {message}"
+            )
+        else:
+            assert (
+                "too long to display" in linter.console.mock_calls[-2].args[0]
+            )
+
     def test_fix(self):
         content, spans = parse_named_spans(
             """\
@@ -1096,7 +1251,11 @@ class TestLintMain:
             call().print(),
             call().print(greeting_location),
             call().print("[red]-[bold]Hello[/bold] world![/red]"),
-            call().print("[green]+[bold]Hi[/bold] world![/green]"),
+            call().print(
+                "[green]+[bold]Hi[/bold]"
+                + ("" if "\n" in newtext else " world!")
+                + "[/green]"
+            ),
             call().print(
                 "[bold]note:[/bold] "
                 + (
