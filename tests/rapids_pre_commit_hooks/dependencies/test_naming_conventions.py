@@ -206,6 +206,66 @@ class TestNamingConventionsHandler:
                 [],
                 id="correct-naming-convention-with-key",
             ),
+            pytest.param(
+                """\
+                + files:
+                +   'wrong_name':
+                :   ~~~~~~~~~~~~warnings.0.warning
+                :   ~~~~~~~~~~~~warnings.0.replacements.0
+                :   ~~~~~~~~~~~~file_key
+                +     output: pyproject
+                :             ~~~~~~~~~warnings.0.notes.0
+                :     >file_value
+                +     pyproject_dir: python/cudf
+                :                    ~~~~~~~~~~~warnings.0.notes.1
+                +     extras:
+                +       table: project
+                :              ~~~~~~~warnings.0.notes.2
+                :                      !file_value
+                """,
+                [
+                    {
+                        "warning": 'expected file key name is "py_run_cudf"',
+                        "replacements": ["'py_run_cudf'"],
+                        "notes": [
+                            "file key has pyproject output type",
+                            'and project name "cudf"',
+                            'and table extra "project"',
+                        ],
+                    },
+                ],
+                id="single-quoted-key",
+            ),
+            pytest.param(
+                """\
+                + files:
+                +   "wrong_name":
+                :   ~~~~~~~~~~~~warnings.0.warning
+                :   ~~~~~~~~~~~~warnings.0.replacements.0
+                :   ~~~~~~~~~~~~file_key
+                +     output: pyproject
+                :             ~~~~~~~~~warnings.0.notes.0
+                :     >file_value
+                +     pyproject_dir: python/cudf
+                :                    ~~~~~~~~~~~warnings.0.notes.1
+                +     extras:
+                +       table: project
+                :              ~~~~~~~warnings.0.notes.2
+                :                      !file_value
+                """,
+                [
+                    {
+                        "warning": 'expected file key name is "py_run_cudf"',
+                        "replacements": ['"py_run_cudf"'],
+                        "notes": [
+                            "file key has pyproject output type",
+                            'and project name "cudf"',
+                            'and table extra "project"',
+                        ],
+                    },
+                ],
+                id="double-quoted-key",
+            ),
         ],
     )
     def test_handle_files_item(self, content, expected_warnings):

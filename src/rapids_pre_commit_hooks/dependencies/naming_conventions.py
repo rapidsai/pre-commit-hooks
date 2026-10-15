@@ -7,6 +7,7 @@ import re
 from typing import TYPE_CHECKING
 
 from ..utils.dependencies_yaml import Handler
+from ..utils.yaml import quote_string
 
 if TYPE_CHECKING:
     import argparse
@@ -51,7 +52,7 @@ class NamingConventionsHandler(Handler):
     def handle_files_item(
         self,
         files_context: "None",  # noqa: ARG002
-        key: "yaml.Node",
+        key: "yaml.ScalarNode",
         value: "yaml.Node",  # noqa: ARG002
     ) -> "Generator[NamingConventionsHandler.FileContext]":
         context = NamingConventionsHandler.FileContext()
@@ -87,7 +88,7 @@ class NamingConventionsHandler(Handler):
                     )
                     w.add_replacement(
                         (key.start_mark.index, key.end_mark.index),
-                        expected_file_key_name,
+                        quote_string(expected_file_key_name, key.style),
                     )
                     w.add_note(
                         (

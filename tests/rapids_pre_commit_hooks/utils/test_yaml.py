@@ -11,6 +11,8 @@ from rapids_pre_commit_hooks.utils.yaml import (
     check_and_mark_anchor,
     is_reference_anchor,
     load_with_anchors,
+    preserve_anchor,
+    quote_string,
 )
 from rapids_pre_commit_hooks_test_utils import (
     find_yaml_node_for_span,
@@ -113,3 +115,83 @@ def test_check_and_mark_anchor(
 )
 def test_is_reference_anchor(anchor, is_ref):
     assert is_reference_anchor(anchor) == is_ref
+
+
+@pytest.mark.parametrize(
+    ["value", "style", "expected"],
+    [
+        pytest.param("package>=1", None, "package>=1", id="requirement-plain"),
+        pytest.param(
+            "package>=1", "'", "'package>=1'", id="requirement-single-quoted"
+        ),
+        pytest.param(
+            "package>=1", '"', '"package>=1"', id="requirement-double-quoted"
+        ),
+        pytest.param(
+            "it's a package", None, "it's a package", id="apostrophe-plain"
+        ),
+        pytest.param(
+            "it's a package",
+            "'",
+            "'it''s a package'",
+            id="apostrophe-single-quoted",
+        ),
+        pytest.param(
+            "it's a package",
+            '"',
+            '"it\'s a package"',
+            id="apostrophe-double-quoted",
+        ),
+        pytest.param(
+            'a "quote"', None, 'a "quote"', id="quotation-marks-plain"
+        ),
+        pytest.param(
+            'a "quote"',
+            "'",
+            "'a \"quote\"'",
+            id="quotation-marks-single-quoted",
+        ),
+        pytest.param(
+            'a "quote"',
+            '"',
+            '"a \\"quote\\""',
+            id="quotation-marks-double-quoted",
+        ),
+        pytest.param("a\\b", None, "a\\b", id="backslash-plain"),
+        pytest.param("a\\b", "'", "'a\\b'", id="backslash-single-quoted"),
+        pytest.param("a\\b", '"', '"a\\\\b"', id="backslash-double-quoted"),
+        pytest.param("café", None, "café", id="unicode-plain"),
+        pytest.param("café", "'", "'café'", id="unicode-single-quoted"),
+        pytest.param("café", '"', '"café"', id="unicode-double-quoted"),
+    ],
+)
+def test_quote_string(value, style, expected):
+    assert quote_string(value, style) == expected
+
+
+@pytest.mark.parametrize(
+    ["value", "anchor", "expected"],
+    [
+        pytest.param("package", None, "package", id="no-anchor"),
+        pytest.param(
+            "package",
+            Anchor(AnchorType.DEFINITION, "package_anchor"),
+            "&package_anchor package",
+            id="anchor-definition",
+        ),
+        pytest.param(
+            "'package'",
+            Anchor(AnchorType.DEFINITION, "package_anchor"),
+            "&package_anchor 'package'",
+            id="single-quoted-anchor-definition",
+        ),
+        pytest.param(
+            '"package"',
+            Anchor(AnchorType.DEFINITION, "package_anchor"),
+            '&package_anchor "package"',
+            id="double-quoted-anchor-definition",
+        ),
+    ],
+)
+def test_preserve_anchor(value, anchor, expected):
+    assert preserve_anchor(value, anchor) == expected
