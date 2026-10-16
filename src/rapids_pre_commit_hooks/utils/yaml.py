@@ -3,7 +3,7 @@
 
 import dataclasses
 from enum import Enum
-from typing import Optional
+from typing import Optional, TypeGuard
 
 import yaml
 
@@ -49,6 +49,13 @@ def node_has_type(node: "yaml.Node", tag_type: str) -> bool:
     return node.tag == f"tag:yaml.org,2002:{tag_type}"
 
 
+def node_has_scalar_type(
+    node: "yaml.Node", tag_type: str
+) -> "TypeGuard[yaml.ScalarNode]":
+    assert tag_type in {"str", "int", "float", "bool", "null"}
+    return node_has_type(node, tag_type)
+
+
 def check_and_mark_anchor(
     anchors: "dict[str, yaml.Node]", used_anchors: set[str], node: "yaml.Node"
 ) -> "Optional[Anchor]":
@@ -78,3 +85,15 @@ def load_with_anchors(stream) -> "tuple[yaml.Node, dict[str, yaml.Node]]":
         return root, dict(loader.document_anchors[0])
     finally:
         loader.dispose()
+
+
+def quote_string(value: str, style: "Optional[str]") -> str:
+    if style not in ("'", '"'):
+        return value
+    return yaml.safe_dump(
+        value, default_style=style, allow_unicode=True, width=float("inf")
+    ).removesuffix("\n")
+
+
+def preserve_anchor(value: str, anchor: "Optional[Anchor]") -> str:
+    return f"&{anchor.anchor_name} {value}" if anchor else value

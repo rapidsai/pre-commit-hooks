@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import argparse
 import dataclasses
 import datetime
 import functools
@@ -16,7 +17,6 @@ import Levenshtein
 from .lint import Lines, Linter, LintMain
 
 if TYPE_CHECKING:
-    import argparse
     from collections.abc import Callable, Generator, Iterable
     from typing import Optional
 
@@ -1042,8 +1042,9 @@ def main() -> None:
     )
     m.argparser.add_argument(
         "--spdx",
-        action="store_true",
-        help="require SPDX headers",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="require SPDX headers (yes by default)",
     )
     m.argparser.add_argument(
         "--force-spdx",
