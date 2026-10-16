@@ -10,7 +10,7 @@ dependencies needed for testing can be installed by running:
 
 ```sh
 python -m venv .venv
-source .venv/bin/activate
+. .venv/bin/activate
 pip install -e '.[test]'
 ```
 
