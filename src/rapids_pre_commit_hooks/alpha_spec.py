@@ -6,11 +6,12 @@ import contextlib
 import dataclasses
 import os
 import re
-from functools import cache, total_ordering
+from functools import cache
 from typing import Any, Optional
 
 import yaml
 from packaging.requirements import InvalidRequirement, Requirement
+from packaging.specifiers import Specifier, SpecifierSet
 from rapids_metadata.metadata import RAPIDSMetadata, RAPIDSVersion
 from rapids_metadata.remote import fetch_latest
 
@@ -52,6 +53,11 @@ def strip_cuda_suffix(args: argparse.Namespace, name: str) -> str:
     ) in get_rapids_version(args).cuda_suffixed_packages:
         return match.group("package")
     return name
+
+
+class OrderPreservingSpecifierSet(SpecifierSet):
+    def __str__(self):
+        return ",".join(str(s) for s in self)
 
 
 class AlphaSpecHandler(Handler):
@@ -134,31 +140,6 @@ class AlphaSpecHandler(Handler):
         anchor: "Optional[Anchor]",
         node: "yaml.ScalarNode",
     ) -> None:
-        @total_ordering
-        class SpecPriority:
-            def __init__(self, spec: str):
-                self.spec: str = spec
-
-            def __eq__(self, other: object) -> bool:
-                assert isinstance(other, SpecPriority)
-                return self.spec == other.spec
-
-            def __lt__(self, other: object) -> bool:
-                assert isinstance(other, SpecPriority)
-                if self.spec == other.spec:
-                    return False
-                if self.spec == ALPHA_SPECIFIER:
-                    return False
-                if other.spec == ALPHA_SPECIFIER:
-                    return True
-                return self.sort_str() < other.sort_str()
-
-            def sort_str(self) -> str:
-                return "".join(c for c in self.spec if c not in "<>=")
-
-        def create_specifier_string(specifiers: set[str]) -> str:
-            return ",".join(sorted(specifiers, key=SpecPriority))
-
         try:
             req = Requirement(node.value)
         except InvalidRequirement:
@@ -172,6 +153,9 @@ class AlphaSpecHandler(Handler):
 
         has_alpha_spec = any(str(s) == ALPHA_SPECIFIER for s in req.specifier)
         if self.args.mode == "development" and not has_alpha_spec:
+            req.specifier = OrderPreservingSpecifierSet(
+                [*req.specifier, Specifier(ALPHA_SPECIFIER)]
+            )
             self.linter.add_warning(
                 (node.start_mark.index, node.end_mark.index),
                 f"add alpha spec for RAPIDS package {req.name}",
@@ -179,17 +163,16 @@ class AlphaSpecHandler(Handler):
                 (node.start_mark.index, node.end_mark.index),
                 preserve_anchor(
                     quote_string(
-                        req.name
-                        + create_specifier_string(
-                            {str(s) for s in req.specifier}
-                            | {ALPHA_SPECIFIER},
-                        ),
+                        str(req),
                         node.style,
                     ),
                     anchor,
                 ),
             )
         elif self.args.mode == "release" and has_alpha_spec:
+            req.specifier = OrderPreservingSpecifierSet(
+                s for s in req.specifier if str(s) != ALPHA_SPECIFIER
+            )
             self.linter.add_warning(
                 (node.start_mark.index, node.end_mark.index),
                 f"remove alpha spec for RAPIDS package {req.name}",
@@ -197,11 +180,7 @@ class AlphaSpecHandler(Handler):
                 (node.start_mark.index, node.end_mark.index),
                 preserve_anchor(
                     quote_string(
-                        req.name
-                        + create_specifier_string(
-                            {str(s) for s in req.specifier}
-                            - {ALPHA_SPECIFIER},
-                        ),
+                        str(req),
                         node.style,
                     ),
                     anchor,
