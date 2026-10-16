@@ -15,7 +15,12 @@ from rapids_metadata.metadata import RAPIDSMetadata, RAPIDSVersion
 from rapids_metadata.remote import fetch_latest
 
 from .lint import Linter, LintMain
-from .utils.yaml import Anchor, is_reference_anchor
+from .utils.yaml import (
+    Anchor,
+    is_reference_anchor,
+    preserve_anchor,
+    quote_string,
+)
 from .utils.dependencies_yaml import (
     Handler,
     is_python_output_type,
@@ -53,7 +58,7 @@ class AlphaSpecHandler(Handler):
     @dataclasses.dataclass
     class ItemContext:
         has_python_output_type: bool = False
-        packages: "list[tuple[Optional[Anchor], yaml.Node]]" = (
+        packages: "list[tuple[Optional[Anchor], yaml.ScalarNode]]" = (
             dataclasses.field(default_factory=list)
         )
 
@@ -114,7 +119,7 @@ class AlphaSpecHandler(Handler):
         self,
         packages_context: "AlphaSpecHandler.PackagesContext",  # noqa: ARG002
         anchor: "Optional[Anchor]",
-        node: "yaml.Node",
+        node: "yaml.ScalarNode",
     ) -> None:
         if (
             packages_context.packages_is_reference_anchor
@@ -127,7 +132,7 @@ class AlphaSpecHandler(Handler):
     def _check_package(
         self,
         anchor: "Optional[Anchor]",
-        node: "yaml.Node",
+        node: "yaml.ScalarNode",
     ) -> None:
         @total_ordering
         class SpecPriority:
@@ -172,12 +177,16 @@ class AlphaSpecHandler(Handler):
                 f"add alpha spec for RAPIDS package {req.name}",
             ).add_replacement(
                 (node.start_mark.index, node.end_mark.index),
-                str(
-                    (f"&{anchor.anchor_name} " if anchor else "")
-                    + req.name
-                    + create_specifier_string(
-                        {str(s) for s in req.specifier} | {ALPHA_SPECIFIER},
-                    )
+                preserve_anchor(
+                    quote_string(
+                        req.name
+                        + create_specifier_string(
+                            {str(s) for s in req.specifier}
+                            | {ALPHA_SPECIFIER},
+                        ),
+                        node.style,
+                    ),
+                    anchor,
                 ),
             )
         elif self.args.mode == "release" and has_alpha_spec:
@@ -186,12 +195,16 @@ class AlphaSpecHandler(Handler):
                 f"remove alpha spec for RAPIDS package {req.name}",
             ).add_replacement(
                 (node.start_mark.index, node.end_mark.index),
-                str(
-                    (f"&{anchor.anchor_name} " if anchor else "")
-                    + req.name
-                    + create_specifier_string(
-                        {str(s) for s in req.specifier} - {ALPHA_SPECIFIER},
-                    )
+                preserve_anchor(
+                    quote_string(
+                        req.name
+                        + create_specifier_string(
+                            {str(s) for s in req.specifier}
+                            - {ALPHA_SPECIFIER},
+                        ),
+                        node.style,
+                    ),
+                    anchor,
                 ),
             )
 

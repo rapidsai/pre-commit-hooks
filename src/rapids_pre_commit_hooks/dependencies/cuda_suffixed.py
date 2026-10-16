@@ -14,7 +14,12 @@ from ..utils.dependencies_yaml import (
     Handler,
     is_python_output_type,
 )
-from ..utils.yaml import Anchor, is_reference_anchor
+from ..utils.yaml import (
+    Anchor,
+    is_reference_anchor,
+    preserve_anchor,
+    quote_string,
+)
 from rapids_metadata.remote import fetch_latest
 
 if TYPE_CHECKING:
@@ -56,10 +61,10 @@ class CUDASuffixedHandler(Handler):
     @dataclass
     class CommonItemContext:
         has_python_output_type: bool = False
-        suspicious_suffixed_packages: "list[tuple[str, str, Optional[Anchor], yaml.Node]]" = field(  # noqa: E501
+        suspicious_suffixed_packages: "list[tuple[str, str, Optional[Anchor], yaml.ScalarNode]]" = field(  # noqa: E501
             default_factory=list
         )
-        suspicious_unsuffixed_packages: "list[tuple[str, Optional[Anchor], yaml.Node]]" = field(  # noqa: E501
+        suspicious_unsuffixed_packages: "list[tuple[str, Optional[Anchor], yaml.ScalarNode]]" = field(  # noqa: E501
             default_factory=list
         )
 
@@ -77,10 +82,10 @@ class CUDASuffixedHandler(Handler):
         cuda_suffixed: "Optional[bool]" = None
         cuda_node: "Optional[yaml.Node]" = None
         cuda_major: "Optional[int]" = None
-        suspicious_suffixed_packages: "list[tuple[str, str, Optional[Anchor], yaml.Node]]" = field(  # noqa: E501
+        suspicious_suffixed_packages: "list[tuple[str, str, Optional[Anchor], yaml.ScalarNode]]" = field(  # noqa: E501
             default_factory=list
         )
-        suspicious_unsuffixed_packages: "list[tuple[str, Optional[Anchor], yaml.Node]]" = field(  # noqa: E501
+        suspicious_unsuffixed_packages: "list[tuple[str, Optional[Anchor], yaml.ScalarNode]]" = field(  # noqa: E501
             default_factory=list
         )
 
@@ -231,9 +236,6 @@ class CUDASuffixedHandler(Handler):
                                     ),
                                     f'package "{name}" has wrong -cu* suffix',
                                 )
-                                anchor_text = (
-                                    f"&{anchor.anchor_name} " if anchor else ""
-                                )
                                 req = Requirement(node.value)
                                 req.name = (
                                     f"{name}"
@@ -244,7 +246,10 @@ class CUDASuffixedHandler(Handler):
                                         node.start_mark.index,
                                         node.end_mark.index,
                                     ),
-                                    f"{anchor_text}{req}",
+                                    preserve_anchor(
+                                        quote_string(str(req), node.style),
+                                        anchor,
+                                    ),
                                 )
                     for (
                         name,
@@ -267,16 +272,15 @@ class CUDASuffixedHandler(Handler):
                                     'cuda_suffixed: "false" instead',
                                 )
                         elif matrices_item_context.cuda_major:
-                            anchor_text = (
-                                f"&{anchor.anchor_name} " if anchor else ""
-                            )
                             req = Requirement(node.value)
                             req.name = (
                                 f"{name}-cu{matrices_item_context.cuda_major}"
                             )
                             w.add_replacement(
                                 (node.start_mark.index, node.end_mark.index),
-                                f"{anchor_text}{req}",
+                                preserve_anchor(
+                                    quote_string(str(req), node.style), anchor
+                                ),
                             )
                         elif matrices_item_context.matrix_node:
                             w.add_note(
@@ -310,14 +314,13 @@ class CUDASuffixedHandler(Handler):
                                     'cuda_suffixed: "true" instead',
                                 )
                         else:
-                            anchor_text = (
-                                f"&{anchor.anchor_name} " if anchor else ""
-                            )
                             req = Requirement(node.value)
                             req.name = name
                             w.add_replacement(
                                 (node.start_mark.index, node.end_mark.index),
-                                f"{anchor_text}{req}",
+                                preserve_anchor(
+                                    quote_string(str(req), node.style), anchor
+                                ),
                             )
 
     @contextlib.contextmanager
@@ -379,7 +382,7 @@ class CUDASuffixedHandler(Handler):
         self,
         packages_context: "CUDASuffixedHandler.PackagesContext",
         anchor: "Optional[Anchor]",
-        item: "yaml.Node",
+        item: "yaml.ScalarNode",
     ) -> None:
         if packages_context.packages_is_reference_anchor:
             return

@@ -10,6 +10,7 @@ from .yaml import (
     Anchor,
     check_and_mark_anchor,
     load_with_anchors,
+    node_has_scalar_type,
     node_has_type,
 )
 
@@ -27,7 +28,7 @@ class Handler:
     def handle_files(
         self,
         root_context: "Any",
-        key: "yaml.Node",  # noqa: ARG002
+        key: "yaml.ScalarNode",  # noqa: ARG002
         value: "yaml.Node",  # noqa: ARG002
     ) -> "contextlib.AbstractContextManager[Any]":
         return contextlib.nullcontext(root_context)
@@ -35,7 +36,7 @@ class Handler:
     def handle_files_item(
         self,
         files_context: "Any",
-        key: "yaml.Node",  # noqa: ARG002
+        key: "yaml.ScalarNode",  # noqa: ARG002
         value: "yaml.Node",  # noqa: ARG002
     ) -> "contextlib.AbstractContextManager[Any]":
         return contextlib.nullcontext(files_context)
@@ -43,7 +44,7 @@ class Handler:
     def handle_file_output(
         self,
         files_item_context: "Any",
-        key: "yaml.Node",  # noqa: ARG002
+        key: "yaml.ScalarNode",  # noqa: ARG002
         value: "yaml.Node",  # noqa: ARG002
     ) -> "contextlib.AbstractContextManager[Any]":
         return contextlib.nullcontext(files_item_context)
@@ -58,7 +59,7 @@ class Handler:
     def handle_extras(
         self,
         files_item_context: "Any",
-        key: "yaml.Node",  # noqa: ARG002
+        key: "yaml.ScalarNode",  # noqa: ARG002
         value: "yaml.Node",  # noqa: ARG002
     ) -> "contextlib.AbstractContextManager[Any]":
         return contextlib.nullcontext(files_item_context)
@@ -66,7 +67,7 @@ class Handler:
     def handle_extras_table(
         self,
         extras_context: "Any",  # noqa: ARG002
-        key: "yaml.Node",  # noqa: ARG002
+        key: "yaml.ScalarNode",  # noqa: ARG002
         value: "yaml.Node",  # noqa: ARG002
     ) -> None:
         pass
@@ -74,7 +75,7 @@ class Handler:
     def handle_extras_key(
         self,
         extras_context: "Any",  # noqa: ARG002
-        key: "yaml.Node",  # noqa: ARG002
+        key: "yaml.ScalarNode",  # noqa: ARG002
         value: "yaml.Node",  # noqa: ARG002
     ) -> None:
         pass
@@ -82,7 +83,7 @@ class Handler:
     def handle_pyproject_dir(
         self,
         files_item_context: "Any",  # noqa: ARG002
-        key: "yaml.Node",  # noqa: ARG002
+        key: "yaml.ScalarNode",  # noqa: ARG002
         value: "yaml.Node",  # noqa: ARG002
     ) -> None:
         pass
@@ -90,7 +91,7 @@ class Handler:
     def handle_dependencies(
         self,
         root_context: "Any",
-        key: "yaml.Node",  # noqa: ARG002
+        key: "yaml.ScalarNode",  # noqa: ARG002
         value: "yaml.Node",  # noqa: ARG002
     ) -> "contextlib.AbstractContextManager[Any]":
         return contextlib.nullcontext(root_context)
@@ -98,7 +99,7 @@ class Handler:
     def handle_dependency_set(
         self,
         dependencies_context: "Any",
-        key: "yaml.Node",  # noqa: ARG002
+        key: "yaml.ScalarNode",  # noqa: ARG002
         value: "yaml.Node",  # noqa: ARG002
     ) -> "contextlib.AbstractContextManager[Any]":
         return contextlib.nullcontext(dependencies_context)
@@ -106,7 +107,7 @@ class Handler:
     def handle_common(
         self,
         dependency_set_context: "Any",
-        key: "yaml.Node",  # noqa: ARG002
+        key: "yaml.ScalarNode",  # noqa: ARG002
         value: "yaml.Node",  # noqa: ARG002
     ) -> "contextlib.AbstractContextManager[Any]":
         return contextlib.nullcontext(dependency_set_context)
@@ -121,7 +122,7 @@ class Handler:
     def handle_output_types(
         self,
         common_item_or_specific_item_context: "Any",
-        key: "yaml.Node",  # noqa: ARG002
+        key: "yaml.ScalarNode",  # noqa: ARG002
         value: "yaml.Node",  # noqa: ARG002
     ) -> "contextlib.AbstractContextManager[Any]":
         return contextlib.nullcontext(common_item_or_specific_item_context)
@@ -129,14 +130,14 @@ class Handler:
     def handle_output_type(
         self,
         output_types_context: "Any",
-        item: "yaml.Node",  # noqa: ARG002
+        item: "yaml.ScalarNode",  # noqa: ARG002
     ) -> None:
         pass
 
     def handle_specific(
         self,
         dependency_set_context: "Any",
-        key: "yaml.Node",  # noqa: ARG002
+        key: "yaml.ScalarNode",  # noqa: ARG002
         value: "yaml.Node",  # noqa: ARG002
     ) -> "contextlib.AbstractContextManager[Any]":
         return contextlib.nullcontext(dependency_set_context)
@@ -151,7 +152,7 @@ class Handler:
     def handle_matrices(
         self,
         specific_item_context: "Any",
-        key: "yaml.Node",  # noqa: ARG002
+        key: "yaml.ScalarNode",  # noqa: ARG002
         value: "yaml.Node",  # noqa: ARG002
     ) -> "contextlib.AbstractContextManager[Any]":
         return contextlib.nullcontext(specific_item_context)
@@ -166,7 +167,7 @@ class Handler:
     def handle_matrix(
         self,
         matrices_item_context: "Any",
-        key: "yaml.Node",  # noqa: ARG002
+        key: "yaml.ScalarNode",  # noqa: ARG002
         value: "yaml.Node",  # noqa: ARG002
     ) -> "contextlib.AbstractContextManager[Any]":
         return contextlib.nullcontext(matrices_item_context)
@@ -174,7 +175,7 @@ class Handler:
     def handle_matrix_item(
         self,
         matrix_context: "Any",  # noqa: ARG002
-        key: "yaml.Node",  # noqa: ARG002
+        key: "yaml.ScalarNode",  # noqa: ARG002
         value: "yaml.Node",  # noqa: ARG002
     ) -> None:
         pass
@@ -183,7 +184,7 @@ class Handler:
         self,
         common_or_matrices_item_context: "Any",
         anchor: "Optional[Anchor]",  # noqa: ARG002
-        key: "yaml.Node",  # noqa: ARG002
+        key: "yaml.ScalarNode",  # noqa: ARG002
         value: "yaml.Node",  # noqa: ARG002
     ) -> "contextlib.AbstractContextManager[Any]":
         return contextlib.nullcontext(common_or_matrices_item_context)
@@ -192,7 +193,7 @@ class Handler:
         self,
         packages_context: "Any",  # noqa: ARG002
         anchor: "Optional[Anchor]",  # noqa: ARG002
-        item: "yaml.Node",  # noqa: ARG002
+        item: "yaml.ScalarNode",  # noqa: ARG002
     ) -> None:
         pass
 
@@ -428,7 +429,7 @@ def traverse_file_output_item(
 def traverse_file_output(
     handler: Handler,
     files_item_context: "Any",
-    key_node: "yaml.Node",
+    key_node: "yaml.ScalarNode",
     node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "seq"):
@@ -447,7 +448,7 @@ def traverse_file_output(
 def traverse_extras_table(
     handler: Handler,
     extras_context: "Any",
-    key_node: "yaml.Node",
+    key_node: "yaml.ScalarNode",
     node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "str"):
@@ -457,7 +458,7 @@ def traverse_extras_table(
 def traverse_extras_key(
     handler: Handler,
     extras_context: "Any",
-    key_node: "yaml.Node",
+    key_node: "yaml.ScalarNode",
     node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "str"):
@@ -467,7 +468,7 @@ def traverse_extras_key(
 def traverse_extras(
     handler: Handler,
     files_item_context: "Any",
-    key_node: "yaml.Node",
+    key_node: "yaml.ScalarNode",
     node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "map"):
@@ -495,7 +496,7 @@ def traverse_extras(
 def traverse_pyproject_dir(
     handler: Handler,
     files_item_context: "Any",
-    key_node: "yaml.Node",
+    key_node: "yaml.ScalarNode",
     node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "str"):
@@ -505,7 +506,7 @@ def traverse_pyproject_dir(
 def traverse_files_item(
     handler: Handler,
     files_context: "Any",
-    key_node: "yaml.Node",
+    key_node: "yaml.ScalarNode",
     node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "map"):
@@ -540,7 +541,7 @@ def traverse_files_item(
 def traverse_files(
     handler: Handler,
     root_context: "Any",
-    key_node: "yaml.Node",
+    key_node: "yaml.ScalarNode",
     node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "map"):
@@ -563,7 +564,7 @@ def traverse_package(
     used_anchors: set[str],
     node: "yaml.Node",
 ) -> None:
-    if node_has_type(node, "str"):
+    if node_has_scalar_type(node, "str"):
         anchor = check_and_mark_anchor(anchors, used_anchors, node)
         handler.handle_package(packages_context, anchor, node)
 
@@ -573,7 +574,7 @@ def traverse_packages(
     common_or_matrices_item_context: "Any",
     anchors: dict[str, "yaml.Node"],
     used_anchors: set[str],
-    key_node: "yaml.Node",
+    key_node: "yaml.ScalarNode",
     node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "seq"):
@@ -594,7 +595,7 @@ def traverse_packages(
 def traverse_output_type(
     handler: Handler,
     output_types_context: "Any",
-    node: "yaml.Node",
+    node: "yaml.ScalarNode",
 ) -> None:
     if node_has_type(node, "str"):
         handler.handle_output_type(output_types_context, node)
@@ -603,7 +604,7 @@ def traverse_output_type(
 def traverse_output_types(
     handler: Handler,
     common_item_or_specific_item_context: "Any",
-    key_node: "yaml.Node",
+    key_node: "yaml.ScalarNode",
     node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "seq"):
@@ -612,7 +613,7 @@ def traverse_output_types(
         ) as output_types_context:
             for item in node.value:
                 traverse_output_type(handler, output_types_context, item)
-    elif node_has_type(node, "str"):
+    elif node_has_scalar_type(node, "str"):
         with handler.handle_output_types(
             common_item_or_specific_item_context, key_node, node
         ) as output_types_context:
@@ -663,7 +664,7 @@ def traverse_common(
     dependency_set_context: "Any",
     anchors: dict[str, "yaml.Node"],
     used_anchors: set[str],
-    key_node: "yaml.Node",
+    key_node: "yaml.ScalarNode",
     node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "seq"):
@@ -679,7 +680,7 @@ def traverse_common(
 def traverse_matrix_item(
     handler: Handler,
     matrix_context: "Any",
-    key_node: "yaml.Node",
+    key_node: "yaml.ScalarNode",
     node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "str"):
@@ -689,7 +690,7 @@ def traverse_matrix_item(
 def traverse_matrix(
     handler: Handler,
     matrices_item_context: "Any",
-    key_node: "yaml.Node",
+    key_node: "yaml.ScalarNode",
     node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "map"):
@@ -751,7 +752,7 @@ def traverse_matrices(
     specific_item_context: "Any",
     anchors: dict[str, "yaml.Node"],
     used_anchors: set[str],
-    key_node: "yaml.Node",
+    key_node: "yaml.ScalarNode",
     node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "seq"):
@@ -808,7 +809,7 @@ def traverse_specific(
     dependency_set_context: "Any",
     anchors: dict[str, "yaml.Node"],
     used_anchors: set[str],
-    key_node: "yaml.Node",
+    key_node: "yaml.ScalarNode",
     node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "seq"):
@@ -830,7 +831,7 @@ def traverse_dependency_set(
     dependencies_context: "Any",
     anchors: dict[str, "yaml.Node"],
     used_anchors: set[str],
-    key_node: "yaml.Node",
+    key_node: "yaml.ScalarNode",
     node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "map"):
@@ -867,7 +868,7 @@ def traverse_dependencies(
     root_context: "Any",
     anchors: dict[str, "yaml.Node"],
     used_anchors: set[str],
-    key_node: "yaml.Node",
+    key_node: "yaml.ScalarNode",
     node: "yaml.Node",
 ) -> None:
     if node_has_type(node, "map"):
