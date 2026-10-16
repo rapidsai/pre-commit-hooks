@@ -192,45 +192,77 @@ class TestLines:
 
 class TestLinter:
     @pytest.mark.parametrize(
-        ["agent", "agent_environment", "expected"],
         [
-            pytest.param("yes", False, True, id="yes-no-agent-environment"),
-            pytest.param("yes", True, True, id="yes-agent-environment"),
-            pytest.param("no", False, False, id="no-no-agent-environment"),
-            pytest.param("no", True, False, id="no-agent-environment"),
-            pytest.param("auto", False, False, id="auto-no-agent-environment"),
-            pytest.param("auto", True, True, id="auto-agent-environment"),
+            "verbose",
+            "level_args",
+            "agent_environment",
+            "agent_checked",
+            "expected",
+        ],
+        [
+            pytest.param(
+                0,
+                [],
+                False,
+                True,
+                False,
+                id="defaults",
+            ),
+            pytest.param(
+                1,
+                [],
+                False,
+                False,
+                True,
+                id="verbose-1",
+            ),
+            pytest.param(
+                2,
+                [],
+                False,
+                False,
+                True,
+                id="verbose-2",
+            ),
+            pytest.param(
+                1,
+                [1],
+                False,
+                False,
+                True,
+                id="verbose-1-explicit",
+            ),
+            pytest.param(
+                1,
+                [2],
+                False,
+                True,
+                False,
+                id="verbose-1-insufficient",
+            ),
+            pytest.param(
+                0,
+                [2],
+                True,
+                True,
+                True,
+                id="agent",
+            ),
         ],
     )
-    def test_is_agent(self, agent, agent_environment, expected):
-        args = Mock(agent=agent)
+    def test_verbose_output(
+        self, verbose, level_args, agent_environment, agent_checked, expected
+    ):
+        args = Mock(verbose=verbose)
         with patch(
             "rapids_pre_commit_hooks.agents.is_agent_environment",
             return_value=agent_environment,
-        ) as is_agent_environment:
-            assert Linter.is_agent(args) is expected
-            if agent == "auto":
-                is_agent_environment.assert_called_once_with()
-            else:
-                is_agent_environment.assert_not_called()
-
-    @pytest.mark.parametrize(
-        ["verbose", "is_agent", "expected"],
-        [
-            pytest.param(False, False, False, id="quiet-non-agent"),
-            pytest.param(False, True, True, id="quiet-agent"),
-            pytest.param(True, False, True, id="verbose-non-agent"),
-            pytest.param(True, True, True, id="verbose-agent"),
-        ],
-    )
-    def test_verbose_output(self, verbose, is_agent, expected):
-        args = Mock(verbose=verbose)
-        with patch.object(Linter, "is_agent", return_value=is_agent) as check:
-            assert Linter.verbose_output(args) is expected
-            if verbose:
-                check.assert_not_called()
-            else:
-                check.assert_called_once_with(args)
+        ) as check:
+            assert Linter.verbose_output(args, *level_args) == expected
+        if agent_checked:
+            check.assert_called_once_with()
+        else:
+            check.assert_not_called()
 
     @pytest.mark.parametrize("newline", ["\n", "\r\n", "\r"])
     @pytest.mark.parametrize("verbose", [False, True])
@@ -757,6 +789,14 @@ class TestLinter:
 
 
 class TestLintMain:
+    @pytest.fixture(autouse=True)
+    def non_agent_environment(self):
+        with patch(
+            "rapids_pre_commit_hooks.agents.is_agent_environment",
+            return_value=False,
+        ):
+            yield
+
     def span_to_line_col(self, content, span):
         lines = Lines(content)
         pos, _ = span
@@ -946,8 +986,6 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
-                    "--agent",
-                    "no",
                     "--check-test",
                     "--no-fix",
                     file.name,
@@ -973,8 +1011,6 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
-                    "--agent",
-                    "no",
                     "--check-test",
                     *fix_args,
                     file.name,
@@ -999,8 +1035,6 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
-                    "--agent",
-                    "no",
                     "--check-test",
                     "--no-fix",
                     file.name,
@@ -1061,8 +1095,6 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
-                    "--agent",
-                    "no",
                     "--check-test",
                     *fix_args,
                     file.name,
@@ -1122,8 +1154,6 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
-                    "--agent",
-                    "no",
                     "--no-fix",
                     "--check-test",
                     "--check-test-note",
@@ -1255,8 +1285,6 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
-                    "--agent",
-                    "no",
                     *fix_args,
                     file.name,
                 ],
@@ -1324,8 +1352,6 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
-                    "--agent",
-                    "no",
                     "--check-test",
                     "--fix",
                     hello_world_file.name,
@@ -1417,8 +1443,6 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
-                    "--agent",
-                    "no",
                     os.path.join(tmp_path, "file.txt"),
                 ],
             ),
@@ -1438,8 +1462,6 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
-                    "--agent",
-                    "no",
                     "--check-test",
                     "--fix",
                     file.name,
@@ -1465,8 +1487,6 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
-                    "--agent",
-                    "no",
                     "--no-fix",
                     file.name,
                 ],
@@ -1523,8 +1543,6 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
-                    "--agent",
-                    "no",
                     "--no-fix",
                     file.name,
                 ],
@@ -1577,8 +1595,6 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
-                    "--agent",
-                    "no",
                     *fix_args,
                     file.name,
                 ],
@@ -1639,8 +1655,6 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
-                    "--agent",
-                    "no",
                     *fix_args,
                     file.name,
                 ],
@@ -1685,8 +1699,6 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
-                    "--agent",
-                    "no",
                     "--fix",
                     file.name,
                 ],
@@ -1734,8 +1746,6 @@ class TestLintMain:
                 "sys.argv",
                 [
                     "check-test",
-                    "--agent",
-                    "no",
                     "--fix",
                     file.name,
                 ],

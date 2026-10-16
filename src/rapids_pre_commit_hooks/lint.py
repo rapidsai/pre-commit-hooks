@@ -405,17 +405,10 @@ class Linter:
         return any(map(lambda b: b[1], boundaries[start:end]))
 
     @classmethod
-    def is_agent(cls, args: "argparse.Namespace") -> bool:
-        if args.agent == "yes":
-            return True
-        if args.agent == "no":
-            return False
-        assert args.agent == "auto"
-        return agents.is_agent_environment()
-
-    @classmethod
-    def verbose_output(cls, args: "argparse.Namespace") -> bool:
-        return args.verbose or cls.is_agent(args)
+    def verbose_output(
+        cls, args: "argparse.Namespace", level: int = 1
+    ) -> bool:
+        return args.verbose >= level or agents.is_agent_environment()
 
     def get_enabled_warnings(self) -> "Iterator[LintWarning]":
         return filter(
@@ -505,17 +498,12 @@ class LintMain:
             "(yes by default)",
         )
         self.argparser.add_argument(
-            "--agent",
-            choices=["yes", "no", "auto"],
-            default="auto",
-            help="whether or not this tool is being run by an agent "
-            "(auto-detection by default)",
-        )
-        self.argparser.add_argument(
             "-v",
             "--verbose",
-            action="store_true",
-            help="show more verbose output",
+            action="count",
+            help="show more verbose output (running with AI_AGENT=1 implies "
+            "maximum verbosity)",
+            default=0,
         )
         self.argparser.add_argument("files", nargs="+", metavar="file")
 
