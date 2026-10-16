@@ -7,7 +7,7 @@ import dataclasses
 import os
 import re
 from functools import cache
-from typing import Any, Optional
+from typing import Any, Optional, TYPE_CHECKING
 
 import yaml
 from packaging.requirements import InvalidRequirement, Requirement
@@ -27,6 +27,9 @@ from .utils.dependencies_yaml import (
     is_python_output_type,
     traverse_dependencies_yaml,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 ALPHA_SPECIFIER: str = ">=0.0.0a0"
 
@@ -56,8 +59,12 @@ def strip_cuda_suffix(args: argparse.Namespace, name: str) -> str:
 
 
 class OrderPreservingSpecifierSet(SpecifierSet):
+    def __init__(self, specifiers: "Iterable[Specifier]") -> None:
+        self._order_preserved = list(specifiers)
+        super().__init__(self._order_preserved)
+
     def __str__(self):
-        return ",".join(str(s) for s in self)
+        return ",".join(str(s) for s in self._order_preserved)
 
 
 class AlphaSpecHandler(Handler):
