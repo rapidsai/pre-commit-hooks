@@ -14,8 +14,4 @@ source .venv/bin/activate
 pip install -e '.[test]'
 ```
 
-Both the hooks and the tests also require git to work correctly. Git is not
-available as a Python wheel, and has to be installed separately from
-conda-forge (using `conda` or `mamba`) or from the package manager.
-
 Once the environment is set up, `pytest` can be used to run the tests.
