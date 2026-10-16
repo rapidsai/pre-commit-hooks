@@ -26,9 +26,9 @@ class ConstraintsWithExtrasHandler(Handler):
     @dataclass
     class ItemContext:
         output_types: "dict[str, yaml.Node]" = field(default_factory=dict)
-        packages: (
-            "list[tuple[yaml.ScalarNode, Requirement, Optional[Anchor]]]"
-        ) = field(default_factory=list)
+        packages: "list[tuple[yaml.ScalarNode, Requirement, Optional[Anchor]]]" = field(  # noqa: E501
+            default_factory=list
+        )
 
     @dataclass
     class PackagesContext:
