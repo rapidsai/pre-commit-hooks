@@ -9,7 +9,7 @@ rapids-pre-commit-hooks is a standard Python project. All of the Python
 dependencies needed for testing can be installed by running:
 
 ```sh
-pip install -e .[test]
+pip install -e '.[test]'
 ```
 
 Both the hooks and the tests also require git to work correctly. Git is not
