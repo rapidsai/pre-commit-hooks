@@ -6,8 +6,8 @@ import contextlib
 import dataclasses
 import os
 import re
-from functools import cache
-from typing import Any, Optional, TYPE_CHECKING
+from functools import cache, total_ordering
+from typing import Any, Optional
 
 import yaml
 from packaging.requirements import InvalidRequirement, Requirement
@@ -27,9 +27,6 @@ from .utils.dependencies_yaml import (
     is_python_output_type,
     traverse_dependencies_yaml,
 )
-
-if TYPE_CHECKING:
-    from collections.abc import Iterable
 
 ALPHA_SPECIFIER: str = ">=0.0.0a0"
 
@@ -56,15 +53,6 @@ def strip_cuda_suffix(args: argparse.Namespace, name: str) -> str:
     ) in get_rapids_version(args).cuda_suffixed_packages:
         return match.group("package")
     return name
-
-
-class OrderPreservingSpecifierSet(SpecifierSet):
-    def __init__(self, specifiers: "Iterable[Specifier]") -> None:
-        self._order_preserved = list(specifiers)
-        super().__init__(self._order_preserved)
-
-    def __str__(self):
-        return ",".join(str(s) for s in self._order_preserved)
 
 
 class AlphaSpecHandler(Handler):
@@ -147,6 +135,34 @@ class AlphaSpecHandler(Handler):
         anchor: "Optional[Anchor]",
         node: "yaml.ScalarNode",
     ) -> None:
+        @total_ordering
+        class SpecPriority:
+            def __init__(self, spec: str):
+                self.spec: str = spec
+
+            def __eq__(self, other: object) -> bool:
+                assert isinstance(other, SpecPriority)
+                return self.spec == other.spec
+
+            def __lt__(self, other: object) -> bool:
+                assert isinstance(other, SpecPriority)
+                if self.spec == other.spec:
+                    return False
+                if self.spec == ALPHA_SPECIFIER:
+                    return False
+                if other.spec == ALPHA_SPECIFIER:
+                    return True
+                return self.sort_str() < other.sort_str()
+
+            def sort_str(self) -> str:
+                return "".join(c for c in self.spec if c not in "<>=")
+
+        class AlphaSpecSpecifierSet(SpecifierSet):
+            def __str__(self) -> str:
+                return ",".join(
+                    sorted((str(s) for s in self), key=SpecPriority)
+                )
+
         try:
             req = Requirement(node.value)
         except InvalidRequirement:
@@ -160,7 +176,7 @@ class AlphaSpecHandler(Handler):
 
         has_alpha_spec = any(str(s) == ALPHA_SPECIFIER for s in req.specifier)
         if self.args.mode == "development" and not has_alpha_spec:
-            req.specifier = OrderPreservingSpecifierSet(
+            req.specifier = AlphaSpecSpecifierSet(
                 [*req.specifier, Specifier(ALPHA_SPECIFIER)]
             )
             self.linter.add_warning(
@@ -177,7 +193,7 @@ class AlphaSpecHandler(Handler):
                 ),
             )
         elif self.args.mode == "release" and has_alpha_spec:
-            req.specifier = OrderPreservingSpecifierSet(
+            req.specifier = AlphaSpecSpecifierSet(
                 s for s in req.specifier if str(s) != ALPHA_SPECIFIER
             )
             self.linter.add_warning(
