@@ -3,6 +3,7 @@
 
 import argparse
 
+from .constraints_with_extras import ConstraintsWithExtrasHandler
 from .cuda_suffixed import CUDASuffixedHandler
 from .naming_conventions import NamingConventionsHandler
 from .use_cuda_wheels import UseCUDAWheelsHandler
@@ -15,6 +16,7 @@ from ..utils.dependencies_yaml import (
 
 def check_dependencies(linter: "Linter", args: "argparse.Namespace") -> None:
     handler = ChainedHandler()
+    handler.add_handler(ConstraintsWithExtrasHandler(linter))
     handler.add_handler(CUDASuffixedHandler(linter, args))
     handler.add_handler(NamingConventionsHandler(linter, args))
     handler.add_handler(UseCUDAWheelsHandler(linter, args))
