@@ -9,6 +9,8 @@ rapids-pre-commit-hooks is a standard Python project. All of the Python
 dependencies needed for testing can be installed by running:
 
 ```sh
+python -m venv .venv
+source .venv/bin/activate
 pip install -e '.[test]'
 ```
 
