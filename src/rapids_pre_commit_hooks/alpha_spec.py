@@ -137,8 +137,8 @@ class AlphaSpecHandler(Handler):
     ) -> None:
         @total_ordering
         class SpecPriority:
-            def __init__(self, spec: str):
-                self.spec: str = spec
+            def __init__(self, spec: Specifier):
+                self.spec: Specifier = spec
 
             def __eq__(self, other: object) -> bool:
                 assert isinstance(other, SpecPriority)
@@ -148,20 +148,18 @@ class AlphaSpecHandler(Handler):
                 assert isinstance(other, SpecPriority)
                 if self.spec == other.spec:
                     return False
-                if self.spec == ALPHA_SPECIFIER:
+                if str(self.spec) == ALPHA_SPECIFIER:
                     return False
-                if other.spec == ALPHA_SPECIFIER:
+                if str(other.spec) == ALPHA_SPECIFIER:
                     return True
                 return self.sort_str() < other.sort_str()
 
             def sort_str(self) -> str:
-                return "".join(c for c in self.spec if c not in "<>=")
+                return "".join(c for c in str(self.spec) if c not in "<>=")
 
         class AlphaSpecSpecifierSet(SpecifierSet):
             def __str__(self) -> str:
-                return ",".join(
-                    sorted((str(s) for s in self), key=SpecPriority)
-                )
+                return ",".join(str(s) for s in sorted(self, key=SpecPriority))
 
         try:
             req = Requirement(node.value)
