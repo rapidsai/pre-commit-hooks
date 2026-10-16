@@ -30,7 +30,7 @@ done, it should be left to the developer to decide how to fix the problem.
 
 Docstrings are generally not used except for large and/or complicated functions
 whose purpose may not be obvious. See
-`rapids_pre_commit_hooks_test_utiles.parse_named_spans()` as an example of such
+`rapids_pre_commit_hooks_test_utils.parse_named_spans()` as an example of such
 an exception.
 
 ## `dependencies.yaml` hooks
