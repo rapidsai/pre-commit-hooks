@@ -9,7 +9,12 @@ import yaml
 from packaging.requirements import InvalidRequirement, Requirement
 
 from ..utils.dependencies_yaml import Handler
-from ..utils.yaml import Anchor, is_reference_anchor
+from ..utils.yaml import (
+    Anchor,
+    is_reference_anchor,
+    preserve_anchor,
+    quote_string,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -21,9 +26,9 @@ class ConstraintsWithExtrasHandler(Handler):
     @dataclass
     class ItemContext:
         output_types: "dict[str, yaml.Node]" = field(default_factory=dict)
-        packages: "list[tuple[yaml.Node, Requirement, Optional[Anchor]]]" = (
-            field(default_factory=list)
-        )
+        packages: (
+            "list[tuple[yaml.ScalarNode, Requirement, Optional[Anchor]]]"
+        ) = field(default_factory=list)
 
     @dataclass
     class PackagesContext:
@@ -73,17 +78,12 @@ class ConstraintsWithExtrasHandler(Handler):
                 is_reference_anchor(anchor)
             ):
                 req.extras.clear()
-                replacement = (
-                    yaml.safe_dump(
-                        str(req),
-                        default_style=getattr(node, "style", None),
-                        width=2**31 - 1,
-                    )
-                    .removesuffix("...\n")
-                    .rstrip("\n")
+                warning.add_replacement(
+                    span,
+                    preserve_anchor(
+                        quote_string(str(req), node.style), anchor
+                    ),
                 )
-                anchor_text = f"&{anchor.anchor_name} " if anchor else ""
-                warning.add_replacement(span, f"{anchor_text}{replacement}")
 
     def handle_specific_item(
         self,
@@ -123,7 +123,7 @@ class ConstraintsWithExtrasHandler(Handler):
         self,
         packages_context: "ConstraintsWithExtrasHandler.PackagesContext",
         anchor: "Optional[Anchor]",
-        item: "yaml.Node",
+        item: "yaml.ScalarNode",
     ) -> None:
         if packages_context.is_reference:
             return
