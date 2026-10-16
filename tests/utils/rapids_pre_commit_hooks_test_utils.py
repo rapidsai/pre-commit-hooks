@@ -7,11 +7,13 @@ import warnings
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
+from unittest.mock import patch
+
 from rapids_pre_commit_hooks.utils.yaml import node_has_type
 from rapids_pre_commit_hooks.lint import Lines, LintWarning, Note, Replacement
 
 if TYPE_CHECKING:
-    from typing import Optional, TypeGuard, TypedDict
+    from typing import Any, Optional, TypeGuard, TypedDict
 
     import yaml
 
@@ -426,3 +428,11 @@ def find_yaml_node_for_span(
             if found := find_yaml_node_for_span(item, span):
                 return found
     return None
+
+
+def patch_environment(vars: "dict[str, Optional[str]]") -> "Any":
+    return patch.dict(
+        "os.environ",
+        {k: v for k, v in vars.items() if v is not None},
+        clear=True,
+    )

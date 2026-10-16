@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING
 from rich.console import Console
 from rich.markup import escape
 
+from . import agents
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterator
     from typing import Optional
@@ -177,6 +179,7 @@ class Linter:
         span: Span,
         msg: str,
         newtext: str | None = None,
+        verbose: bool = False,
     ) -> None:
         line_index = self.lines.line_for_pos(span[0])
         line_span = self.lines.spans[line_index]
@@ -184,15 +187,17 @@ class Linter:
             f"In file [bold]{escape(self.filename)}:{line_index + 1}:"
             f"{span[0] - line_span[0] + 1}[/bold]:"
         )
-        self._print_highlighted_code(span, newtext)
+        self._print_highlighted_code(span, newtext, verbose)
         self.console.print(f"[bold]{note_type}:[/bold] {escape(msg)}")
         self.console.print()
 
-    def print_warnings(self, fix_applied: bool = False) -> None:
+    def print_warnings(self, args: "argparse.Namespace") -> None:
         sorted_warnings = sorted(
             self.get_enabled_warnings(),
             key=lambda warning: warning.span,
         )
+
+        verbose = self.verbose_output(args)
 
         for warning in sorted_warnings:
             self._print_note("warning", warning.span, warning.msg)
@@ -203,16 +208,12 @@ class Linter:
             for replacement in warning.replacements:
                 line_span_index = self.lines.line_for_pos(replacement.span[0])
                 line_span = self.lines.spans[line_span_index]
-                newtext = replacement.newtext
-                if match := self._NEWLINE_RE.search(newtext):
-                    newtext = newtext[: match.start()]
-                    long = True
-                else:
-                    long = False
-                if replacement.span[1] > line_span[1]:
-                    long = True
+                long = not verbose and (
+                    self._NEWLINE_RE.search(replacement.newtext) is not None
+                    or replacement.span[1] > line_span[1]
+                )
 
-                if fix_applied:
+                if args.fix:
                     if replacement.conflict:
                         if long:
                             replacement_msg = (
@@ -246,11 +247,18 @@ class Linter:
                     else:
                         replacement_msg = "suggested fix"
                 self._print_note(
-                    "note", replacement.span, replacement_msg, newtext
+                    "note",
+                    replacement.span,
+                    replacement_msg,
+                    replacement.newtext,
+                    verbose,
                 )
 
     def _print_highlighted_code(
-        self, span: Span, replacement: str | None = None
+        self,
+        span: Span,
+        replacement: str | None = None,
+        verbose: bool = False,
     ) -> None:
         line_span_index = self.lines.line_for_pos(span[0])
         line_span = self.lines.spans[line_span_index]
@@ -268,16 +276,29 @@ class Linter:
                 f"{escape(self.content[right : line_span[1]])}"
             )
         else:
-            self.console.print(
-                f"[red]-{escape(self.content[line_span[0] : left])}"
-                f"[bold]{escape(self.content[left:right])}[/bold]"
-                f"{escape(self.content[right : line_span[1]])}[/red]"
-            )
-            self.console.print(
-                f"[green]+{escape(self.content[line_span[0] : left])}"
-                f"[bold]{escape(replacement)}[/bold]"
-                f"{escape(self.content[right : line_span[1]])}[/green]"
-            )
+            end_line_span = self.lines.spans[self.lines.line_for_pos(span[1])]
+            prefix = self.content[line_span[0] : left]
+            suffix = self.content[span[1] : end_line_span[1]]
+
+            def print_diff_lines(text: str, marker: str, color: str) -> None:
+                lines = Lines(text).spans
+                # A trailing newline does not add an empty diff line unless
+                # there is surviving text on that line.
+                if text and lines[-1][0] == len(text) and not suffix:
+                    lines = lines[:-1]
+                for i, (begin, end) in enumerate(lines):
+                    if i and not verbose:
+                        break
+                    line_prefix = prefix if i == 0 else ""
+                    line_suffix = suffix if i == len(lines) - 1 else ""
+                    self.console.print(
+                        f"[{color}]{marker}{escape(line_prefix)}"
+                        f"[bold]{escape(text[begin:end])}[/bold]"
+                        f"{escape(line_suffix)}[/{color}]"
+                    )
+
+            print_diff_lines(self.content[left : span[1]], "-", "red")
+            print_diff_lines(replacement, "+", "green")
 
     @classmethod
     def get_disabled_enabled_boundaries(
@@ -383,6 +404,12 @@ class Linter:
             end += 1
         return any(map(lambda b: b[1], boundaries[start:end]))
 
+    @classmethod
+    def verbose_output(
+        cls, args: "argparse.Namespace", level: int = 1
+    ) -> bool:
+        return args.verbose >= level or agents.is_agent_environment()
+
     def get_enabled_warnings(self) -> "Iterator[LintWarning]":
         return filter(
             lambda w: Linter.is_warning_span_enabled(
@@ -443,7 +470,7 @@ class ExecutionContext(contextlib.AbstractContextManager):
                 check(linter, self.args)
 
             linter.sort_and_check_replacements_for_conflicts()
-            linter.print_warnings(self.args.fix)
+            linter.print_warnings(self.args)
             if self.args.fix:
                 fix = linter.fix()
                 if fix != content:
@@ -469,6 +496,14 @@ class LintMain:
             default=True,
             help="whether or not to automatically fix warnings "
             "(yes by default)",
+        )
+        self.argparser.add_argument(
+            "-v",
+            "--verbose",
+            action="count",
+            help="show more verbose output (running with AI_AGENT=1 implies "
+            "maximum verbosity)",
+            default=0,
         )
         self.argparser.add_argument("files", nargs="+", metavar="file")
 
