@@ -172,6 +172,9 @@ class AlphaSpecHandler(Handler):
         ):
             return
 
+        if req.url:
+            return
+
         has_alpha_spec = any(str(s) == ALPHA_SPECIFIER for s in req.specifier)
         if self.args.mode == "development" and not has_alpha_spec:
             req.specifier = AlphaSpecSpecifierSet(

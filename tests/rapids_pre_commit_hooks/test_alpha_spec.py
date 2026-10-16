@@ -442,6 +442,15 @@ class TestAlphaSpecHandler:
                 'cudf>=26.12,<27.02,>=0.0.0a0; python_version >= "3.12"',
                 id="development-python-version-marker",
             ),
+            pytest.param(
+                "cudf",
+                None,
+                "cudf @ https://example.com/ ;python_version>='3.12'",
+                "development",
+                False,
+                None,
+                id="url-and-python-version-marker",
+            ),
         ],
     )
     @patch(
