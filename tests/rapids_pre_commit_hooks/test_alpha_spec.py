@@ -424,6 +424,33 @@ class TestAlphaSpecHandler:
                 None,
                 id="conda-package-release",
             ),
+            pytest.param(
+                "cudf",
+                None,
+                "cudf>=26.12,>=0.0.0a0,<27.02;python_version>='3.12'",
+                "release",
+                False,
+                'cudf>=26.12,<27.02; python_version >= "3.12"',
+                id="release-python-version-marker",
+            ),
+            pytest.param(
+                "cudf",
+                None,
+                "cudf>=26.12,<27.02;python_version>='3.12'",
+                "development",
+                False,
+                'cudf>=26.12,<27.02,>=0.0.0a0; python_version >= "3.12"',
+                id="development-python-version-marker",
+            ),
+            pytest.param(
+                "cudf",
+                None,
+                "cudf @ https://example.com/ ;python_version>='3.12'",
+                "development",
+                False,
+                None,
+                id="url-and-python-version-marker",
+            ),
         ],
     )
     @patch(
