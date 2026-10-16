@@ -296,6 +296,26 @@ class TestAlphaSpecHandler:
                     )
                 )
             ),
+            *(
+                pytest.param(
+                    "cuml",
+                    Anchor(AnchorType.DEFINITION, "cuml") if prefix else None,
+                    f"{prefix}{quote}{original}{quote}",
+                    mode,
+                    False,
+                    f"{prefix}{quote}{replacement}{quote}",
+                    id=f"{mode}-{style}-{anchor_id}",
+                )
+                for mode, original, replacement in [
+                    ("development", "cuml", "cuml>=0.0.0a0"),
+                    ("release", "cuml>=0.0.0a0", "cuml"),
+                ]
+                for quote, style in [
+                    ("'", "single-quoted"),
+                    ('"', "double-quoted"),
+                ]
+                for prefix, anchor_id in [("", "plain"), ("&cuml ", "anchor")]
+            ),
             pytest.param(
                 "cuml",
                 None,

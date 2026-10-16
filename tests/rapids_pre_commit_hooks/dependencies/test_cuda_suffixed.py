@@ -612,6 +612,290 @@ class TestCUDASuffixedHandler:
                 [],
                 id="non-python-output",
             ),
+            pytest.param(
+                """\
+                + packages:
+                +   - 'package>=1'
+                :     ~~~~~~~~~~~~unsuffixed.0
+                :     ~~~~~~~~~~~~warnings.0.warning
+                :     ~~~~~~~~~~~~warnings.0.replacements.0
+                """,
+                True,
+                True,
+                13,
+                [],
+                [("package", None)],
+                [
+                    {
+                        "warning": 'package "package" in specific dependency '
+                        'set with cuda_suffixed: "true"',
+                        "replacements": ["'package-cu13>=1'"],
+                    },
+                ],
+                id="add-suffix-single-quoted-unanchored",
+            ),
+            pytest.param(
+                """\
+                + packages:
+                +   - &package 'package>=1'
+                :     ~~~~~~~~~~~~~~~~~~~~~unsuffixed.0
+                :     ~~~~~~~~~~~~~~~~~~~~~warnings.0.warning
+                :     ~~~~~~~~~~~~~~~~~~~~~warnings.0.replacements.0
+                """,
+                True,
+                True,
+                13,
+                [],
+                [("package", Anchor(AnchorType.DEFINITION, "package"))],
+                [
+                    {
+                        "warning": 'package "package" in specific dependency '
+                        'set with cuda_suffixed: "true"',
+                        "replacements": ["&package 'package-cu13>=1'"],
+                    },
+                ],
+                id="add-suffix-single-quoted-anchor",
+            ),
+            pytest.param(
+                """\
+                + packages:
+                +   - "package>=1"
+                :     ~~~~~~~~~~~~unsuffixed.0
+                :     ~~~~~~~~~~~~warnings.0.warning
+                :     ~~~~~~~~~~~~warnings.0.replacements.0
+                """,
+                True,
+                True,
+                13,
+                [],
+                [("package", None)],
+                [
+                    {
+                        "warning": 'package "package" in specific dependency '
+                        'set with cuda_suffixed: "true"',
+                        "replacements": ['"package-cu13>=1"'],
+                    },
+                ],
+                id="add-suffix-double-quoted-unanchored",
+            ),
+            pytest.param(
+                """\
+                + packages:
+                +   - &package "package>=1"
+                :     ~~~~~~~~~~~~~~~~~~~~~unsuffixed.0
+                :     ~~~~~~~~~~~~~~~~~~~~~warnings.0.warning
+                :     ~~~~~~~~~~~~~~~~~~~~~warnings.0.replacements.0
+                """,
+                True,
+                True,
+                13,
+                [],
+                [("package", Anchor(AnchorType.DEFINITION, "package"))],
+                [
+                    {
+                        "warning": 'package "package" in specific dependency '
+                        'set with cuda_suffixed: "true"',
+                        "replacements": ['&package "package-cu13>=1"'],
+                    },
+                ],
+                id="add-suffix-double-quoted-anchor",
+            ),
+            pytest.param(
+                """\
+                + packages:
+                +   - 'package-cu12>=1'
+                :     ~~~~~~~~~~~~~~~~~suffixed.0
+                :     ~~~~~~~~~~~~~~~~~warnings.0.warning
+                :     ~~~~~~~~~~~~~~~~~warnings.0.replacements.0
+                """,
+                True,
+                True,
+                13,
+                [("package", "-cu12", None)],
+                [],
+                [
+                    {
+                        "warning": 'package "package" has wrong -cu* suffix',
+                        "replacements": ["'package-cu13>=1'"],
+                    },
+                ],
+                id="correct-suffix-single-quoted-unanchored",
+            ),
+            pytest.param(
+                """\
+                + packages:
+                +   - &package 'package-cu12>=1'
+                :     ~~~~~~~~~~~~~~~~~~~~~~~~~~suffixed.0
+                :     ~~~~~~~~~~~~~~~~~~~~~~~~~~warnings.0.warning
+                :     ~~~~~~~~~~~~~~~~~~~~~~~~~~warnings.0.replacements.0
+                """,
+                True,
+                True,
+                13,
+                [
+                    (
+                        "package",
+                        "-cu12",
+                        Anchor(AnchorType.DEFINITION, "package"),
+                    )
+                ],
+                [],
+                [
+                    {
+                        "warning": 'package "package" has wrong -cu* suffix',
+                        "replacements": ["&package 'package-cu13>=1'"],
+                    },
+                ],
+                id="correct-suffix-single-quoted-anchor",
+            ),
+            pytest.param(
+                """\
+                + packages:
+                +   - "package-cu12>=1"
+                :     ~~~~~~~~~~~~~~~~~suffixed.0
+                :     ~~~~~~~~~~~~~~~~~warnings.0.warning
+                :     ~~~~~~~~~~~~~~~~~warnings.0.replacements.0
+                """,
+                True,
+                True,
+                13,
+                [("package", "-cu12", None)],
+                [],
+                [
+                    {
+                        "warning": 'package "package" has wrong -cu* suffix',
+                        "replacements": ['"package-cu13>=1"'],
+                    },
+                ],
+                id="correct-suffix-double-quoted-unanchored",
+            ),
+            pytest.param(
+                """\
+                + packages:
+                +   - &package "package-cu12>=1"
+                :     ~~~~~~~~~~~~~~~~~~~~~~~~~~suffixed.0
+                :     ~~~~~~~~~~~~~~~~~~~~~~~~~~warnings.0.warning
+                :     ~~~~~~~~~~~~~~~~~~~~~~~~~~warnings.0.replacements.0
+                """,
+                True,
+                True,
+                13,
+                [
+                    (
+                        "package",
+                        "-cu12",
+                        Anchor(AnchorType.DEFINITION, "package"),
+                    )
+                ],
+                [],
+                [
+                    {
+                        "warning": 'package "package" has wrong -cu* suffix',
+                        "replacements": ['&package "package-cu13>=1"'],
+                    },
+                ],
+                id="correct-suffix-double-quoted-anchor",
+            ),
+            pytest.param(
+                """\
+                + packages:
+                +   - 'package-cu12>=1'
+                :     ~~~~~~~~~~~~~~~~~suffixed.0
+                :     ~~~~~~~~~~~~~~~~~warnings.0.warning
+                :     ~~~~~~~~~~~~~~~~~warnings.0.replacements.0
+                """,
+                True,
+                False,
+                13,
+                [("package", "-cu12", None)],
+                [],
+                [
+                    {
+                        "warning": 'package "package" in specific dependency '
+                        'set with cuda_suffixed: "false"',
+                        "replacements": ["'package>=1'"],
+                    },
+                ],
+                id="remove-suffix-single-quoted-unanchored",
+            ),
+            pytest.param(
+                """\
+                + packages:
+                +   - &package 'package-cu12>=1'
+                :     ~~~~~~~~~~~~~~~~~~~~~~~~~~suffixed.0
+                :     ~~~~~~~~~~~~~~~~~~~~~~~~~~warnings.0.warning
+                :     ~~~~~~~~~~~~~~~~~~~~~~~~~~warnings.0.replacements.0
+                """,
+                True,
+                False,
+                13,
+                [
+                    (
+                        "package",
+                        "-cu12",
+                        Anchor(AnchorType.DEFINITION, "package"),
+                    )
+                ],
+                [],
+                [
+                    {
+                        "warning": 'package "package" in specific dependency '
+                        'set with cuda_suffixed: "false"',
+                        "replacements": ["&package 'package>=1'"],
+                    },
+                ],
+                id="remove-suffix-single-quoted-anchor",
+            ),
+            pytest.param(
+                """\
+                + packages:
+                +   - "package-cu12>=1"
+                :     ~~~~~~~~~~~~~~~~~suffixed.0
+                :     ~~~~~~~~~~~~~~~~~warnings.0.warning
+                :     ~~~~~~~~~~~~~~~~~warnings.0.replacements.0
+                """,
+                True,
+                False,
+                13,
+                [("package", "-cu12", None)],
+                [],
+                [
+                    {
+                        "warning": 'package "package" in specific dependency '
+                        'set with cuda_suffixed: "false"',
+                        "replacements": ['"package>=1"'],
+                    },
+                ],
+                id="remove-suffix-double-quoted-unanchored",
+            ),
+            pytest.param(
+                """\
+                + packages:
+                +   - &package "package-cu12>=1"
+                :     ~~~~~~~~~~~~~~~~~~~~~~~~~~suffixed.0
+                :     ~~~~~~~~~~~~~~~~~~~~~~~~~~warnings.0.warning
+                :     ~~~~~~~~~~~~~~~~~~~~~~~~~~warnings.0.replacements.0
+                """,
+                True,
+                False,
+                13,
+                [
+                    (
+                        "package",
+                        "-cu12",
+                        Anchor(AnchorType.DEFINITION, "package"),
+                    )
+                ],
+                [],
+                [
+                    {
+                        "warning": 'package "package" in specific dependency '
+                        'set with cuda_suffixed: "false"',
+                        "replacements": ['&package "package>=1"'],
+                    },
+                ],
+                id="remove-suffix-double-quoted-anchor",
+            ),
         ],
     )
     def test_handle_specific_item(
