@@ -8,7 +8,6 @@ import dataclasses
 import functools
 import re
 import warnings
-from collections.abc import Callable
 from typing import ParamSpec, TYPE_CHECKING
 
 from rich.console import Console
@@ -17,7 +16,7 @@ from rich.markup import escape
 from . import agents
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Iterator
+    from collections.abc import Callable, Generator, Iterator
     from typing import Optional
 
 Span = tuple[int, int]
