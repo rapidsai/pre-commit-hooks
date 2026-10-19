@@ -24,10 +24,10 @@ def test_agent_instructions():
     instructions_func = agent_instructions(m)
     m.assert_not_called()
 
-    instructions_lambda = instructions_func(123)
+    instructions_lambda = instructions_func(num=123)
     m.assert_not_called()
     assert instructions_lambda() == "Agent instructions"
-    m.assert_called_once_with(123)
+    m.assert_called_once_with(num=123)
 
 
 class TestLines:
