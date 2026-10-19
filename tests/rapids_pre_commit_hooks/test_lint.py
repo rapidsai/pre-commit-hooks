@@ -14,8 +14,20 @@ from rapids_pre_commit_hooks.lint import (
     Linter,
     LintMain,
     Replacement,
+    agent_instructions,
 )
 from rapids_pre_commit_hooks_test_utils import parse_named_spans
+
+
+def test_agent_instructions():
+    m = Mock(return_value="Agent instructions")
+    instructions_func = agent_instructions(m)
+    m.assert_not_called()
+
+    instructions_lambda = instructions_func(123)
+    m.assert_not_called()
+    assert instructions_lambda() == "Agent instructions"
+    m.assert_called_once_with(123)
 
 
 class TestLines:

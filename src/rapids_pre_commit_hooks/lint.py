@@ -28,6 +28,12 @@ Args = ParamSpec("Args")
 def agent_instructions(
     func: "Callable[Args, str]",
 ) -> "Callable[Args, Callable[[], str]]":
+    """Decorator for agent instructions functions that might be costly to run.
+
+    This function exists because some agent instructions might be costly to
+    run, and should only be run if their results will actually be printed.
+    """
+
     @functools.wraps(func)
     def instructions(
         *args: Args.args, **kwargs: Args.kwargs
