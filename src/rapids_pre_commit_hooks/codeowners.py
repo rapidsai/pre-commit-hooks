@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -54,10 +54,8 @@ def hard_coded_codeowners(owners: dict[str, str]) -> CodeownersTransform:
 
 
 def project_codeowners(category: str) -> CodeownersTransform:
-    return (
-        lambda *,
-        org,
-        project_prefix: f"@{org}/{project_prefix}-{category}-codeowners"
+    return lambda *, org, project_prefix: (
+        f"@{org}/{project_prefix}-{category}-codeowners"
     )
 
 
