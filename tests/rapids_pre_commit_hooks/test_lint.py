@@ -402,9 +402,7 @@ class TestLinter:
             Mock(return_value="Use [bold]literal[/bold] text.\n\n  code()")
         )
         second = linter.add_warning(spans["second"], "second warning")
-        second.add_agent_instructions(
-            Mock(return_value="Read the version file.")
-        )
+        second.add_agent_instructions("Read the version file.")
 
         with patch.object(Linter, "verbose_output", return_value=verbose):
             linter.print_warnings(Mock(fix=False))

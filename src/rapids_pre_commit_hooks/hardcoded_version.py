@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import tomlkit
 import tomlkit.exceptions
 
-from .lint import LintMain, Linter, agent_instructions
+from .lint import LintMain, Linter
 from .utils.toml import find_value_span
 
 if TYPE_CHECKING:
@@ -220,7 +220,6 @@ def read_version_file(
     )
 
 
-@agent_instructions
 def agent_instructions_hardcoded_version(*, version_file: str) -> str:
     return dedent(
         f'''\

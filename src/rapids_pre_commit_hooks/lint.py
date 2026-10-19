@@ -73,9 +73,12 @@ class LintWarning:
         self.notes.append(Note(span, msg))
 
     def add_agent_instructions(
-        self, instructions: "Callable[[], str]"
+        self, instructions: "str | Callable[[], str]"
     ) -> None:
-        self.agent_instructions = instructions
+        if isinstance(instructions, str):
+            self.agent_instructions = lambda: instructions
+        else:
+            self.agent_instructions = instructions
 
 
 class Lines:
