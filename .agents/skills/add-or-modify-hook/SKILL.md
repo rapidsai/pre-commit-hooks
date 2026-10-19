@@ -48,6 +48,22 @@ New sub-checks that get added to `verify-dependencies` should have new modules
 created in `rapids_pre_commit_hooks.dependencies`, and the check functions
 should be added to `rapids_pre_commit_hooks.dependencies.check_dependencies()`.
 
+## Agent Instructions
+In cases where an automatic fix is not possible, hooks should generally provide
+instructions to agents with the `add_agent_instructions()` method. These
+instructions should give the agents as much context about the problem as is
+needed to solve it.
+
+Natural language text should have no indentation in the string, and code blocks
+should be indented with two spaces. Agent instructions should generally be
+returned from a function named `agent_instructions_*()` that has no positional
+arguments. The function may optionally have required keyword arguments.
+
+If running the function is computationally expensive, requires internet or file
+access, or is otherwise nontrivial to run, it should be decorated with the
+`@agent_instructions` decorator. This decorator causes the function to instead
+return a no-argument lambda that invokes the function lazily.
+
 # Tests
 All tests can be found in the `tests` directory.
 
@@ -57,6 +73,11 @@ guidelines.
 
 Unit tests and some integration tests for hooks can be found in
 `tests/rapids_pre_commit_hooks`.
+
+In most cases, `zip_expected_warnings()` should be used to construct a list of
+expected warnings from the named spans and the parallel warning metadata, both
+of which should come from the test parameterization. Agent instructions do not
+need to be included in these test parameterizations.
 
 ### YAML Tests
 Tests that operate on YAML text should use

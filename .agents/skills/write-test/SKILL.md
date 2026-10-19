@@ -19,10 +19,6 @@ should be listed as an array rather than as a single string. Each parameterized
 entry should be declared with `pytest.param()` and a sensible `id` named in
 kebab-case (`name-of-test`).
 
-In most cases, `zip_expected_warnings()` should be used to construct a list of
-expected warnings from the named spans and the parallel warning metadata, both
-of which should come from the test parameterization.
-
 Test files generally do not require type annotations.
 
 When in doubt, follow the existing code conventions present in the tests.
