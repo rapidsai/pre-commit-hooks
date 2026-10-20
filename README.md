@@ -17,7 +17,10 @@ Copy the following into your repository's `.pre-commit-config.yaml`:
 
 Some checks are prone to false positives, particularly `verify-hardcoded-version`. In such
 cases, you can use `rapids-pre-commit-hooks: disable`, `rapids-pre-commit-hooks: enable`, and
-`rapids-pre-commit-hooks: disable-next-line` directives:
+`rapids-pre-commit-hooks: disable-next-line` directives. Each directive must include a
+non-empty, comma-separated list of check names in brackets, such as
+`disable[verify-hardcoded-version,verify-copyright]`. Directives without a check list
+are ignored. Only the listed checks are affected:
 
 ```python
 def deprecated_function():
