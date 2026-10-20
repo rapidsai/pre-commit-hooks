@@ -500,7 +500,7 @@ class Linter:
                 for word in filter(
                     lambda w: w != "", re.split(r"[ \n]", paragraph)
                 ):
-                    assert len(word) <= MAX_LINE_LENGTH, (
+                    assert len(word) <= MAX_LINE_LENGTH - 2, (
                         f'Word "{word}" is too long'
                     )
                     if len(f"  {line}{sep}{word}") > MAX_LINE_LENGTH:
