@@ -461,36 +461,41 @@ def test_match_copyright(content):
             f"""\
             + rapids-pre-commit-hooks: {"disable"}
             + Copyright (c) 2021 NVIDIA CORPORATION
-            + rapids-pre-commit-hooks: {"enable"}
-            + Copyright (c) 2022 NVIDIA CORPORATION
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.span
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.full_copyright_text_span
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~0.nvidia_copyright_text_span
             :               ~~~~0.years_span
             :               ~~~~0.first_year_span
-            + rapids-pre-commit-hooks: {"disable[verify-copyright]"}
-            + Copyright (c) 2023 NVIDIA CORPORATION
-            + rapids-pre-commit-hooks: {"enable[verify-copyright]"}
-            + Copyright (c) 2024 NVIDIA CORPORATION
+            + rapids-pre-commit-hooks: {"enable"}
+            + Copyright (c) 2022 NVIDIA CORPORATION
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.span
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.full_copyright_text_span
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~1.nvidia_copyright_text_span
             :               ~~~~1.years_span
             :               ~~~~1.first_year_span
-            + rapids-pre-commit-hooks: {"disable[verify-codeowners]"}
-            + Copyright (c) 2025 NVIDIA CORPORATION
+            + rapids-pre-commit-hooks: {"disable[verify-copyright]"}
+            + Copyright (c) 2023 NVIDIA CORPORATION
+            + rapids-pre-commit-hooks: {"enable[verify-copyright]"}
+            + Copyright (c) 2024 NVIDIA CORPORATION
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~2.span
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~2.full_copyright_text_span
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~2.nvidia_copyright_text_span
             :               ~~~~2.years_span
             :               ~~~~2.first_year_span
-            + rapids-pre-commit-hooks: {"enable[verify-codeowners]"}
-            + Copyright (c) 2026 NVIDIA CORPORATION
+            + rapids-pre-commit-hooks: {"disable[verify-codeowners]"}
+            + Copyright (c) 2025 NVIDIA CORPORATION
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~3.span
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~3.full_copyright_text_span
             : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~3.nvidia_copyright_text_span
             :               ~~~~3.years_span
             :               ~~~~3.first_year_span
+            + rapids-pre-commit-hooks: {"enable[verify-codeowners]"}
+            + Copyright (c) 2026 NVIDIA CORPORATION
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~4.span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~4.full_copyright_text_span
+            : ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~4.nvidia_copyright_text_span
+            :               ~~~~4.years_span
+            :               ~~~~4.first_year_span
             """,
             id="disable-enable-dirctives",
         ),
