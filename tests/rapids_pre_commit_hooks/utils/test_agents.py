@@ -4,13 +4,13 @@
 import pytest
 from unittest.mock import Mock, patch
 
-from rapids_pre_commit_hooks import agents
+from rapids_pre_commit_hooks.utils import agents
 from rapids_pre_commit_hooks_test_utils import patch_environment
 
 
 def test_agent_test_decorator():
     with patch(
-        "rapids_pre_commit_hooks.agents._AGENT_TESTS", []
+        "rapids_pre_commit_hooks.utils.agents._AGENT_TESTS", []
     ) as mock_tests:
 
         @agents._agent_test
@@ -82,7 +82,7 @@ def test_is_codex(env, result):
 )
 def test_is_agent_environment(values, called, result):
     with patch(
-        "rapids_pre_commit_hooks.agents._AGENT_TESTS",
+        "rapids_pre_commit_hooks.utils.agents._AGENT_TESTS",
         [Mock(return_value=v) for v in values],
     ) as tests:
         assert agents.is_agent_environment() == result

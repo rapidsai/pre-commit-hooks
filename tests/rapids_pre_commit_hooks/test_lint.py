@@ -267,7 +267,7 @@ class TestLinter:
     ):
         args = Mock(verbose=verbose)
         with patch(
-            "rapids_pre_commit_hooks.agents.is_agent_environment",
+            "rapids_pre_commit_hooks.utils.agents.is_agent_environment",
             return_value=agent_environment,
         ) as check:
             assert Linter.verbose_output(args, *level_args) == expected
@@ -1102,7 +1102,7 @@ class TestLintMain:
     @pytest.fixture(autouse=True)
     def non_agent_environment(self):
         with patch(
-            "rapids_pre_commit_hooks.agents.is_agent_environment",
+            "rapids_pre_commit_hooks.utils.agents.is_agent_environment",
             return_value=False,
         ):
             yield

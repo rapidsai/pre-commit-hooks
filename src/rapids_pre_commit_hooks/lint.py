@@ -13,7 +13,7 @@ from typing import ParamSpec, TYPE_CHECKING
 from rich.console import Console
 from rich.markup import escape
 
-from . import agents
+from .utils import agents
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterator
