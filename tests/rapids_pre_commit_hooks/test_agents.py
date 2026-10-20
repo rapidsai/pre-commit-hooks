@@ -67,7 +67,7 @@ def test_is_agent(env, result):
     ],
 )
 def test_is_codex(env, result):
-    with patch_environment({"CODEX_CLI": env}):
+    with patch_environment({"CODEX_CI": env}):
         assert agents.is_codex() == result
 
 
