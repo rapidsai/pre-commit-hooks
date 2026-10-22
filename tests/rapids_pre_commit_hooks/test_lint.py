@@ -14,8 +14,20 @@ from rapids_pre_commit_hooks.lint import (
     Linter,
     LintMain,
     Replacement,
+    agent_instructions,
 )
 from rapids_pre_commit_hooks_test_utils import parse_named_spans
+
+
+def test_agent_instructions():
+    m = Mock(return_value="Agent instructions")
+    instructions_func = agent_instructions(m)
+    m.assert_not_called()
+
+    instructions_lambda = instructions_func(num=123)
+    m.assert_not_called()
+    assert instructions_lambda() == "Agent instructions"
+    m.assert_called_once_with(num=123)
 
 
 class TestLines:
@@ -255,7 +267,7 @@ class TestLinter:
     ):
         args = Mock(verbose=verbose)
         with patch(
-            "rapids_pre_commit_hooks.agents.is_agent_environment",
+            "rapids_pre_commit_hooks.utils.agents.is_agent_environment",
             return_value=agent_environment,
         ) as check:
             assert Linter.verbose_output(args, *level_args) == expected
@@ -377,6 +389,120 @@ class TestLinter:
             assert (
                 "too long to display" in linter.console.mock_calls[-2].args[0]
             )
+
+    @pytest.mark.parametrize(
+        ["verbose"],
+        [
+            pytest.param(False, id="suppressed"),
+            pytest.param(True, id="shown"),
+        ],
+    )
+    def test_print_warnings_agent_instructions(self, verbose):
+        content, spans = parse_named_spans(
+            """\
+            + one
+            : ~~~first
+            + two
+            : ~~~second
+            """
+        )
+        linter = Linter("test.txt", content, "test")
+        linter.console = Mock()
+        first = linter.add_warning(spans["first"], "first warning")
+        assert first.agent_instructions is None
+        first.add_agent_instructions(
+            Mock(return_value="Use [bold]literal[/bold] text.\n\n  code()")
+        )
+        second = linter.add_warning(spans["second"], "second warning")
+        second.add_agent_instructions("Read the version file.")
+
+        with patch.object(Linter, "verbose_output", return_value=verbose):
+            linter.print_warnings(Mock(fix=False))
+
+        expected = [
+            call.print("In file [bold]test.txt:1:1[/bold]:"),
+            call.print(" [bold]one[/bold]"),
+            call.print("[bold]warning:[/bold] first warning"),
+            call.print(),
+        ]
+        if verbose:
+            expected.extend(
+                [
+                    call.print("[bold]instructions for agents:[/bold]"),
+                    call.print(r"  Use \[bold]literal\[/bold] text."),
+                    call.print(""),
+                    call.print("    code()"),
+                    call.print(),
+                ]
+            )
+        expected.extend(
+            [
+                call.print("In file [bold]test.txt:2:1[/bold]:"),
+                call.print(" [bold]two[/bold]"),
+                call.print("[bold]warning:[/bold] second warning"),
+                call.print(),
+                call.print("[bold]instructions for agents:[/bold]"),
+            ]
+        )
+        if verbose:
+            expected.append(call.print("  Read the version file."))
+        else:
+            expected.extend(
+                [
+                    call.print(
+                        "  Run this tool again with AI_AGENT=1 or -vv to see "
+                        "detailed instructions for"
+                    ),
+                    call.print("  agents."),
+                ]
+            )
+        expected.append(call.print())
+        assert linter.console.mock_calls == expected
+
+    @pytest.mark.parametrize(
+        ["has_warning", "instructions", "disabled"],
+        [
+            pytest.param(False, None, False, id="no-warnings"),
+            pytest.param(True, None, False, id="no-instructions"),
+            pytest.param(True, "", False, id="empty-instructions"),
+            pytest.param(True, "Hidden instructions", True, id="disabled"),
+        ],
+    )
+    def test_print_warnings_without_agent_instructions(
+        self, has_warning, instructions, disabled
+    ):
+        content, spans = parse_named_spans(
+            """\
+            + # rapids-pre-commit-hooks: disable-next-line[test]
+            + one
+            : ~~~disabled
+            + two
+            : ~~~enabled
+            """
+        )
+        linter = Linter("test.txt", content, "test")
+        linter.console = Mock()
+        if has_warning:
+            span = spans["disabled" if disabled else "enabled"]
+            warning = linter.add_warning(span, "warning message")
+            if instructions is not None:
+                warning.add_agent_instructions(Mock(return_value=instructions))
+
+        with patch.object(Linter, "verbose_output", return_value=True):
+            linter.print_warnings(Mock(fix=False))
+
+        if instructions == "":
+            assert linter.console.mock_calls[-2:] == [
+                call.print("[bold]instructions for agents:[/bold]"),
+                call.print(),
+            ]
+        else:
+            assert (
+                call.print("[bold]instructions for agents:[/bold]")
+                not in linter.console.mock_calls
+            )
+        if not has_warning or disabled:
+            assert linter.console.mock_calls == []
 
     def test_fix(self):
         content, spans = parse_named_spans(
@@ -839,12 +965,196 @@ class TestLinter:
             == expected_enabled
         )
 
+    # ruff: disable[E501]
+    @pytest.mark.parametrize(
+        ["content", "context", "expected"],
+        [
+            pytest.param(
+                "",
+                contextlib.nullcontext(),
+                [],
+                id="empty",
+            ),
+            pytest.param(
+                "Hello world",
+                contextlib.nullcontext(),
+                ["  Hello world"],
+                id="single-line",
+            ),
+            pytest.param(
+                "Hello\nworld",
+                contextlib.nullcontext(),
+                ["  Hello world"],
+                id="two-lines",
+            ),
+            pytest.param(
+                "Hello  world",
+                contextlib.nullcontext(),
+                ["  Hello world"],
+                id="two-spaces",
+            ),
+            pytest.param(
+                "Joy\nto the\nworld",
+                contextlib.nullcontext(),
+                ["  Joy to the world"],
+                id="mixed-newlines-spaces",
+            ),
+            pytest.param(
+                "Hello\nworld\n",
+                contextlib.nullcontext(),
+                ["  Hello world"],
+                id="trailing-newline",
+            ),
+            pytest.param(
+                "Hello\n\nworld",
+                contextlib.nullcontext(),
+                ["  Hello", "", "  world"],
+                id="paragraphs",
+            ),
+            pytest.param(
+                dedent("""\
+                Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque
+                faucibus ex sapien vitae pellentesque sem placerat. In id
+                cursus mi pretium tellus duis convallis. Tempus leo eu aenean
+                sed diam urna tempor. Pulvinar vivamus fringilla lacus nec
+                metus bibendum egestas. Iaculis massa nisl malesuada lacinia
+                integer nunc posuere. Ut hendrerit semper vel class aptent
+                taciti sociosqu. Ad litora torquent per conubia nostra inceptos
+                himenaeos.
+
+                Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque
+                faucibus ex sapien vitae pellentesque sem placerat. In id
+                cursus mi pretium tellus duis convallis. Tempus leo eu aenean
+                sed diam urna tempor. Pulvinar vivamus fringilla lacus nec
+                metus bibendum egestas. Iaculis massa nisl malesuada lacinia
+                integer nunc posuere. Ut hendrerit semper vel class aptent
+                taciti sociosqu. Ad litora torquent per conubia nostra inceptos
+                himenaeos.
+                """),
+                contextlib.nullcontext(),
+                [
+                    "  Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex",
+                    "  sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis",
+                    "  convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus",
+                    "  fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada",
+                    "  lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti",
+                    "  sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.",
+                    "",
+                    "  Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex",
+                    "  sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis",
+                    "  convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus",
+                    "  fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada",
+                    "  lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti",
+                    "  sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.",
+                ],
+                id="long",
+            ),
+            pytest.param(
+                "Hello\n\n\nworld",
+                contextlib.nullcontext(),
+                ["  Hello", "", "  world"],
+                id="three-line-separators",
+            ),
+            pytest.param(
+                "  Lorem ipsum dolor sit amet consectetur adipiscing elit. "
+                "Quisque faucibus ex sapien vitae pellentesque sem placerat.",
+                contextlib.nullcontext(),
+                [
+                    "    Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat."
+                ],
+                id="unformatted",
+            ),
+            pytest.param(
+                dedent("""\
+                Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque
+                faucibus ex sapien vitae pellentesque sem placerat. In id
+                cursus mi pretium tellus duis convallis. Tempus leo eu aenean
+                sed diam urna tempor. Pulvinar vivamus fringilla lacus nec
+                metus bibendum egestas. Iaculis massa nisl malesuada lacinia
+                integer nunc posuere. Ut hendrerit semper vel class aptent
+                taciti sociosqu. Ad litora torquent per conubia nostra inceptos
+                himenaeos.
+
+                  Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat.
+                  In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas.
+
+                Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque
+                faucibus ex sapien vitae pellentesque sem placerat. In id
+                cursus mi pretium tellus duis convallis. Tempus leo eu aenean
+                sed diam urna tempor. Pulvinar vivamus fringilla lacus nec
+                metus bibendum egestas. Iaculis massa nisl malesuada lacinia
+                integer nunc posuere. Ut hendrerit semper vel class aptent
+                taciti sociosqu. Ad litora torquent per conubia nostra inceptos
+                himenaeos.
+                """),
+                contextlib.nullcontext(),
+                [
+                    "  Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex",
+                    "  sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis",
+                    "  convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus",
+                    "  fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada",
+                    "  lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti",
+                    "  sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.",
+                    "",
+                    "    Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat.",
+                    "    In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas.",
+                    "",
+                    "  Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex",
+                    "  sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis",
+                    "  convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus",
+                    "  fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada",
+                    "  lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti",
+                    "  sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.",
+                ],
+                id="long-with-unformatted",
+            ),
+            pytest.param(
+                "A" * 90,
+                pytest.raises(
+                    AssertionError, match=rf'^Word "{"A" * 90}" is too long$'
+                ),
+                None,
+                id="long-word",
+            ),
+            pytest.param(
+                "  asdf\nfdsa",
+                pytest.raises(
+                    AssertionError,
+                    match=r"^Do not mix formatted and unformatted lines in a paragraph$",
+                ),
+                None,
+                id="invalid-unformatted-paragraph",
+            ),
+            pytest.param(
+                "asdf\n  fdsa",
+                pytest.raises(
+                    AssertionError,
+                    match=r"^Do not mix formatted and unformatted lines in a paragraph$",
+                ),
+                None,
+                id="invalid-formatted-paragraph",
+            ),
+            pytest.param(
+                "[bold]asdf[/bold]",
+                contextlib.nullcontext(),
+                ["  [bold]asdf[/bold]"],
+                id="unescaped",  # _print_agent_instructions() will escape
+            ),
+        ],
+    )
+    # ruff: enable[E501]
+    def test_format_agent_instructions(self, content, context, expected):
+        result = None
+        with context:
+            result = Linter.format_agent_instructions(content)
+        assert result == expected
+
 
 class TestLintMain:
     @pytest.fixture(autouse=True)
     def non_agent_environment(self):
         with patch(
-            "rapids_pre_commit_hooks.agents.is_agent_environment",
+            "rapids_pre_commit_hooks.utils.agents.is_agent_environment",
             return_value=False,
         ):
             yield

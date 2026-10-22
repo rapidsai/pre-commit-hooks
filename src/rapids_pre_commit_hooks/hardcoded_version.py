@@ -4,6 +4,7 @@
 import bisect
 import re
 from enum import Enum
+from textwrap import dedent
 from typing import TYPE_CHECKING
 
 import tomlkit
@@ -219,6 +220,67 @@ def read_version_file(
     )
 
 
+def agent_instructions_hardcoded_version(*, version_file: str) -> str:
+    return dedent(
+        f'''\
+        This check exists to ensure that RAPIDS packages do not hard-code the
+        RAPIDS version in a script when programmatically reading from the
+        {version_file} file would suffice. Doing so reduces maintenance
+        burden and reduces the possibility of hard-coded versions in scripts
+        neglecting to be updated in a version bump.
+
+        This check is very prone to false positives. The following conditions
+        can trigger a false positive:
+
+        1. Floating-point numbers in code that incidentally happen to equal the
+        version number even with no relation.
+
+        2. Code documentation that states when a function was added,
+        deprecated, etc.
+
+        3. Files that genuinely use the version but are incapable of
+        programmatically reading from the {version_file} file.
+
+        This check has some heuristics to catch most of these false positives,
+        but due to the nature of the problem, we can't catch everything. Choose
+        one of the following options to resolve this problem (in order of
+        preference):
+
+        1. If you are writing a script that already reads from the
+        {version_file} file, use the stored result from that read.
+
+        2. If you are writing a script that is capable of doing so, but does
+        not yet do so, programmatically read from the {version_file} file.
+
+        3. If you are writing documentation, comments, etc., you have likely
+        encountered a false positive. You may optionally file an issue or PR
+        at https://github.com/rapidsai/pre-commit-hooks to add a heuristic to
+        suppress the false positive.
+
+        4. Suppress the false positive with a next-line directive. For example:
+
+          // rapids-pre-commit-hooks: disable-next-line[verify-hardcoded-version]
+          // This function was added to the library as of 26.10
+          void new_function();
+
+        Or use a block directive:
+
+          def new_function():
+              # rapids-pre-commit-hooks: disable[verify-hardcoded-version]
+              """New function that does stuff.
+
+              Added to the library as of 26.10
+              """
+              # rapids-pre-commit-hooks: enable[verify-hardcoded-version]
+              pass
+
+        5. If you are writing a file in a format that has no mechanism for
+        writing comments, or if false positives are extremely common in the
+        file format, add an exclusion to .pre-commit-config.yaml.
+        '''  # noqa: E501
+    )
+
+
 def check_hardcoded_version(
     linter: Linter, args: "argparse.Namespace"
 ) -> None:
@@ -244,17 +306,23 @@ def check_hardcoded_version(
         if skip_heuristics(linter.lines, match):
             continue
 
-        linter.add_warning(
+        w = linter.add_warning(
             match.span("full"),
             f"do not hard-code version, read from {args.version_file} "
             "file instead",
-        ).add_note(
+        )
+        w.add_note(
             match.span("full"),
             "if this is intentional (as part of a docstring or deprecation "
             "notice), suppress it with rapids-pre-commit-hooks: "
             "disable-next-line[verify-hardcoded-version] - see "
             "https://github.com/rapidsai/pre-commit-hooks/blob/main/README.md"
             "#suppressing-false-positives for details",
+        )
+        w.add_agent_instructions(
+            agent_instructions_hardcoded_version(
+                version_file=args.version_file
+            )
         )
 
 

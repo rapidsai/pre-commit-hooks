@@ -8,18 +8,39 @@ import dataclasses
 import functools
 import re
 import warnings
-from typing import TYPE_CHECKING
+from typing import ParamSpec, TYPE_CHECKING
 
 from rich.console import Console
 from rich.markup import escape
 
-from . import agents
+from .utils import agents
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterator
     from typing import Optional
 
 Span = tuple[int, int]
+
+
+Args = ParamSpec("Args")
+
+
+def agent_instructions(
+    func: "Callable[Args, str]",
+) -> "Callable[Args, Callable[[], str]]":
+    """Decorator for agent instructions functions that might be costly to run.
+
+    This function exists because some agent instructions might be costly to
+    run, and should only be run if their results will actually be printed.
+    """
+
+    @functools.wraps(func)
+    def instructions(
+        *args: Args.args, **kwargs: Args.kwargs
+    ) -> "Callable[[], str]":
+        return lambda: func(*args, **kwargs)
+
+    return instructions
 
 
 class BinaryFileWarning(Warning):
@@ -47,12 +68,23 @@ class LintWarning:
         default_factory=list, kw_only=True
     )
     notes: list[Note] = dataclasses.field(default_factory=list, kw_only=True)
+    agent_instructions: "Optional[Callable[[], str]]" = dataclasses.field(
+        default=None, compare=False
+    )
 
     def add_replacement(self, span: Span, newtext: str) -> None:
         self.replacements.append(Replacement(span, newtext))
 
     def add_note(self, span: Span, msg: str) -> None:
         self.notes.append(Note(span, msg))
+
+    def add_agent_instructions(
+        self, instructions: "str | Callable[[], str]"
+    ) -> None:
+        if isinstance(instructions, str):
+            self.agent_instructions = lambda: instructions
+        else:
+            self.agent_instructions = instructions
 
 
 class Lines:
@@ -154,6 +186,7 @@ class Linter:
             Linter.get_disabled_enabled_boundaries(self.lines, warning_name)
         )
         self.sorted_replacements: "Optional[list[Replacement]]" = None
+        self.has_suppressed_agent_instructions: bool = False
 
     def add_warning(self, span: Span, msg: str) -> LintWarning:
         w = LintWarning(span, msg)
@@ -253,6 +286,11 @@ class Linter:
                     replacement.newtext,
                     verbose,
                 )
+
+            if warning.agent_instructions is not None:
+                self.print_agent_instructions(args, warning.agent_instructions)
+
+        self.print_suppressed_agent_instrutions()
 
     def _print_highlighted_code(
         self,
@@ -431,6 +469,66 @@ class Linter:
                     r2.conflict = True
                 else:
                     break
+
+    @classmethod
+    def format_agent_instructions(cls, instructions: str) -> list[str]:
+        MAX_LINE_LENGTH = 79
+
+        lines: list[str] = []
+        for paragraph in filter(
+            lambda p: p != "", re.split(r"\n\n+", instructions)
+        ):
+            if lines:
+                lines.append("")
+            if paragraph.startswith("  "):
+                for line in paragraph.split("\n"):
+                    assert line.startswith("  "), (
+                        "Do not mix formatted and unformatted lines in a "
+                        "paragraph"
+                    )
+                    lines.append(f"  {line}")
+            else:
+                assert "\n  " not in paragraph, (
+                    "Do not mix formatted and unformatted lines in a paragraph"
+                )
+                line = ""
+                sep = ""
+                for word in filter(
+                    lambda w: w != "", re.split(r"[ \n]", paragraph)
+                ):
+                    assert len(word) <= MAX_LINE_LENGTH - 2, (
+                        f'Word "{word}" is too long'
+                    )
+                    if len(f"  {line}{sep}{word}") > MAX_LINE_LENGTH:
+                        lines.append(f"  {line}")
+                        line = f"{word}"
+                    else:
+                        line += f"{sep}{word}"
+                    sep = " "
+                if line != "":
+                    lines.append(f"  {line}")
+        return lines
+
+    def _print_agent_instructions(self, instructions: str) -> None:
+        self.console.print("[bold]instructions for agents:[/bold]")
+        for line in self.format_agent_instructions(instructions):
+            self.console.print(escape(line))
+        self.console.print()
+
+    def print_agent_instructions(
+        self, args: "argparse.Namespace", instructions: "Callable[[], str]"
+    ) -> None:
+        if self.verbose_output(args, 2):
+            self._print_agent_instructions(instructions())
+        else:
+            self.has_suppressed_agent_instructions = True
+
+    def print_suppressed_agent_instrutions(self) -> None:
+        if self.has_suppressed_agent_instructions:
+            self._print_agent_instructions(
+                "Run this tool again with AI_AGENT=1 or -vv to see detailed "
+                "instructions for agents."
+            )
 
 
 class ExecutionContext(contextlib.AbstractContextManager):
