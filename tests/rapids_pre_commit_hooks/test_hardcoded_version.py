@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import contextlib
@@ -1236,7 +1236,8 @@ def test_check_hardcoded_version(
                     s,
                     "if this is intentional (as part of a docstring or "
                     "deprecation notice), suppress it with "
-                    "rapids-pre-commit-hooks: disable-next-line - see "
+                    "rapids-pre-commit-hooks: "
+                    "disable-next-line[verify-hardcoded-version] - see "
                     "https://github.com/rapidsai/pre-commit-hooks/blob/main/"
                     "README.md#suppressing-false-positives for details",
                 )

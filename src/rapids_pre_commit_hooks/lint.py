@@ -171,8 +171,8 @@ class Linter:
     _DISABLE_ENABLE_DIRECTIVE_RE: re.Pattern = re.compile(
         r"\brapids-pre-commit-hooks: *"
         r"(?P<directive_name>enable|disable)"
-        r"(?:-(?P<scope>next-line))?(?P<word_boundary>\b)?"
-        r"(?: *\[(?P<warning_names>[\w-]+(?:,[\w-]+)*)\])?"
+        r"(?:-(?P<scope>next-line))?"
+        r" *\[(?P<warning_names>[\w-]+(?:,[\w-]+)*)\]"
     )
 
     def __init__(self, filename: str, content: str, warning_name: str) -> None:
@@ -373,11 +373,7 @@ class Linter:
             for m in Linter._DISABLE_ENABLE_DIRECTIVE_RE.finditer(
                 lines.content
             ):
-                if m.group("word_boundary") is None:
-                    continue
-                if m.group("warning_names") and warning_name not in m.group(
-                    "warning_names"
-                ).split(","):
+                if warning_name not in m.group("warning_names").split(","):
                     continue
 
                 directive_is_enable = m.group("directive_name") == "enable"
