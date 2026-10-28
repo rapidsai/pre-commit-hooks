@@ -8,8 +8,8 @@ from typing import Any, Optional, TYPE_CHECKING
 import yaml
 from packaging.requirements import InvalidRequirement, Requirement
 
-from ..utils.dependencies_yaml import Handler
-from ..utils.yaml import (
+from ...utils.dependencies_yaml import Handler
+from ...utils.yaml import (
     Anchor,
     is_reference_anchor,
     preserve_anchor,
@@ -19,7 +19,7 @@ from ..utils.yaml import (
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from ..lint import Linter
+    from ... import Linter
 
 
 class ConstraintsWithExtrasHandler(Handler):

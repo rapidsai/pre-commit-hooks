@@ -4,10 +4,10 @@
 
 import pytest
 
-from rapids_pre_commit_hooks.dependencies.constraints_with_extras import (
+from rapids_pre_commit_hooks.hooks.dependencies.constraints_with_extras import (  # noqa: E501
     ConstraintsWithExtrasHandler,
 )
-from rapids_pre_commit_hooks.lint import Linter
+from rapids_pre_commit_hooks import Linter
 from rapids_pre_commit_hooks.utils.dependencies_yaml import (
     traverse_dependencies_yaml,
 )

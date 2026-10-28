@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 from unittest.mock import Mock
@@ -6,8 +6,8 @@ from unittest.mock import Mock
 import pytest
 import tomlkit
 
-from rapids_pre_commit_hooks import pyproject_license
-from rapids_pre_commit_hooks.lint import LintWarning, Linter, Replacement
+from rapids_pre_commit_hooks.hooks import pyproject_license
+from rapids_pre_commit_hooks import LintWarning, Linter, Replacement
 from rapids_pre_commit_hooks_test_utils import parse_named_spans
 
 

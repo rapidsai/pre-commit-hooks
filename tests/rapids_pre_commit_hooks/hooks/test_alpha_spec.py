@@ -14,7 +14,8 @@ from rapids_metadata.metadata import (
     RAPIDSVersion,
 )
 
-from rapids_pre_commit_hooks import alpha_spec, lint
+from rapids_pre_commit_hooks import Linter
+from rapids_pre_commit_hooks.hooks import alpha_spec
 from rapids_pre_commit_hooks.utils.yaml import (
     Anchor,
     AnchorType,
@@ -84,7 +85,7 @@ def test_get_rapids_version(
     with (
         set_cwd(tmp_path),
         patch(
-            "rapids_pre_commit_hooks.alpha_spec.all_metadata",
+            "rapids_pre_commit_hooks.hooks.alpha_spec.all_metadata",
             Mock(return_value=MOCK_METADATA),
         ),
     ):
@@ -129,7 +130,7 @@ def test_get_rapids_version(
     ],
 )
 @patch(
-    "rapids_pre_commit_hooks.alpha_spec.get_rapids_version",
+    "rapids_pre_commit_hooks.hooks.alpha_spec.get_rapids_version",
     Mock(return_value=latest_metadata),
 )
 def test_strip_cuda_suffix(name, stripped_name):
@@ -454,7 +455,7 @@ class TestAlphaSpecHandler:
         ],
     )
     @patch(
-        "rapids_pre_commit_hooks.alpha_spec.get_rapids_version",
+        "rapids_pre_commit_hooks.hooks.alpha_spec.get_rapids_version",
         Mock(return_value=latest_metadata),
     )
     def test_handle_package(
@@ -467,7 +468,7 @@ class TestAlphaSpecHandler:
         replacement,
     ):
         args = Mock(mode=mode)
-        linter = lint.Linter("dependencies.yaml", content, "verify-alpha-spec")
+        linter = Linter("dependencies.yaml", content, "verify-alpha-spec")
         composed, _ = load_with_anchors(content)
         handler = alpha_spec.AlphaSpecHandler(linter, args)
         item_context = alpha_spec.AlphaSpecHandler.ItemContext(
@@ -485,7 +486,7 @@ class TestAlphaSpecHandler:
         if replacement is None:
             assert linter.warnings == []
         else:
-            expected_linter = lint.Linter(
+            expected_linter = Linter(
                 "dependencies.yaml", content, "verify-alpha-spec"
             )
             expected_linter.add_warning(
@@ -503,15 +504,15 @@ def test_check_alpha_spec():
     CONTENT = "dependencies: []"
     with (
         patch(
-            "rapids_pre_commit_hooks.alpha_spec.AlphaSpecHandler", Mock()
+            "rapids_pre_commit_hooks.hooks.alpha_spec.AlphaSpecHandler", Mock()
         ) as mock_alpha_spec_handler,
         patch(
-            "rapids_pre_commit_hooks.alpha_spec.traverse_dependencies_yaml",
+            "rapids_pre_commit_hooks.hooks.alpha_spec.traverse_dependencies_yaml",
             Mock(),
         ) as mock_traverse_dependencies_yaml,
     ):
         args = Mock()
-        linter = lint.Linter("dependencies.yaml", CONTENT, "verify-alpha-spec")
+        linter = Linter("dependencies.yaml", CONTENT, "verify-alpha-spec")
         alpha_spec.check_alpha_spec(linter, args)
     mock_alpha_spec_handler.assert_called_once()
     mock_traverse_dependencies_yaml.assert_called_once_with(
@@ -563,7 +564,7 @@ def test_check_alpha_spec_integration(tmp_path, content, warnings):
     args = Mock(
         mode="development", rapids_version=None, rapids_version_file="VERSION"
     )
-    linter = lint.Linter("dependencies.yaml", content, "verify-alpha-spec")
+    linter = Linter("dependencies.yaml", content, "verify-alpha-spec")
     with open(os.path.join(tmp_path, "VERSION"), "w") as f:
         f.write(f"{latest_version}\n")
     with set_cwd(tmp_path):

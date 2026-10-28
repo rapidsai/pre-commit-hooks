@@ -6,8 +6,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from rapids_pre_commit_hooks import lint
-from rapids_pre_commit_hooks.dependencies.cuda_suffixed import (
+from rapids_pre_commit_hooks import Linter
+from rapids_pre_commit_hooks.hooks.dependencies.cuda_suffixed import (
     CUDASuffixedHandler,
 )
 from rapids_pre_commit_hooks.utils import dependencies_yaml
@@ -154,9 +154,7 @@ class TestCUDASuffixedHandler:
         composed, _ = load_with_anchors(content)
         common_key = find_yaml_node_for_span(composed, spans["common_key"])
         common = find_yaml_node_for_span(composed, spans["common"])
-        linter = lint.Linter(
-            "dependencies.yaml", content, "verify-dependencies"
-        )
+        linter = Linter("dependencies.yaml", content, "verify-dependencies")
         handler = CUDASuffixedHandler(linter, Mock())
 
         common_context = Mock(common_key=common_key)
@@ -910,9 +908,7 @@ class TestCUDASuffixedHandler:
     ):
         content, spans = parse_named_spans(content, dict)
         composed, _ = load_with_anchors(content)
-        linter = lint.Linter(
-            "dependencies.yaml", content, "verify-dependencies"
-        )
+        linter = Linter("dependencies.yaml", content, "verify-dependencies")
         handler = CUDASuffixedHandler(linter, Mock())
         matrix_node = (
             find_yaml_node_for_span(composed, span)
@@ -1241,7 +1237,7 @@ class TestCUDASuffixedHandler:
         handler = CUDASuffixedHandler(Mock(), Mock())
 
         with patch(
-            "rapids_pre_commit_hooks.dependencies.cuda_suffixed."
+            "rapids_pre_commit_hooks.hooks.dependencies.cuda_suffixed."
             "get_rapids_version",
             return_value=rapids_version,
         ):
@@ -1519,13 +1515,13 @@ def test_check_cuda_suffixed_integration(content, warnings):
     composed, anchors = load_with_anchors(content)
 
     args = Mock()
-    linter = lint.Linter("dependencies.yaml", content, "verify-dependencies")
+    linter = Linter("dependencies.yaml", content, "verify-dependencies")
     rapids_version = SimpleNamespace(cuda_suffixed_packages={"package"})
 
     handler = CUDASuffixedHandler(linter, args)
 
     with patch(
-        "rapids_pre_commit_hooks.dependencies.cuda_suffixed."
+        "rapids_pre_commit_hooks.hooks.dependencies.cuda_suffixed."
         "get_rapids_version",
         return_value=rapids_version,
     ):

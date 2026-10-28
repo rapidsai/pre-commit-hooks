@@ -7,8 +7,8 @@ from .constraints_with_extras import ConstraintsWithExtrasHandler
 from .cuda_suffixed import CUDASuffixedHandler
 from .naming_conventions import NamingConventionsHandler
 from .use_cuda_wheels import UseCUDAWheelsHandler
-from ..lint import Linter, LintMain
-from ..utils.dependencies_yaml import (
+from ... import Linter, LintMain
+from ...utils.dependencies_yaml import (
     ChainedHandler,
     traverse_dependencies_yaml,
 )

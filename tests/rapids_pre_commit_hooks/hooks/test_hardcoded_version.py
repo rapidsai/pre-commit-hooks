@@ -6,8 +6,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from rapids_pre_commit_hooks import hardcoded_version
-from rapids_pre_commit_hooks.lint import Lines, LintWarning, Linter, Note
+from rapids_pre_commit_hooks.hooks import hardcoded_version
+from rapids_pre_commit_hooks import Lines, LintWarning, Linter, Note
 from rapids_pre_commit_hooks_test_utils import parse_named_spans
 
 
@@ -643,19 +643,19 @@ def test_skip_heuristics(
 ):
     with (
         patch(
-            "rapids_pre_commit_hooks.hardcoded_version.is_deprecation_versionadd",
+            "rapids_pre_commit_hooks.hooks.hardcoded_version.is_deprecation_versionadd",
             Mock(return_value=is_deprecation_versionadd),
         ),
         patch(
-            "rapids_pre_commit_hooks.hardcoded_version.is_number_array",
+            "rapids_pre_commit_hooks.hooks.hardcoded_version.is_number_array",
             Mock(return_value=is_number_array),
         ),
         patch(
-            "rapids_pre_commit_hooks.hardcoded_version.is_version_doc",
+            "rapids_pre_commit_hooks.hooks.hardcoded_version.is_version_doc",
             Mock(return_value=is_version_doc),
         ),
         patch(
-            "rapids_pre_commit_hooks.hardcoded_version.is_todo_doc",
+            "rapids_pre_commit_hooks.hooks.hardcoded_version.is_todo_doc",
             Mock(return_value=is_todo_doc),
         ),
     ):
@@ -1213,7 +1213,7 @@ def test_check_hardcoded_version(
     content, spans = parse_named_spans(content, list)
     linter = Linter(filename, content, "verify-hardcoded-version")
     with patch(
-        "rapids_pre_commit_hooks.hardcoded_version.read_version_file",
+        "rapids_pre_commit_hooks.hooks.hardcoded_version.read_version_file",
         Mock(return_value=version),
     ) as mock_read_version_file:
         hardcoded_version.check_hardcoded_version(

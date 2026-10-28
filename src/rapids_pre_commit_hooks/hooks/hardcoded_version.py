@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING
 import tomlkit
 import tomlkit.exceptions
 
-from .lint import LintMain, Linter
-from .utils.toml import find_value_span
+from .. import LintMain, Linter
+from ..utils.toml import find_value_span
 
 if TYPE_CHECKING:
     import argparse
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from collections.abc import Generator
     from typing import Optional
 
-    from .lint import Lines, Span
+    from .. import Lines, Span
 
 # Matches any 2-part or 3-part numeric version strings, and stores the
 # components in named capture groups:

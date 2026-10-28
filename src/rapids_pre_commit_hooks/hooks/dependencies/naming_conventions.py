@@ -6,8 +6,8 @@ import dataclasses
 import re
 from typing import TYPE_CHECKING
 
-from ..utils.dependencies_yaml import Handler
-from ..utils.yaml import quote_string
+from ...utils.dependencies_yaml import Handler
+from ...utils.yaml import quote_string
 
 if TYPE_CHECKING:
     import argparse
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
     import yaml
 
-    from ..lint import Linter
+    from ... import Linter
 
 
 class NamingConventionsHandler(Handler):

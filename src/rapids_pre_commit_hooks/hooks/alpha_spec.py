@@ -15,14 +15,14 @@ from packaging.specifiers import Specifier, SpecifierSet
 from rapids_metadata.metadata import RAPIDSMetadata, RAPIDSVersion
 from rapids_metadata.remote import fetch_latest
 
-from .lint import Linter, LintMain
-from .utils.yaml import (
+from .. import Linter, LintMain
+from ..utils.yaml import (
     Anchor,
     is_reference_anchor,
     preserve_anchor,
     quote_string,
 )
-from .utils.dependencies_yaml import (
+from ..utils.dependencies_yaml import (
     Handler,
     is_python_output_type,
     traverse_dependencies_yaml,

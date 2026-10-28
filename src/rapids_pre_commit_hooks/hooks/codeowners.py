@@ -6,10 +6,10 @@ import dataclasses
 import re
 from typing import Protocol, TYPE_CHECKING
 
-from .lint import Linter, LintMain
+from .. import Linter, LintMain
 
 if TYPE_CHECKING:
-    from .lint import LintWarning, Span
+    from .. import LintWarning, Span
 
 CODEOWNERS_OWNER_RE_STR = r"([^\n#\s\\]|\\[^\n])+"
 CODEOWNERS_OWNER_RE = re.compile(rf"\s+(?P<owner>{CODEOWNERS_OWNER_RE_STR})")

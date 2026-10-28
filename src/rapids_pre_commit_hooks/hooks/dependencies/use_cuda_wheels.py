@@ -8,11 +8,11 @@ from typing import Any, Optional, TYPE_CHECKING
 
 from packaging.requirements import InvalidRequirement, Requirement
 
-from ..utils.dependencies_yaml import (
+from ...utils.dependencies_yaml import (
     Handler,
     is_python_output_type,
 )
-from ..utils.yaml import Anchor, is_reference_anchor
+from ...utils.yaml import Anchor, is_reference_anchor
 
 if TYPE_CHECKING:
     import argparse
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
     import yaml
 
-    from ..lint import Linter
+    from ... import Linter
 
 
 def is_nvidia_library_package(req: "Requirement") -> bool:
