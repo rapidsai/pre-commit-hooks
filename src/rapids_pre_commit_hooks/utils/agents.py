@@ -32,7 +32,7 @@ def is_agent() -> bool:
 
 @_agent_test
 def is_codex() -> bool:
-    return os.getenv("CODEX_CLI") == "1"
+    return os.getenv("CODEX_CI") == "1"
 
 
 def is_agent_environment() -> bool:
