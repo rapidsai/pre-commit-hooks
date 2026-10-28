@@ -8,7 +8,7 @@ from unittest.mock import Mock, call, patch
 
 import pytest
 
-from rapids_pre_commit_hooks.lint import (
+from rapids_pre_commit_hooks import (
     BinaryFileWarning,
     Lines,
     Linter,
@@ -1269,7 +1269,7 @@ class TestLintMain:
         m = Mock()
         with (
             patch("rich.console.Console", m),
-            patch("rapids_pre_commit_hooks.lint.Console", m),
+            patch("rapids_pre_commit_hooks.Console", m),
         ):
             yield m
 
@@ -1845,7 +1845,7 @@ class TestLintMain:
                     file.name,
                 ],
             ),
-            patch("rapids_pre_commit_hooks.lint.Linter", mock_linter),
+            patch("rapids_pre_commit_hooks.Linter", mock_linter),
             pytest.warns(
                 BinaryFileWarning,
                 match=r"^Refusing to run text linter on binary file .*\.$",

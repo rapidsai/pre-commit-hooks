@@ -14,8 +14,8 @@ import git
 import pytest
 from freezegun import freeze_time
 
-from rapids_pre_commit_hooks import copyright
-from rapids_pre_commit_hooks.lint import Lines, Linter
+from rapids_pre_commit_hooks.hooks import copyright
+from rapids_pre_commit_hooks import Lines, Linter
 from rapids_pre_commit_hooks_test_utils import (
     parse_named_spans,
     patch_environment,
@@ -2977,7 +2977,7 @@ def test_get_target_branch_upstream_commit(git_repo):
 
     def mock_target_branch(branch):
         return patch(
-            "rapids_pre_commit_hooks.copyright.get_target_branch",
+            "rapids_pre_commit_hooks.hooks.copyright.get_target_branch",
             Mock(return_value=branch),
         )
 
@@ -3317,7 +3317,7 @@ def test_get_changed_files(git_repo):
         patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir)),
         mock_os_walk(git_repo.working_tree_dir),
         patch(
-            "rapids_pre_commit_hooks.copyright."
+            "rapids_pre_commit_hooks.hooks.copyright."
             "get_target_branch_upstream_commit",
             Mock(return_value=None),
         ),
@@ -3421,7 +3421,7 @@ def test_get_changed_files(git_repo):
     with (
         patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir)),
         patch(
-            "rapids_pre_commit_hooks.copyright."
+            "rapids_pre_commit_hooks.hooks.copyright."
             "get_target_branch_upstream_commit",
             Mock(return_value=target_branch.commit),
         ),
@@ -3526,7 +3526,7 @@ def test_get_changed_files_multiple_merge_bases(git_repo):
     with (
         patch("os.getcwd", Mock(return_value=git_repo.working_tree_dir)),
         patch(
-            "rapids_pre_commit_hooks.copyright.get_target_branch",
+            "rapids_pre_commit_hooks.hooks.copyright.get_target_branch",
             Mock(return_value="branch-1-2"),
         ),
     ):
@@ -3834,14 +3834,15 @@ def test_check_copyright(
             return repo.heads[target_branch].commit
 
         return patch(
-            "rapids_pre_commit_hooks.copyright."
+            "rapids_pre_commit_hooks.hooks.copyright."
             "get_target_branch_upstream_commit",
             func,
         )
 
     def mock_apply_copyright_check():
         return patch(
-            "rapids_pre_commit_hooks.copyright.apply_copyright_check", Mock()
+            "rapids_pre_commit_hooks.hooks.copyright.apply_copyright_check",
+            Mock(),
         )
 
     mock_args = Mock(

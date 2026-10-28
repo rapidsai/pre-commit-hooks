@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 import Levenshtein
 
-from .lint import Lines, Linter, LintMain
+from .. import Lines, Linter, LintMain
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator, Iterable
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
     import git
 
-    from .lint import LintWarning, Span
+    from .. import LintWarning, Span
 
 
 SPDX_COPYRIGHT_RE: re.Pattern = re.compile(

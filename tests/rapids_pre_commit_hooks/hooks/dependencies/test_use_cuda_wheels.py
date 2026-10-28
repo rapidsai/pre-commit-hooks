@@ -6,8 +6,8 @@ from unittest.mock import Mock
 import pytest
 from packaging.requirements import Requirement
 
-from rapids_pre_commit_hooks import lint
-from rapids_pre_commit_hooks.dependencies.use_cuda_wheels import (
+from rapids_pre_commit_hooks import Linter
+from rapids_pre_commit_hooks.hooks.dependencies.use_cuda_wheels import (
     UseCUDAWheelsHandler,
     is_cupy_ctk_package,
     is_nvidia_library_package,
@@ -152,9 +152,7 @@ class TestUseCUDAWheelsHandler:
         content, spans = parse_named_spans(content, dict)
 
         args = Mock()
-        linter = lint.Linter(
-            "dependencies.yaml", content, "verify-dependencies"
-        )
+        linter = Linter("dependencies.yaml", content, "verify-dependencies")
         composed, _ = load_with_anchors(content)
         common_key = find_yaml_node_for_span(composed, spans["common_key"])
         common = find_yaml_node_for_span(composed, spans["common"])
@@ -310,9 +308,7 @@ class TestUseCUDAWheelsHandler:
         content, spans = parse_named_spans(content, dict)
 
         args = Mock()
-        linter = lint.Linter(
-            "dependencies.yaml", content, "verify-dependencies"
-        )
+        linter = Linter("dependencies.yaml", content, "verify-dependencies")
         composed, _ = load_with_anchors(content)
 
         handler = UseCUDAWheelsHandler(linter, args)
@@ -358,9 +354,7 @@ class TestUseCUDAWheelsHandler:
         )
 
         args = Mock()
-        linter = lint.Linter(
-            "dependencies.yaml", content, "verify-dependencies"
-        )
+        linter = Linter("dependencies.yaml", content, "verify-dependencies")
         composed, _ = load_with_anchors(content)
         matrix_key = find_yaml_node_for_span(composed, spans["matrix_key"])
         matrix = find_yaml_node_for_span(composed, spans["matrix"])
@@ -413,9 +407,7 @@ class TestUseCUDAWheelsHandler:
         content, spans = parse_named_spans(content, dict)
 
         args = Mock()
-        linter = lint.Linter(
-            "dependencies.yaml", content, "verify-dependencies"
-        )
+        linter = Linter("dependencies.yaml", content, "verify-dependencies")
         composed, _ = load_with_anchors(content)
         matrix_item_key = find_yaml_node_for_span(
             composed, spans["matrix_item_key"]
@@ -502,9 +494,7 @@ class TestUseCUDAWheelsHandler:
         content, spans = parse_named_spans(content)
 
         args = Mock()
-        linter = lint.Linter(
-            "dependencies.yaml", content, "verify-dependencies"
-        )
+        linter = Linter("dependencies.yaml", content, "verify-dependencies")
         composed, _ = load_with_anchors(content)
         packages_key = find_yaml_node_for_span(composed, spans["packages_key"])
         packages = find_yaml_node_for_span(composed, spans["packages"])
@@ -621,9 +611,7 @@ class TestUseCUDAWheelsHandler:
         expected_name,
     ):
         args = Mock()
-        linter = lint.Linter(
-            "dependencies.yaml", content, "verify-dependencies"
-        )
+        linter = Linter("dependencies.yaml", content, "verify-dependencies")
         package_node, _ = load_with_anchors(content)
 
         handler = UseCUDAWheelsHandler(linter, args)
@@ -993,7 +981,7 @@ def test_check_use_cuda_wheels_integration(content, warnings):
     composed, anchors = load_with_anchors(content)
 
     args = Mock()
-    linter = lint.Linter("dependencies.yaml", content, "verify-dependencies")
+    linter = Linter("dependencies.yaml", content, "verify-dependencies")
     handler = UseCUDAWheelsHandler(linter, args)
 
     dependencies_yaml.traverse_root(handler, anchors, set(), composed)

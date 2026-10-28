@@ -10,14 +10,14 @@ from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 from rapids_pre_commit_hooks.utils.yaml import node_has_type
-from rapids_pre_commit_hooks.lint import Lines, LintWarning, Note, Replacement
+from rapids_pre_commit_hooks import Lines, LintWarning, Note, Replacement
 
 if TYPE_CHECKING:
     from typing import Any, Optional, TypeGuard, TypedDict
 
     import yaml
 
-    from rapids_pre_commit_hooks.lint import Span
+    from rapids_pre_commit_hooks import Span
 
     NamedSpans = dict[str, "Span | NamedSpans"] | list["Span | NamedSpans"]
     _NamedSpans = dict[str | int, "Span | _NamedSpans"]

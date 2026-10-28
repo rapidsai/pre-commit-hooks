@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
@@ -7,8 +7,8 @@ import re
 import tomlkit
 import tomlkit.exceptions
 
-from .lint import Linter, LintMain
-from .utils.toml import find_value_span
+from .. import Linter, LintMain
+from ..utils.toml import find_value_span
 
 RAPIDS_LICENSE: str = "Apache-2.0"
 ACCEPTABLE_LICENSES: set[str] = {

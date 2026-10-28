@@ -45,12 +45,12 @@ dependencies = [
 ]
 
 [project.scripts]
-verify-alpha-spec = "rapids_pre_commit_hooks.alpha_spec:main"
-verify-codeowners = "rapids_pre_commit_hooks.codeowners:main"
-verify-copyright = "rapids_pre_commit_hooks.copyright:main"
-verify-dependencies = "rapids_pre_commit_hooks.dependencies:main"
-verify-hardcoded-version = "rapids_pre_commit_hooks.hardcoded_version:main"
-verify-pyproject-license = "rapids_pre_commit_hooks.pyproject_license:main"
+verify-alpha-spec = "rapids_pre_commit_hooks.hooks.alpha_spec:main"
+verify-codeowners = "rapids_pre_commit_hooks.hooks.codeowners:main"
+verify-copyright = "rapids_pre_commit_hooks.hooks.copyright:main"
+verify-dependencies = "rapids_pre_commit_hooks.hooks.dependencies:main"
+verify-hardcoded-version = "rapids_pre_commit_hooks.hooks.hardcoded_version:main"
+verify-pyproject-license = "rapids_pre_commit_hooks.hooks.pyproject_license:main"
 
 [tool.setuptools]
 packages = { "find" = { where = ["src"] } }

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import copy
@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import tomlkit
 
 if TYPE_CHECKING:
-    from ..lint import Span
+    from .. import Span
 
 
 def find_value_span(

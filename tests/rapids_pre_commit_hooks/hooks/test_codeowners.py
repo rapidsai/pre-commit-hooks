@@ -5,8 +5,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from rapids_pre_commit_hooks import codeowners
-from rapids_pre_commit_hooks.lint import Linter
+from rapids_pre_commit_hooks.hooks import codeowners
+from rapids_pre_commit_hooks import Linter
 from rapids_pre_commit_hooks_test_utils import (
     parse_named_spans,
     zip_expected_warnings,
@@ -32,7 +32,7 @@ MOCK_REQUIRED_CODEOWNERS_LINES = [
 ]
 
 patch_required_codeowners_lines = patch(
-    "rapids_pre_commit_hooks.codeowners.required_codeowners_lines",
+    "rapids_pre_commit_hooks.hooks.codeowners.required_codeowners_lines",
     lambda _args: MOCK_REQUIRED_CODEOWNERS_LINES,
 )
 

@@ -5,8 +5,8 @@ from unittest.mock import Mock
 
 import pytest
 
-from rapids_pre_commit_hooks import lint
-from rapids_pre_commit_hooks.dependencies.naming_conventions import (
+from rapids_pre_commit_hooks import Linter
+from rapids_pre_commit_hooks.hooks.dependencies.naming_conventions import (
     NamingConventionsHandler,
 )
 from rapids_pre_commit_hooks.utils import dependencies_yaml
@@ -279,9 +279,7 @@ class TestNamingConventionsHandler:
             if "extras" in file_fields
             else {}
         )
-        linter = lint.Linter(
-            "dependencies.yaml", content, "verify-dependencies"
-        )
+        linter = Linter("dependencies.yaml", content, "verify-dependencies")
         handler = NamingConventionsHandler(linter, Mock())
 
         with handler.handle_files_item(None, file_key, file_value) as context:
@@ -435,7 +433,7 @@ def test_check_naming_conventions_integration(content, warnings):
     composed, anchors = load_with_anchors(content)
 
     args = Mock()
-    linter = lint.Linter("dependencies.yaml", content, "verify-dependencies")
+    linter = Linter("dependencies.yaml", content, "verify-dependencies")
     handler = NamingConventionsHandler(linter, args)
 
     dependencies_yaml.traverse_root(handler, anchors, set(), composed)

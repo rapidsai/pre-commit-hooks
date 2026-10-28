@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from rapids_pre_commit_hooks.lint import LintWarning, Note, Replacement
+from rapids_pre_commit_hooks import LintWarning, Note, Replacement
 from rapids_pre_commit_hooks.utils.yaml import load_with_anchors
 from rapids_pre_commit_hooks_test_utils import (
     ParseError,
