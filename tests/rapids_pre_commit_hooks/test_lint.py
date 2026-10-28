@@ -422,7 +422,7 @@ class TestLinter:
 
         with (
             patch.object(Linter, "verbose_output", return_value=verbose),
-            patch_environment({"CI": "1"}) if ci else contextlib.nullcontext(),
+            patch_environment({"CI": "true" if ci else None}),
         ):
             linter.print_warnings(Mock(fix=False))
 

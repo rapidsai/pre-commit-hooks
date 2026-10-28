@@ -526,7 +526,7 @@ class Linter:
 
     def print_suppressed_agent_instrutions(self) -> None:
         if self.has_suppressed_agent_instructions:
-            if os.getenv("CI") is not None:
+            if os.getenv("CI") == "true":
                 self._print_agent_instructions(
                     "Run pre-commit locally with AI_AGENT=1 to see detailed "
                     "instructions for agents."
