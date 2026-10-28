@@ -16,7 +16,10 @@ from rapids_pre_commit_hooks.lint import (
     Replacement,
     agent_instructions,
 )
-from rapids_pre_commit_hooks_test_utils import parse_named_spans
+from rapids_pre_commit_hooks_test_utils import (
+    parse_named_spans,
+    patch_environment,
+)
 
 
 def test_agent_instructions():
@@ -391,13 +394,14 @@ class TestLinter:
             )
 
     @pytest.mark.parametrize(
-        ["verbose"],
+        ["verbose", "ci"],
         [
-            pytest.param(False, id="suppressed"),
-            pytest.param(True, id="shown"),
+            pytest.param(False, False, id="suppressed"),
+            pytest.param(False, True, id="suppressed-ci"),
+            pytest.param(True, False, id="shown"),
         ],
     )
-    def test_print_warnings_agent_instructions(self, verbose):
+    def test_print_warnings_agent_instructions(self, verbose, ci):
         content, spans = parse_named_spans(
             """\
             + one
@@ -416,7 +420,10 @@ class TestLinter:
         second = linter.add_warning(spans["second"], "second warning")
         second.add_agent_instructions("Read the version file.")
 
-        with patch.object(Linter, "verbose_output", return_value=verbose):
+        with (
+            patch.object(Linter, "verbose_output", return_value=verbose),
+            patch_environment({"CI": "1"}) if ci else contextlib.nullcontext(),
+        ):
             linter.print_warnings(Mock(fix=False))
 
         expected = [
@@ -446,14 +453,23 @@ class TestLinter:
         )
         if verbose:
             expected.append(call.print("  Read the version file."))
+        elif ci:
+            expected.extend(
+                [
+                    call.print(
+                        "  Run pre-commit locally with AI_AGENT=1 to see "
+                        "detailed instructions for"
+                    ),
+                    call.print("  agents."),
+                ]
+            )
         else:
             expected.extend(
                 [
                     call.print(
-                        "  Run this tool again with AI_AGENT=1 or -vv to see "
-                        "detailed instructions for"
+                        "  Run again with AI_AGENT=1 to see detailed "
+                        "instructions for agents."
                     ),
-                    call.print("  agents."),
                 ]
             )
         expected.append(call.print())

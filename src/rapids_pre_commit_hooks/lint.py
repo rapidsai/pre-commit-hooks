@@ -6,6 +6,7 @@ import bisect
 import contextlib
 import dataclasses
 import functools
+import os
 import re
 import warnings
 from typing import ParamSpec, TYPE_CHECKING
@@ -525,10 +526,16 @@ class Linter:
 
     def print_suppressed_agent_instrutions(self) -> None:
         if self.has_suppressed_agent_instructions:
-            self._print_agent_instructions(
-                "Run this tool again with AI_AGENT=1 or -vv to see detailed "
-                "instructions for agents."
-            )
+            if os.getenv("CI") is not None:
+                self._print_agent_instructions(
+                    "Run pre-commit locally with AI_AGENT=1 to see detailed "
+                    "instructions for agents."
+                )
+            else:
+                self._print_agent_instructions(
+                    "Run again with AI_AGENT=1 to see detailed instructions "
+                    "for agents."
+                )
 
 
 class ExecutionContext(contextlib.AbstractContextManager):
