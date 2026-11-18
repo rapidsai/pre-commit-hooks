@@ -267,29 +267,53 @@ def test_check_pyproject_license(
 
 
 @pytest.mark.parametrize(
-    ["content", "suffix"],
+    ["document", "replacement"],
     [
         pytest.param(
-            "[build-system]\nrequires = []",
+            """\
+            + [build-system]
+            > requires = []
+            :              ^insert
+            """,
             '\n[project]\nlicense = "Apache-2.0"\n',
             id="append-project-at-eof",
         ),
         pytest.param(
-            '[project]\r\nname = "demo"',
+            '+ [project]\r\n> name = "demo"\r\n:              ^insert',
             '\r\nlicense = "Apache-2.0"\r\n',
             id="append-license-at-eof",
         ),
         pytest.param(
-            "# package metadata",
+            "> # package metadata\n:                   ^insert",
             '\n[project]\nlicense = "Apache-2.0"\n',
             id="append-after-comment-at-eof",
         ),
+        pytest.param(
+            """\
+            +  [project]
+            + name = "demo"
+            + [build-system]
+            : ^insert
+            > requires = []
+            """,
+            'license = "Apache-2.0"\n',
+            id="indented-project-before-build-system",
+        ),
     ],
 )
-def test_fix_without_final_newline(content, suffix):
+def test_insert_license(document, replacement):
+    content, spans = parse_named_spans(document)
+    span = spans["insert"]
     linter = Linter("pyproject.toml", content, "verify-pyproject-license")
     pyproject_license.check_pyproject_license(linter, Mock())
+    assert linter.warnings == [
+        LintWarning(
+            span,
+            'add project.license with value "Apache-2.0"',
+            replacements=[Replacement(span, replacement)],
+        )
+    ]
     linter.sort_and_check_replacements_for_conflicts()
     fixed = linter.fix()
-    assert fixed == content + suffix
+    assert fixed == content[: span[0]] + replacement + content[span[1] :]
     assert tomlkit.loads(fixed)["project"]["license"] == "Apache-2.0"
