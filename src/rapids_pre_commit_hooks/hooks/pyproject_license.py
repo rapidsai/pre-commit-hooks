@@ -49,25 +49,25 @@ def check_pyproject_license(linter: Linter, _args: argparse.Namespace) -> None:
         add_project_table = project_table.is_super_table()  # type: ignore[union-attr]
         license_value = project_table["license"]  # type: ignore[index]
     except tomlkit.exceptions.NonExistentKey:
+        newline = linter.lines.newline_style
+        pos = len(linter.content)
+        text = (
+            f"license = {tomlkit.string(RAPIDS_LICENSE).as_string()}{newline}"
+        )
         if add_project_table:
-            span = (len(linter.content), len(linter.content))
-            linter.add_warning(
-                span, f'add project.license with value "{RAPIDS_LICENSE}"'
-            ).add_replacement(
-                span,
-                f"[project]{linter.lines.newline_style}license = "
-                f"{tomlkit.string(RAPIDS_LICENSE).as_string()}"
-                + linter.lines.newline_style,
-            )
+            text = f"[project]{newline}{text}"
         else:
-            span = find_value_span(document, ("project",), append=True)
-            linter.add_warning(
-                span, f'add project.license with value "{RAPIDS_LICENSE}"'
-            ).add_replacement(
-                span,
-                f"license = {tomlkit.string(RAPIDS_LICENSE).as_string()}"
-                + linter.lines.newline_style,
-            )
+            # tomlkit inserts a newline before an appended key at an
+            # unterminated EOF. Map its offset back into the original file.
+            table_end, _ = find_value_span(document, ("project",), append=True)
+            pos = min(table_end, pos)
+
+        if pos and linter.content[pos - 1] not in "\r\n":
+            text = newline + text
+        span = (pos, pos)
+        linter.add_warning(
+            span, f'add project.license with value "{RAPIDS_LICENSE}"'
+        ).add_replacement(span, text)
         return
 
     # handle case where the license is still in
