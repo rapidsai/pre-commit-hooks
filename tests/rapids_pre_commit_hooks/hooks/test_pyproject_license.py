@@ -240,6 +240,58 @@ from rapids_pre_commit_hooks_test_utils import parse_named_spans
             '[project]\nlicense = "Apache-2.0"\n',
             id="project-subtable-no-project-table",
         ),
+        # a file without a final newline should get the new [project] table
+        # on a line of its own
+        pytest.param(
+            """\
+            + [build-system]
+            > requires = []
+            :              ^warning
+            :              ^replacement
+            """,
+            'add project.license with value "Apache-2.0"',
+            '\n[project]\nlicense = "Apache-2.0"\n',
+            id="no-project-table-no-final-newline",
+        ),
+        # the same for a license key appended to a [project] table that ends
+        # the file without a final newline
+        pytest.param(
+            """\
+            + [project]
+            > name = "demo"
+            :              ^warning
+            :              ^replacement
+            """,
+            'add project.license with value "Apache-2.0"',
+            '\nlicense = "Apache-2.0"\n',
+            id="project-table-no-final-newline",
+        ),
+        # a final comment without a newline must not swallow the new table
+        pytest.param(
+            """\
+            > # package metadata
+            :                   ^warning
+            :                   ^replacement
+            """,
+            'add project.license with value "Apache-2.0"',
+            '\n[project]\nlicense = "Apache-2.0"\n',
+            id="comment-no-final-newline",
+        ),
+        # tomlkit indents keys appended to an indented [project] table; the
+        # insertion point must stay before the next table header
+        pytest.param(
+            """\
+            +  [project]
+            + name = "demo"
+            + [build-system]
+            : ^warning
+            : ^replacement
+            > requires = []
+            """,
+            'add project.license with value "Apache-2.0"',
+            'license = "Apache-2.0"\n',
+            id="indented-project-table",
+        ),
     ],
 )
 def test_check_pyproject_license(
@@ -264,56 +316,3 @@ def test_check_pyproject_license(
             )
         ]
     )
-
-
-@pytest.mark.parametrize(
-    ["document", "replacement"],
-    [
-        pytest.param(
-            """\
-            + [build-system]
-            > requires = []
-            :              ^insert
-            """,
-            '\n[project]\nlicense = "Apache-2.0"\n',
-            id="append-project-at-eof",
-        ),
-        pytest.param(
-            '+ [project]\r\n> name = "demo"\r\n:              ^insert',
-            '\r\nlicense = "Apache-2.0"\r\n',
-            id="append-license-at-eof",
-        ),
-        pytest.param(
-            "> # package metadata\n:                   ^insert",
-            '\n[project]\nlicense = "Apache-2.0"\n',
-            id="append-after-comment-at-eof",
-        ),
-        pytest.param(
-            """\
-            +  [project]
-            + name = "demo"
-            + [build-system]
-            : ^insert
-            > requires = []
-            """,
-            'license = "Apache-2.0"\n',
-            id="indented-project-before-build-system",
-        ),
-    ],
-)
-def test_insert_license(document, replacement):
-    content, spans = parse_named_spans(document)
-    span = spans["insert"]
-    linter = Linter("pyproject.toml", content, "verify-pyproject-license")
-    pyproject_license.check_pyproject_license(linter, Mock())
-    assert linter.warnings == [
-        LintWarning(
-            span,
-            'add project.license with value "Apache-2.0"',
-            replacements=[Replacement(span, replacement)],
-        )
-    ]
-    linter.sort_and_check_replacements_for_conflicts()
-    fixed = linter.fix()
-    assert fixed == content[: span[0]] + replacement + content[span[1] :]
-    assert tomlkit.loads(fixed)["project"]["license"] == "Apache-2.0"
