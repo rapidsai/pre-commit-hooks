@@ -57,7 +57,10 @@ def find_value_span(
 
     if append:
         node.add(str(placeholder), placeholder_toml)
-        value_to_find = f"{placeholder} = {placeholder_repr}"
+        # tomlkit may indent the new key to match the table header. The
+        # insertion point in the original document precedes that indentation.
+        indent = placeholder_toml.trivia.indent
+        value_to_find = f"{indent}{placeholder} = {placeholder_repr}"
         begin_pos = copied_document.as_string().find(value_to_find)
         return begin_pos, begin_pos
 

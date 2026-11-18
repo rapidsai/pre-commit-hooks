@@ -240,6 +240,58 @@ from rapids_pre_commit_hooks_test_utils import parse_named_spans
             '[project]\nlicense = "Apache-2.0"\n',
             id="project-subtable-no-project-table",
         ),
+        # a file without a final newline should get the new [project] table
+        # on a line of its own
+        pytest.param(
+            """\
+            + [build-system]
+            > requires = []
+            :              ^warning
+            :              ^replacement
+            """,
+            'add project.license with value "Apache-2.0"',
+            '\n[project]\nlicense = "Apache-2.0"\n',
+            id="no-project-table-no-final-newline",
+        ),
+        # the same for a license key appended to a [project] table that ends
+        # the file without a final newline
+        pytest.param(
+            """\
+            + [project]
+            > name = "demo"
+            :              ^warning
+            :              ^replacement
+            """,
+            'add project.license with value "Apache-2.0"',
+            '\nlicense = "Apache-2.0"\n',
+            id="project-table-no-final-newline",
+        ),
+        # a final comment without a newline must not swallow the new table
+        pytest.param(
+            """\
+            > # package metadata
+            :                   ^warning
+            :                   ^replacement
+            """,
+            'add project.license with value "Apache-2.0"',
+            '\n[project]\nlicense = "Apache-2.0"\n',
+            id="comment-no-final-newline",
+        ),
+        # tomlkit indents keys appended to an indented [project] table; the
+        # insertion point must stay before the next table header
+        pytest.param(
+            """\
+            +  [project]
+            + name = "demo"
+            + [build-system]
+            : ^warning
+            : ^replacement
+            > requires = []
+            """,
+            'add project.license with value "Apache-2.0"',
+            'license = "Apache-2.0"\n',
+            id="indented-project-table",
+        ),
     ],
 )
 def test_check_pyproject_license(
