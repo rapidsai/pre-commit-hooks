@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION.
+# SPDX-FileCopyrightText: Copyright (c) 2024-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 import pytest
@@ -51,6 +51,11 @@ from rapids_pre_commit_hooks_test_utils import parse_named_spans
             False,
             id="table2",
         ),
+        pytest.param(
+            ("table_indented",),
+            True,
+            id="table_indented",
+        ),
     ],
 )
 def test_find_value_span(key, append):
@@ -73,6 +78,9 @@ def test_find_value_span(key, append):
         : !table._value
         + key = "value"
         : ~~~~~~~~~~~~~~table2._value
+        +  [table_indented]
+        + key = "value"
+        :               ^table_indented._append
         """
     )
     parsed_doc = tomlkit.loads(content)
